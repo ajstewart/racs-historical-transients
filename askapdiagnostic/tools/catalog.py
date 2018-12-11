@@ -3,27 +3,54 @@
 import logging
 import astropy.units as u
 from astropy.coordinates import SkyCoord
+import numpy as np
 
-class catalog(object):
+class Catalog(object):
     """docstring for survey"""
-    def __init__(self, df, ra_col="_RAJ2000", dec_col="_DEJ2000", logger=None):
+    def __init__(self, df, surveyref, ra_col="_RAJ2000", dec_col="_DEJ2000", logger=None):
         self.logger = logger or logging.getLogger(__name__)
         self.df = df
+        self.surveyref=surveyref
         self.ra_col=ra_col
         self.dec_col=dec_col
         self._gen_catalog_for_crossmatch()
-        super(catalog, self).__init__()
+        super(Catalog, self).__init__()
 
         
     def _gen_catalog_for_crossmatch(self):
         cat_ra=self.df[self.ra_col].values
         cat_dec=self.df[self.dec_col].values
         
-        self.crossmatch_catalog = SkyCoord(ra=cat_ra*u.degree, dec=cat_dec*u.degree)
+        self._crossmatch_catalog = SkyCoord(ra=cat_ra*u.degree, dec=cat_dec*u.degree)
         
         
     def get_col(self, columname):
         return self.df[columname].values
+        
+    def remove_extended(self, threshold=1.2, ellipse_a="MajAxis", ellipse_b="MinAxis", beam_a=45., beam_b=45., ellipse_unit="arcsec", sumss_psf=False):
+        if sumss_psf:
+            sumss_beam = np.sqrt(45.*45.*(1./np.sin(np.deg2rad(np.abs(self.df[self.dec_col])))))
+            return self.df[(self.df[ellipse_a] <= threshold*sumss_beam) & 
+                (self.df[ellipse_b] <= threshold*sumss_beam)].reset_index(drop=True)
+        else:
+            return self.df[(self.df[ellipse_a] <= threshold*beam_a) & (self.df[ellipse_b] <= threshold*beam_b)].reset_index(drop=True)
+     
+    def write_ann(self, name="", color="GREEN", ellipse_a="MajAxis", ellipse_b="MinAxis", ellipse_pa="PA", ellipse_unit="arcsec"):
+        conversions={"arcsec":3600., "arcmin":60., "deg":1.}
+        if name=="":
+            name=self.surveyref+".ann"
+        catalog = SkyCoord(ra=self.df[self.ra_col], dec=self.df[self.dec_col], unit=(u.deg, u.deg))
+        
+        with open(name, 'w') as f:
+            f.write("COORD W\n")
+            f.write("PA STANDARD\n")
+            f.write("COLOR {}\n".format(color))
+            f.write("FONT hershey14\n")
+            for i,val in enumerate(catalog):
+                f.write("ELLIPSE {} {} {} {} {}\n".format(val.ra.deg, val.dec.deg, 
+                self.df[ellipse_a].iloc[i]/conversions[ellipse_unit], self.df[ellipse_b].iloc[i]/conversions[ellipse_unit], self.df[ellipse_pa].iloc[i]))
+                
+        self.logger.info("Wrote annotation file {}.".format(name))
         
         
     

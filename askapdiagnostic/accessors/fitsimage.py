@@ -81,11 +81,12 @@ class askapimage(object):
                     continue
                 command+="--{} {} ".format(opt, options[opt])
             command+="--table {} ".format(self.imagename.replace(".fits", ".csv"))
-            command+=self.image
+            command+=self.image+" "
+            command+="> "+self.imagename.replace(".fits", "_aegean.log")
             subprocess.call(command, shell=True)
             
             
-    def get_sumss_catalogue(self, boundary_value="nan", write_ann=False):
+    def get_sumss_catalogue(self, boundary_value="nan"):
         cat_ids={"SUMSS":"VIII/81B/sumss212"}
         if not self.wcs:
             self.load_wcs()
@@ -109,9 +110,6 @@ class askapimage(object):
         self.logger.info("SUMSS sources obtained.")
         self.logger.info("Filtering SUMSS sources to only those within the image area...")
         self.sumss_sources=self._filter_sumss_catalogue(boundary_value=boundary_value)
-        if write_ann:
-            self._write_ann(self.raw_sumss_sources, self.imagename.replace(".fits", "_raw_sumss_sources.ann" ), "_RAJ2000", "_DEJ2000", "RED")
-            self._write_ann(self.sumss_sources, self.imagename.replace(".fits", "_sumss_sources.ann" ), "_RAJ2000", "_DEJ2000", "GREEN")
         return self.sumss_sources
         
         
@@ -172,27 +170,12 @@ class askapimage(object):
             nan_mask=~np.array(nan_mask)
         mask_sumss=self.raw_sumss_sources[nan_mask]
 
-        mask_sumss=mask_sumss.dropna(how="all")
+        mask_sumss=mask_sumss.dropna(how="all").reset_index(drop=True)
         
         self.logger.info("{} sources remain after filtering.".format(len(mask_sumss.index)))
         
         return mask_sumss
         
-    def _write_ann(self, df,name, ra_col, dec_col, color):
-        ra=df[ra_col].values
-        dec=df[dec_col].values
-        
-        catalog = SkyCoord(ra=ra, dec=dec, unit=(u.deg, u.deg))
-        
-        with open(name, 'w') as f:
-            f.write("COORD W\n")
-            f.write("PA STANDARD\n")
-            f.write("COLOR {}\n".format(color))
-            f.write("FONT hershey14\n")
-            for i in catalog:
-                f.write("CIRCLE {0} {1} 0.0111111\n".format(i.ra.deg, i.dec.deg))
-                
-        self.logger.info("Wrote annotation file {}.".format(name))
                 
     def write_sumss_sources(self):
         name=self.imagename.replace(".fits", "_sumss_comp.csv")
