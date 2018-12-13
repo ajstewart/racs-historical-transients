@@ -69,6 +69,9 @@ def main():
     parser.add_argument("--write-ann", action="store_true", help="Create annotation files of the catalogues.")
     parser.add_argument("--boundary-value", type=str, help="Define whether the out-of-bounds value in the FITS is 'nan' or 'zero'.", default="nan")
     parser.add_argument("--crossmatch-base", type=str, help="Define the base catalogue in the cross matching.", default="sumss")
+    parser.add_argument("--max-separation", type=float, help="Maximum crossmatch distance (in arcsec) to be consdiered when creating plots.", default=20.)
+    parser.add_argument("--create-postage-stamps", action="store_true", help="Maximum crossmatch distance (in arcsec) to be consdiered when creating plots.", default=20.)
+    parser.add_argument("--sumss-mosaic-dir", type=str, help="Directory containing the SUMSS survey mosaic image files.", default=20.)
     # parser.add_argument("--dont-mask-sumss", action="store_true", help="Do not filter the SUMSS catalogue such that only sources that should be in the ASKAP image remain.")
     args = parser.parse_args()
     
@@ -138,7 +141,7 @@ def main():
                 askap_catalog=askap_catalog[askap_catalog["flags"]==0].reset_index(drop=True)
                 aegean_good_fits=len(askap_catalog.index)
                 logger.info("Total number of good fit sources found by Aegean: {} ({} sources removed).".format(aegean_good_fits, aegean_total - aegean_good_fits))
-            askap_catalog=Catalog(askap_catalog, "{}".format(theimg.imagename.replace(".fits", "_askap")), ra_col="ra", dec_col="dec")
+            askap_catalog=Catalog(askap_catalog, "{}".format(theimg.imagename.replace(".fits", "_askap")), ra_col="ra", dec_col="dec", add_name_col=True)
             
         #Now check for SUMSS file or fetch if none
         if fetch_sumss:
@@ -160,7 +163,7 @@ def main():
         #Initialise the SUMSS catalogue object
         if fetch_sumss:
             raw_sumss=Catalog(theimg.raw_sumss_sources, "{}".format(theimg.imagename.replace(".fits", "_raw_sumss")))
-        sumss_catalog=Catalog(sumss_cat_df, "{}".format(theimg.imagename.replace(".fits", "_sumss")))
+        sumss_catalog=Catalog(sumss_cat_df, "{}".format(theimg.imagename.replace(".fits", "_sumss")), add_name_col=True)
         
         #Filter extended sources if requested
         if args.remove_extended:
@@ -175,6 +178,13 @@ def main():
         else:
             sumss_touse = sumss_catalog
             askap_touse = askap_catalog
+        
+        #Add the respective image to the ASKAP catalog for later
+        askap_touse.add_single_val_col("image", theimg.image)
+        
+        #Calculate distance from centre for each catalog for later
+        askap_touse.add_distance_from_pos(theimg.centre)
+        sumss_touse.add_distance_from_pos(theimg.centre)
         
         #Annotation files
         if args.write_ann:
@@ -193,14 +203,29 @@ def main():
         sumss_askap_crossmatch.perform_crossmatch()
         
         crossmatch_name=theimg.imagename.replace(".fits", "_sumss_askap_crossmatch.csv")
+        
+        #Calculate flux ratios and RA and Dec differences for plots
+        sumss_askap_crossmatch.calculate_ratio("askap_int_flux", "sumss_St", "askap_sumss_int_flux_ratio", col2_scaling=1.e-3)
+        sumss_askap_crossmatch.calculate_ratio("sumss_St", "askap_int_flux", "sumss_askap_int_flux_ratio", col1_scaling=1.e-3)
+        sumss_askap_crossmatch.calculate_diff("askap_ra", "sumss__RAJ2000", "askap_sumss_ra_offset")
+        sumss_askap_crossmatch.calculate_diff("askap_dec", "sumss__DEJ2000", "askap_sumss_dec_offset")
+        
+        #Write out crossmatch df to file
         sumss_askap_crossmatch.write_crossmatch(crossmatch_name)
         
-
+        #Get acceptable seperation df for plots
+        plotting_df = sumss_askap_crossmatch.crossmatch_df[sumss_askap_crossmatch.crossmatch_df["d2d"]<= args.max_separation]
+        
+        
         #Plots    
-        plots.flux_ratio_image_view(sumss_askap_crossmatch.crossmatch_df, 15., title=theimg.imagename+" ASKAP / SUMSS flux ratio")
-        plots.position_offset(sumss_askap_crossmatch.crossmatch_df, 15., title=theimg.imagename+" SUMSS Position Offset")
-        plots.source_counts(sumss_touse.df, askap_touse.df, title=theimg.imagename+" source counts")
-        plots.flux_ratios(sumss_askap_crossmatch.crossmatch_df, 15., title=theimg.imagename+" ASKAP / SUMSS flux ratio")
+        plots.flux_ratio_image_view(plotting_df, title=theimg.imagename+" ASKAP / SUMSS flux ratio")
+        plots.position_offset(plotting_df, title=theimg.imagename+" SUMSS Position Offset")
+        plots.source_counts(sumss_touse.df, askap_touse.df, sumss_askap_crossmatch.crossmatch_df, args.max_separation, title=theimg.imagename+" source counts")
+        plots.flux_ratios_distance_from_centre(plotting_df, args.max_separation, title=theimg.imagename+" ASKAP / SUMSS int. flux ratio vs. Distance from Image Centre")
+        plots.flux_ratios_askap_flux(plotting_df, args.max_separation, title=theimg.imagename+" ASKAP / SUMSS int. flux ratio vs. ASKAP Int Flux")
+        
+        if args.create_postage_stamps:
+            sumss_askap_crossmatch.produce_postage_stamps(args.sumss_mosaic_dir, max_separation=args.max_separation)
             
         os.chdir("..")
         

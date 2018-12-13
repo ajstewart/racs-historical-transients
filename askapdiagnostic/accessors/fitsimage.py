@@ -46,16 +46,16 @@ class askapimage(object):
         self.size_x=self.header["NAXIS1"]
         self.size_y=self.header["NAXIS2"]
         central_coords=[[self.size_x/2.,self.size_y/2.]]
-        center = self.wcs.wcs_pix2world(np.array(central_coords, np.float_), 1)
-        self.center=SkyCoord(ra=center[0][0]*u.degree, dec=center[0][1]*u.degree)
+        centre = self.wcs.wcs_pix2world(np.array(central_coords, np.float_), 1)
+        self.centre=SkyCoord(ra=centre[0][0]*u.degree, dec=centre[0][1]*u.degree)
         if self.size_x >=self.size_y:
             radius_pixels=[[self.size_x,self.size_y/2.]]
         else:
             radius_pixels=[[self.size_x/2.,self.size_y]]
         outskirt = self.wcs.wcs_pix2world(np.array(radius_pixels, np.float_), 1)
         outskirt_coords=SkyCoord(ra=outskirt[0][0]*u.degree, dec=outskirt[0][1]*u.degree)
-        self.radius=self.center.separation(outskirt_coords)
-        self.logger.info("Image Center: {}".format(self.center.to_string('hmsdms')))
+        self.radius=self.centre.separation(outskirt_coords)
+        self.logger.info("Image Centre: {}".format(self.centre.to_string('hmsdms')))
         self.logger.info("Radius: {} (deg)".format(self.radius.degree))
     
     def load_fits_data(self):
@@ -92,7 +92,7 @@ class askapimage(object):
             self.load_wcs()
         if not self.header:
             self.load_header()
-        if not self.center:
+        if not self.centre:
             self.load_position_dimensions()
         if np.abs(self.size_x-self.size_y) > max([self.size_x,self.size_y])*0.05:
             self.logger.warning("Non square image detected! Will pad the Vizier search area by 1.2.")
@@ -104,7 +104,7 @@ class askapimage(object):
         v = Vizier(columns=["_r", "_RAJ2000","_DEJ2000", "**"])
         v.ROW_LIMIT=-1
         self.logger.info("Querying SUMSS using Vizier...")
-        sumss_result=v.query_region(self.center, radius=self.radius*pad, catalog="SUMSS")
+        sumss_result=v.query_region(self.centre, radius=self.radius*pad, catalog="SUMSS")
         sumss_result=sumss_result[cat_ids["SUMSS"]].to_pandas()
         self.raw_sumss_sources=sumss_result
         self.logger.info("SUMSS sources obtained.")

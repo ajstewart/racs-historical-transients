@@ -7,13 +7,15 @@ import numpy as np
 
 class Catalog(object):
     """docstring for survey"""
-    def __init__(self, df, surveyref, ra_col="_RAJ2000", dec_col="_DEJ2000", logger=None):
+    def __init__(self, df, surveyref, ra_col="_RAJ2000", dec_col="_DEJ2000", add_name_col=False, logger=None):
         self.logger = logger or logging.getLogger(__name__)
         self.df = df
         self.surveyref=surveyref
         self.ra_col=ra_col
         self.dec_col=dec_col
         self._gen_catalog_for_crossmatch()
+        if add_name_col:
+            self._add_name_col()
         super(Catalog, self).__init__()
 
         
@@ -23,6 +25,18 @@ class Catalog(object):
         
         self._crossmatch_catalog = SkyCoord(ra=cat_ra*u.degree, dec=cat_dec*u.degree)
         
+    def _add_name_col(self):
+        self.df["name"]=self._crossmatch_catalog.to_string('hmsdms')
+        self.df["name"]=self.df["name"].str.replace(" ", "_")
+    
+    def add_single_val_col(self, colname, value, clobber=False):
+        if colname in self.df.columns:
+            if not clobber:
+                self.logger.error("Column {} already present in Catalog and clobber = False, will not overwrite.".format(colname))
+                return
+            else:
+                self.logger.warning("Overwriting column {} with new value {}.".format(colname, value))
+        self.df[colname] = value
         
     def get_col(self, columname):
         return self.df[columname].values
@@ -34,6 +48,9 @@ class Catalog(object):
                 (self.df[ellipse_b] <= threshold*sumss_beam)].reset_index(drop=True)
         else:
             return self.df[(self.df[ellipse_a] <= threshold*beam_a) & (self.df[ellipse_b] <= threshold*beam_b)].reset_index(drop=True)
+            
+    def add_distance_from_pos(self, position, label="centre"):
+        self.df["distance_from_{}".format(label)]=position.separation(self._crossmatch_catalog).deg
      
     def write_ann(self, name="", color="GREEN", ellipse_a="MajAxis", ellipse_b="MinAxis", ellipse_pa="PA", ellipse_unit="arcsec"):
         conversions={"arcsec":3600., "arcmin":60., "deg":1.}
