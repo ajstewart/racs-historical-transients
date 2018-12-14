@@ -14,13 +14,20 @@ except ImportError:
 
 logger = logging.getLogger(__name__)
 
-def setup_logging(logfilename,use_colorlog):
+def setup_logging(logfilename,level,use_colorlog):
+    levels={'CRITICAL' : logging.CRITICAL,
+        'ERROR' : logging.ERROR,
+        'WARNING' : logging.WARNING,
+        'INFO' : logging.INFO,
+        'DEBUG' : logging.DEBUG
+    }
+    
     root_logger = logging.getLogger()
-    root_logger.setLevel(logging.INFO)
+    root_logger.setLevel(levels[level])
 
     # create a file handler
     handler = logging.FileHandler('{}.log'.format(logfilename), mode='w')
-    handler.setLevel(logging.INFO)
+    handler.setLevel(levels[level])
 
     # create a logging format
     logformat='[%(asctime)s] - %(name)s - %(levelname)s - %(message)s'
@@ -46,7 +53,7 @@ def setup_logging(logfilename,use_colorlog):
             style='%'
         )
     term=logging.StreamHandler()
-    term.setLevel(logging.INFO)
+    term.setLevel(levels[level])
     term.setFormatter(formatter)
     root_logger.addHandler(term)
     

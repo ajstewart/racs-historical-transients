@@ -3,7 +3,7 @@
 import argparse
 import logging
 from askapdiagnostic.tools import utils
-from askapdiagnostic.accessors.fitsimage import askapimage
+from askapdiagnostic.tools.fitsimage import askapimage
 from askapdiagnostic.tools.crossmatch import crossmatch
 from askapdiagnostic.tools.catalog import Catalog
 from askapdiagnostic.plotting import plots
@@ -12,6 +12,7 @@ import os
 import pandas as pd
 import sys
 import subprocess
+import ConfigParser
 # from multiprocessing import Pool
 
 
@@ -27,15 +28,32 @@ def exit(logger):
     logger.info("Exiting...")
     sys.exit()
     
-def source_finding(askapimg, logger, sf="aegean", save_diag_images=False):
+def source_finding(askapimg, logger, sf="aegean", options=None, save_diag_images=False):
     if sf=="aegean":
-        aegean_sf_options={
-            "cores":1,
-            "maxsummits":5,
-            "seedclip":5,
-            "floodclip":4,
-            "nocov":""
-        }
+        if options==None:
+            aegean_sf_options={
+                "cores":1,
+                "maxsummits":5,
+                "seedclip":5,
+                "floodclip":4,
+                "nocov":""
+                }
+        else:
+            config = ConfigParser.SafeConfigParser()
+            config.optionxform = str
+            config.read([options])
+            aegean_sf_options = dict(config.items("aegean"))
+            todel=[]
+            for i in aegean_sf_options:
+                if aegean_sf_options[i].lower()=="true":
+                    aegean_sf_options[i]=""
+                #account for if someone puts false
+                elif aegean_sf_options[i].lower()=="false":
+                    todel.append(i)
+            if len(todel)>0:
+                for d in todel:
+                    del aegean_sf_options[d]
+            
         askapimg.find_sources(options=aegean_sf_options)
         if save_diag_images:
             aegean_sf_options["save"]=""
@@ -54,33 +72,43 @@ def main():
     parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument("images", type=str, nargs="+", help="Define the images to process")
     parser.add_argument("--output-tag", type=str, help="Add a tag to the output name.", default="")
-    parser.add_argument("--clobber", action="store_true", help="Overwrite output")
+    parser.add_argument("--log-level", type=str, choices=["WARNING", "INFO", "DEBUG"], help="Set the logging level.", default="INFO")
+    parser.add_argument("--clobber", action="store_true", help="Overwrite output if already exists.")
     # parser.add_argument("--fetch-sumss", action="store_true", help="Fetch the SUMSS catalogue for the image area from Vizier.")
-    parser.add_argument("--askap-csv", type=str, help="Manually define an aegean output csv file to use.")
+    parser.add_argument("--askap-csv", type=str, help="Manually define a aegean csv file containing the extracted sources to use for the ASKAP image.")
     parser.add_argument("--sumss-csv", type=str, help="Manually provide the SUMSS catalog csv.")
-    parser.add_argument("--remove-extended", action="store_true", help="Remove perceived extended sources from the catalogues.")
-    parser.add_argument("--askap-ext-thresh", type=float, help="Define the scaling threshold of the size of the ASKAP source compared to the PSF. Use to exclude extended sources.",
-        default=1.2)
-    parser.add_argument("--sumss-ext-thresh", type=float, help="Define the scaling threshold of the size of the SUMSS source compared to the PSF. Use to exclude extended sources.",
-        default=1.2)
+    parser.add_argument("--askap-csv-format", type=str, choices=["aegean"], help="Define which source finder provided the ASKAP catalog (currently only supports aegean).", default="aegean")
+    parser.add_argument("--remove-extended", action="store_true", 
+        help="Remove perceived extended sources from the catalogues. Uses the following arguments 'askap-ext-thresh' and 'sumss-ext-thresh' to set the threshold.")
+    parser.add_argument("--askap-ext-thresh", type=float, 
+        help="Define the maximum scaling threshold of the size of the ASKAP source compared to the PSF. Used to exclude extended sources. Only 1 axis has to exceed.", default=1.2)
+    parser.add_argument("--sumss-ext-thresh", type=float, 
+        help="Define the maximum scaling threshold of the size of the SUMSS source compared to the PSF. Use to exclude extended sources. Only 1 axis has to exceed.", default=1.2)
     #Option below provides framework for future source finder support, only aegaen for now.
-    parser.add_argument("--askap-csv-format", type=str, choices=["aegean"], help="Define which source finder provided the ASKAP catalog", default="aegean")
-    parser.add_argument("--use-all-fits", action="store_true", help="Use all the fits from Aegean (default: good fits only i.e. flag == 0).")
-    parser.add_argument("--write-ann", action="store_true", help="Create annotation files of the catalogues.")
-    parser.add_argument("--boundary-value", type=str, help="Define whether the out-of-bounds value in the FITS is 'nan' or 'zero'.", default="nan")
-    parser.add_argument("--crossmatch-base", type=str, help="Define the base catalogue in the cross matching.", default="sumss")
-    parser.add_argument("--max-separation", type=float, help="Maximum crossmatch distance (in arcsec) to be consdiered when creating plots.", default=20.)
-    parser.add_argument("--create-postage-stamps", action="store_true", help="Maximum crossmatch distance (in arcsec) to be consdiered when creating plots.", default=20.)
-    parser.add_argument("--sumss-mosaic-dir", type=str, help="Directory containing the SUMSS survey mosaic image files.", default=20.)
+    parser.add_argument("--use-all-fits", action="store_true", help="Use all the fits from Aegean ignoring all flags. Default only those with flag '0' are used.")
+    parser.add_argument("--write-ann", action="store_true", help="Create kvis annotation files of the catalogues.")
+    parser.add_argument("--boundary-value", type=str, choices=["nan", "zero"], help="Define whether the out-of-bounds value in the ASKAP FITS is 'nan' or 'zero'.", default="nan")
+    parser.add_argument("--crossmatch-base", type=str, help="Define the base catalogue in the cross matching (currently not supported).", default="sumss")
+    parser.add_argument("--max-separation", type=float, help="Maximum crossmatch distance (in arcsec) to be consdiered when creating plots.", default=None)
+    parser.add_argument("--create-postage-stamps", action="store_true", help="Produce postage stamp plots of the cross matched sources within the max separation.")
+    parser.add_argument("--sumss-mosaic-dir", type=str, help="Directory containing the SUMSS survey mosaic image files.", default=None)
+    parser.add_argument("--aegean-settings-config", type=str, help="Select a config file containing the Aegean settings to be used (instead of defaults if none provided).", default=None)
     # parser.add_argument("--dont-mask-sumss", action="store_true", help="Do not filter the SUMSS catalogue such that only sources that should be in the ASKAP image remain.")
     args = parser.parse_args()
     
     sf="aegean"  #For now hardcode the source finder to be aegean.
     
     logname="askapdiagnostic-{}".format(launchtime)
-    utils.setup_logging(logname, use_colorlog)
+    utils.setup_logging(logname, args.log_level, use_colorlog)
+    
+    if args.create_postage_stamps:
+        if args.sumss_mosaic_dir == None:
+            logger.error("SUMSS mosaic directory has not been defined for generating the postage stamps!")
+            logger.error("Define the SUMSS mosaic directory using '--sumss-mosaic-dir' and run again.")
+            exit(logger)
     
     for image in args.images:
+        logger.info("Beginning processing of {}".format(image))
         #First check that image exists and get abs path
         image = os.path.abspath(image)
         if not utils.checkfile(image):
@@ -116,13 +144,22 @@ def main():
             logger.info("No SUMSS catalog provided - will perform fetch of SUMSS sources.")
             fetch_sumss=True
             
+        #If aegean settings provided need to check that the file is present
+        if args.aegean_settings_config != None:
+            aegean_settings_config=os.path.abspath(args.aegean_settings_config)
+            if not utils.checkfile(aegean_settings_config):
+                exit(logger)
+            subprocess.call(["cp", aegean_settings_config, os.path.join(output, "aegean_settings_used.cfg")])
+        else:
+            aegean_settings_config = None
+            
         #Now change directory
         os.chdir(output)
         
         #Perform source finding if needed
         if source_find:
             askap_cat_file=theimg.imagename.replace(".fits", "_comp.csv")
-            source_finding(theimg, logger)
+            source_finding(theimg, logger, options=aegean_settings_config)
             #Check that the source finding was successful
             if not os.path.isfile(askap_cat_file):
                 logger.error("Source finding failed.")
@@ -205,6 +242,7 @@ def main():
         crossmatch_name=theimg.imagename.replace(".fits", "_sumss_askap_crossmatch.csv")
         
         #Calculate flux ratios and RA and Dec differences for plots
+        logger.info("Calculating flux ratios and separations of crossmatches.")
         sumss_askap_crossmatch.calculate_ratio("askap_int_flux", "sumss_St", "askap_sumss_int_flux_ratio", col2_scaling=1.e-3)
         sumss_askap_crossmatch.calculate_ratio("sumss_St", "askap_int_flux", "sumss_askap_int_flux_ratio", col1_scaling=1.e-3)
         sumss_askap_crossmatch.calculate_diff("askap_ra", "sumss__RAJ2000", "askap_sumss_ra_offset")
@@ -214,25 +252,38 @@ def main():
         sumss_askap_crossmatch.write_crossmatch(crossmatch_name)
         
         #Get acceptable seperation df for plots
-        plotting_df = sumss_askap_crossmatch.crossmatch_df[sumss_askap_crossmatch.crossmatch_df["d2d"]<= args.max_separation]
-        
+        if args.max_separation!=None:
+            plotting_df = sumss_askap_crossmatch.crossmatch_df[sumss_askap_crossmatch.crossmatch_df["d2d"]<= args.max_separation]
+        else:
+            plotting_df = sumss_askap_crossmatch.crossmatch_df
+            
+        plotting_len=len(plotting_df.index)
+        logger.debug("Length of plotting_df: {}".format(plotting_len))
         
         #Plots    
-        plots.flux_ratio_image_view(plotting_df, title=theimg.imagename+" ASKAP / SUMSS flux ratio")
-        plots.position_offset(plotting_df, title=theimg.imagename+" SUMSS Position Offset")
-        plots.source_counts(sumss_touse.df, askap_touse.df, sumss_askap_crossmatch.crossmatch_df, args.max_separation, title=theimg.imagename+" source counts")
-        plots.flux_ratios_distance_from_centre(plotting_df, args.max_separation, title=theimg.imagename+" ASKAP / SUMSS int. flux ratio vs. Distance from Image Centre")
-        plots.flux_ratios_askap_flux(plotting_df, args.max_separation, title=theimg.imagename+" ASKAP / SUMSS int. flux ratio vs. ASKAP Int Flux")
+        logger.info("Producing plots.")
+        plots.flux_ratio_image_view(plotting_df, title=theimg.imagename+" ASKAP / SUMSS flux ratio", base_filename=theimg.imagename.replace(".fits", ""))
+        plots.position_offset(plotting_df, title=theimg.imagename+" SUMSS Position Offset", base_filename=theimg.imagename.replace(".fits", ""))
+        plots.source_counts(sumss_touse.df, askap_touse.df, sumss_askap_crossmatch.crossmatch_df, args.max_separation, 
+            title=theimg.imagename+" source counts", base_filename=theimg.imagename.replace(".fits", ""))
+        plots.flux_ratios_distance_from_centre(plotting_df, args.max_separation, 
+            title=theimg.imagename+" ASKAP / SUMSS int. flux ratio vs. Distance from Image Centre", base_filename=theimg.imagename.replace(".fits", ""))
+        plots.flux_ratios_askap_flux(plotting_df, args.max_separation, 
+            title=theimg.imagename+" ASKAP / SUMSS int. flux ratio vs. ASKAP Int Flux", base_filename=theimg.imagename.replace(".fits", ""))
         
         if args.create_postage_stamps:
+            logger.info("Beginning postage stamp production.")
             sumss_askap_crossmatch.produce_postage_stamps(args.sumss_mosaic_dir, max_separation=args.max_separation)
+            os.mkdir("postage-stamps")
+            subprocess.call("mv *_sidebyside.png postage-stamps", shell=True)
             
         os.chdir("..")
         
-        logger.info("Analysis complete.")
+        logger.info("Analysis complete for {}.".format(theimg.imagename))
         
-        subprocess.call(["cp", logname+".log", output])
-        subprocess.call(["rm", logname+".log"])
+    logger.info("All images done. Log will be placed in {}.".format(output))
+    subprocess.call(["cp", logname+".log", output])
+    subprocess.call(["rm", logname+".log"])
         
         
         

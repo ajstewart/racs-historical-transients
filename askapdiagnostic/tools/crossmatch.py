@@ -1,5 +1,7 @@
 #!/usr/bin/env python
 
+import matplotlib
+matplotlib.use('Agg')
 import logging
 import aplpy
 from astropy.coordinates import SkyCoord
@@ -61,7 +63,7 @@ class crossmatch(object):
         else:
             postage_df=self.postage_df.copy(deep=True)
             
-        self.logger.info("Estimated time to completion = {:.2f} hours".format(len(postage_df.index)*4./3600.))
+        self.logger.info("Estimated time to completion = {:.2f} hours".format(len(postage_df.index)*6./3600.))
         #Minimise fits opening so first get a list of all the unique SUMSS fits files to be used
         sumss_fits_mosaics = postage_df["sumss_Mosaic"].unique()
         #For now support one ASKAP image at a time so can just take this from the first entry.
@@ -77,17 +79,18 @@ class crossmatch(object):
             postage_df["askap_a"]/3600., angle=postage_df["askap_pa"], layer="ASKAP Sources", color="#1f77b4")
         panels[0].show_ellipses(postage_df["sumss__RAJ2000"],postage_df["sumss__DEJ2000"],postage_df["sumss_MinAxis"]/3600., 
             postage_df["sumss_MajAxis"]/3600., angle=postage_df["sumss_PA"], layer="SUMSS Sources", color="#d62728")
-        panels[0].set_title("ASKAP")
+        # panels[0].set_title("ASKAP")
             
         #Now start the SUMSS loop
         for s_image in sumss_fits_mosaics:
             #Get the actual fits file
+            self.logger.debug("SUMSS image: {}".format(s_image))
             s_image_path=os.path.join(sumss_mosaic_dir, s_image+".FITS")
             #Filter the dataframe such that only the SUMSS sources are present
             filtered_cross_matches=postage_df[postage_df["sumss_Mosaic"]==s_image].reset_index(drop=True)
             #Generate the base SUMSS panel
             panels=self._plotinitial(panels, 1, fig, s_image_path)
-            panels[1].set_title("SUMSS")
+            # panels[1].set_title("SUMSS")
             #Add the sources
             panels[1].show_ellipses(postage_df["askap_ra"],postage_df["askap_dec"],postage_df["askap_b"]/3600., 
                 postage_df["askap_a"]/3600., angle=postage_df["askap_pa"], layer="ASKAP Sources", color="#1f77b4", label="ASKAP Sources")
@@ -97,6 +100,8 @@ class crossmatch(object):
             panels[1].tick_labels.hide()
             #Now begin the main loop per source
             for i, row in filtered_cross_matches.iterrows():
+                panels[0].set_title("ASKAP "+row["askap_name"])
+                panels[1].set_title("SUMSS "+row["sumss_name"])
                 #Centre each image on the ASKAP coordinates for clarity
                 recentre_ra=row["askap_ra"]
                 recentre_dec=row["askap_dec"]
@@ -104,29 +109,27 @@ class crossmatch(object):
                     panels[p].recenter(recentre_ra, recentre_dec, radius)
                 panels[0].show_circles([recentre_ra], [recentre_dec], 120./3600., color='C1', label="ASKAP source", layer="ASKAP Source")
                 panels[1].show_circles([row["sumss__RAJ2000"]], [row["sumss__DEJ2000"]],120./3600., color='C9', label="SUMSS source", layer="SUMSS Source")
-                    
-                # panels[0].add_label(0.2, 0.05, "d2d = {:.2f} arcsec".format(row["d2d"]), relative=True, layer="d2d", color="red")
-                # panels[1].add_label(0.2, 0.05, "Flux Ratio A/S = {:.2f}".format(row["askap_sumss_int_flux_ratio"]), relative=True, layer="ratio", color="red")
                 
-                sep_text=plt.text(0.02, 0.02, "d2d = {:.2f} arcsec".format(row["d2d"]), transform=plt.gcf().transFigure)
-                ratio_text=plt.text(0.8, 0.02, "Flux Ratio A/S = {:.2f}".format(row["askap_sumss_int_flux_ratio"]), transform=plt.gcf().transFigure)
+                sep_text=plt.text(0.02, 0.02, "Distance Separation = {:.2f} arcsec".format(row["d2d"]), transform=plt.gcf().transFigure)
+                ratio_text=plt.text(0.8, 0.02, "Int. Flux Ratio ASKAP/SUMSS = {:.2f}".format(row["askap_sumss_int_flux_ratio"]), transform=plt.gcf().transFigure)
                 
                 #Figure name
                 # plt.title(row["sumss_name"])
-                figname = row["sumss_name"]+"_sidebyside.png"
-                self.logger.info("Saving figure")
+                figname = "SUMSS_{}_sidebyside.png".format(row["sumss_name"])
+                
                 custom_lines = [Line2D([0], [0], color='#1f77b4'),
                                 Line2D([0], [0], color='#d62728'),    
                                 Line2D([0], [0], color='C1'),    
                                 Line2D([0], [0], color='C9')]    
                 plt.gca().legend(custom_lines, ["ASKAP Sources", "SUMSSS Sources", "Matched ASKAP", "Matched SUMSS"])
-                # plt.show()
-                plt.savefig('{0}_sidebyside.png'.format(figname), bbox_inches="tight")
-                # for p in panels:
+
+                plt.savefig(figname, bbox_inches="tight")
+
+                self.logger.info("Saved figure {}.".format(figname))
+                
                 panels[0].remove_layer("ASKAP Source")
                 panels[1].remove_layer("SUMSS Source")
-                # panels[0].remove_layer("d2d")
-                # panels[1].remove_layer("ratio")
+
                 sep_text.set_visible(False)
                 ratio_text.set_visible(False)
             

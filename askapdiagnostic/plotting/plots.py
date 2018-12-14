@@ -1,5 +1,7 @@
 #!/usr/bin/env python
 
+import matplotlib
+matplotlib.use('Agg')
 import logging
 import matplotlib.pyplot as plt
 import numpy as np
@@ -9,10 +11,10 @@ from matplotlib.lines import Line2D
 logger = logging.getLogger(__name__)
 
 
-def flux_ratio_image_view(df, title="Flux ratio plot", save=True):
+def flux_ratio_image_view(df, title="Flux ratio plot", save=True, base_filename="image"):
     # filter_df=df[df["d2d"]<=maxsep].reset_index(drop=True)
     # ratios=filter_df["askap_int_flux"]/(filter_df["sumss_St"]/1.e3).values
-    #sloppy check
+    #sloppy check for now - needs addressing
     mask=[True if i < 5. else False for i in df["askap_sumss_int_flux_ratio"]]
     fig = plt.figure(figsize=(10, 8))
     ax = fig.add_subplot(111)
@@ -26,12 +28,13 @@ def flux_ratio_image_view(df, title="Flux ratio plot", save=True):
     plt.title(title)
     
     if save:
-        logger.info("Plot saved")
-        plt.savefig("flux_ratio_location_pandas.png", bbox_inches="tight")
+        filename="{}_flux_ratio_image_view.png".format(base_filename)
+        plt.savefig(filename, bbox_inches="tight")
+        logger.info("Figure {} saved.".format(filename))
     plt.close()
     
     
-def position_offset(df, title="Position offset plot", save=True):
+def position_offset(df, title="Position offset plot", save=True, base_filename="image"):
     # filter_df=df[df["d2d"]<=maxsep]
     ra_offset=df["askap_sumss_ra_offset"]*3600.
     dec_offset=df["askap_sumss_dec_offset"]*3600.
@@ -60,12 +63,13 @@ def position_offset(df, title="Position offset plot", save=True):
     ax.legend(custom_lines, ['Median Offset'])
     ax.text(10,-19, "Median RA Offset = {:.2f}\nMedian Dec Offset = {:.2f}".format(med_ra_offset, med_dec_offset))
     if save:
-        logger.info("Plot saved")
-        plt.savefig("sumss-offset.png", bbox_inches="tight")
+        filename="{}_position_offset_from_sumss.png".format(base_filename)
+        plt.savefig(filename, bbox_inches="tight")
+        logger.info("Figure {} saved.".format(filename))
     plt.close()
     
     
-def source_counts(sumss_df, askap_df, crossmatch_df, max_sep, title="Source counts plot", save=True):
+def source_counts(sumss_df, askap_df, crossmatch_df, max_sep, title="Source counts plot", save=True, base_filename="image"):
     fig = plt.figure(figsize=(10, 8))
     ax = fig.add_subplot(111)
     ax.grid(zorder=1)
@@ -78,7 +82,10 @@ def source_counts(sumss_df, askap_df, crossmatch_df, max_sep, title="Source coun
     num_askap_above_50=len(askap_above_50.index)
     num_askap_below_50=len(askap_below_50.index)
     total_askap_expected=num_askap_below_50+num_askap_above_50
-    num_sumss_sources_matched = len(crossmatch_df[crossmatch_df["d2d"]<=max_sep].index)
+    if max_sep!=None:
+        num_sumss_sources_matched = len(crossmatch_df[crossmatch_df["d2d"]<=max_sep].index)
+    else:
+        num_sumss_sources_matched = len(crossmatch_df.index)
     logger.info("Number of ASKAP sources present expected to be seen:")
     logger.info("Dec > -50 deg (>= 10 mJy): {}".format(num_askap_above_50))
     logger.info("Dec <= -50 deg (>= 6 mJy): {}".format(num_askap_below_50))
@@ -90,12 +97,13 @@ def source_counts(sumss_df, askap_df, crossmatch_df, max_sep, title="Source coun
     for i,val in enumerate((total_askap_sources, total_askap_expected, num_sumss_sources, num_sumss_sources_matched)):
         ax.text((i+1-0.1), val+20, "{}".format(val),zorder=10)
     if save:
-        logger.info("Plot saved")
-        plt.savefig("askap-sumss-source-counts.png", bbox_inches="tight")
+        filename="{}_source_counts.png".format(base_filename)
+        plt.savefig(filename, bbox_inches="tight")
+        logger.info("Figure {} saved.".format(filename))
     plt.close()
     
     
-def flux_ratios_askap_flux(df, max_sep, title="Flux ratio", save=True):
+def flux_ratios_askap_flux(df, max_sep, title="Flux ratio", save=True, base_filename="image"):
     fig = plt.figure(figsize=(10, 8))
     ax = fig.add_subplot(111)
     # filter_df=df[df["d2d"]<=maxsep].reset_index(drop=True)
@@ -114,12 +122,13 @@ def flux_ratios_askap_flux(df, max_sep, title="Flux ratio", save=True):
     ax.set_xscale("log")
     plt.legend()
     if save:
-        logger.info("Plot saved")
-        plt.savefig("askap-sumss-flux-ratio-askap-flux.png", bbox_inches="tight")
+        filename="{}_flux_ratio_vs_askap_flux.png".format(base_filename)
+        plt.savefig(filename, bbox_inches="tight")
+        logger.info("Figure {} saved.".format(filename))
     plt.close()
     
     
-def flux_ratios_distance_from_centre(df, max_sep, title="Flux ratio", save=True):
+def flux_ratios_distance_from_centre(df, max_sep, title="Flux ratio", save=True, base_filename="image"):
     fig = plt.figure(figsize=(10, 8))
     ax = fig.add_subplot(111)
     # filter_df=df[df["d2d"]<=maxsep].reset_index(drop=True)
@@ -137,8 +146,9 @@ def flux_ratios_distance_from_centre(df, max_sep, title="Flux ratio", save=True)
     ax.axhline(median_flux_ratio-std_flux_ratio, color="gold")
     plt.legend()
     if save:
-        logger.info("Plot saved")
-        plt.savefig("askap-sumss-flux-ratio-askap-image-position.png", bbox_inches="tight")
+        filename="{}_flux_ratio_vs_distance_from_centre.png".format(base_filename)
+        plt.savefig(filename, bbox_inches="tight")
+        logger.info("Figure {} saved.".format(filename))
     plt.close()
     
     

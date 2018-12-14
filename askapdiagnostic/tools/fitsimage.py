@@ -83,6 +83,7 @@ class askapimage(object):
             command+="--table {} ".format(self.imagename.replace(".fits", ".csv"))
             command+=self.image+" "
             command+="> "+self.imagename.replace(".fits", "_aegean.log")
+            self.logger.debug("Aegean command: {}".format(command))
             subprocess.call(command, shell=True)
             
             
