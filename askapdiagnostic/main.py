@@ -93,6 +93,7 @@ def main():
     parser.add_argument("--create-postage-stamps", action="store_true", help="Produce postage stamp plots of the cross matched sources within the max separation.")
     parser.add_argument("--sumss-mosaic-dir", type=str, help="Directory containing the SUMSS survey mosaic image files.", default=None)
     parser.add_argument("--aegean-settings-config", type=str, help="Select a config file containing the Aegean settings to be used (instead of defaults if none provided).", default=None)
+    parser.add_argument("--transients", action="store_true", help="Perform a transient search analysis using the crossmatch data. Requires '--max-separation' to be defined.", default=None)
     # parser.add_argument("--dont-mask-sumss", action="store_true", help="Do not filter the SUMSS catalogue such that only sources that should be in the ASKAP image remain.")
     args = parser.parse_args()
     
@@ -106,6 +107,15 @@ def main():
             logger.error("SUMSS mosaic directory has not been defined for generating the postage stamps!")
             logger.error("Define the SUMSS mosaic directory using '--sumss-mosaic-dir' and run again.")
             exit(logger)
+
+    if args.transients:
+        if args.max_separation==None:
+            logger.error("Transients option selected but 'max-separation' is not defined.")
+            logger.error("Define the max-separation using '--max-separation' and run again.")
+            exit(logger)
+        # if args.create_postage_stamps!=True:
+        #     logger.warning("Transients option selected - turning on postage stamp production.")
+        #     args.create_postage_stamps=True
     
     for image in args.images:
         logger.info("Beginning processing of {}".format(image))
@@ -223,6 +233,9 @@ def main():
         askap_touse.add_distance_from_pos(theimg.centre)
         sumss_touse.add_distance_from_pos(theimg.centre)
         
+        #Add SUMSS S/N for ASKAP sources
+        askap_touse.add_sumss_sn(flux_col="int_flux")
+        
         #Annotation files
         if args.write_ann:
             if fetch_sumss:
@@ -271,9 +284,15 @@ def main():
         plots.flux_ratios_askap_flux(plotting_df, args.max_separation, 
             title=theimg.imagename+" ASKAP / SUMSS int. flux ratio vs. ASKAP Int Flux", base_filename=theimg.imagename.replace(".fits", ""))
         
+        if args.transients:
+            sumss_mosaic_data=pd.read_csv(pkg_resources.resource_filename(__name__, "data/sumss_images_info.csv"))
+            sumss_askap_crossmatch.transient_search(max_separation=args.max_separation)
+            os.mkdir("transients")
+            subprocess.call("mv transients*.csv transients/", shell=True)
+        
         if args.create_postage_stamps:
             logger.info("Beginning postage stamp production.")
-            sumss_askap_crossmatch.produce_postage_stamps(args.sumss_mosaic_dir, max_separation=args.max_separation)
+            sumss_askap_crossmatch.produce_postage_stamps(args.sumss_mosaic_dir)# , max_separation=args.max_separation) for now hard lock all matches to be postage stamped.
             os.mkdir("postage-stamps")
             subprocess.call("mv *_sidebyside.png postage-stamps", shell=True)
             

@@ -1,7 +1,7 @@
 from setuptools import setup, find_packages
 
 setup(name='askap-image-diagnostic',
-      version='0.2',
+      version='0.3',
       description='Perform analysis tasks on ASKAP images.',
       url='http://github.com/ajstewart/askap-image-diagnostic',
       author='Adam Stewart',
