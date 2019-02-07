@@ -73,6 +73,7 @@ def main():
     parser.add_argument("images", type=str, nargs="+", help="Define the images to process")
     parser.add_argument("--output-tag", type=str, help="Add a tag to the output name.", default="")
     parser.add_argument("--log-level", type=str, choices=["WARNING", "INFO", "DEBUG"], help="Set the logging level.", default="INFO")
+    parser.add_argument("--nice", type=int, help="Set the 'nice' level of processes.", default=10)
     parser.add_argument("--clobber", action="store_true", help="Overwrite output if already exists.")
     # parser.add_argument("--fetch-sumss", action="store_true", help="Fetch the SUMSS catalogue for the image area from Vizier.")
     parser.add_argument("--askap-csv", type=str, help="Manually define a aegean csv file containing the extracted sources to use for the ASKAP image.")
@@ -91,10 +92,15 @@ def main():
     parser.add_argument("--crossmatch-base", type=str, help="Define the base catalogue in the cross matching (currently not supported).", default="sumss")
     parser.add_argument("--max-separation", type=float, help="Maximum crossmatch distance (in arcsec) to be consdiered when creating plots.", default=None)
     parser.add_argument("--create-postage-stamps", action="store_true", help="Produce postage stamp plots of the cross matched sources within the max separation.")
+    parser.add_argument("--postage-stamp-selection", type=str, nargs="+", choices=["all", "good", "bad", "transients"], help="Select which postage stamps to create.", default=["good"])
+    # parser.add_argument("--nprocs", type=int, help="Number of simulataneous SUMSS images at once when producing postage stamps.", default=1)
     parser.add_argument("--sumss-mosaic-dir", type=str, help="Directory containing the SUMSS survey mosaic image files.", default=None)
     parser.add_argument("--aegean-settings-config", type=str, help="Select a config file containing the Aegean settings to be used (instead of defaults if none provided).", default=None)
+    parser.add_argument("--transients", action="store_true", help="Perform a transient search analysis using the crossmatch data. Requires '--max-separation' to be defined.", default=None)
     # parser.add_argument("--dont-mask-sumss", action="store_true", help="Do not filter the SUMSS catalogue such that only sources that should be in the ASKAP image remain.")
     args = parser.parse_args()
+    
+    os.nice(args.nice)
     
     sf="aegean"  #For now hardcode the source finder to be aegean.
     
@@ -106,6 +112,35 @@ def main():
             logger.error("SUMSS mosaic directory has not been defined for generating the postage stamps!")
             logger.error("Define the SUMSS mosaic directory using '--sumss-mosaic-dir' and run again.")
             exit(logger)
+        logger.info("Will create the following postage stamps:")
+        postage_options=args.postage_stamp_selection
+        if "all" in postage_options:
+            logger.info("all")
+            postage_options=["all"]
+            if args.transients:
+                postage_options.append("transients")
+        else:
+            if "good" in postage_options and "bad" in postage_options:
+                if "transients" in postage_options:
+                    postage_options=["all", "transients"]
+                else:
+                    postage_options=["all"]
+            if "transients" in postage_options and not args.transients:
+                logger.error("'transients' included in postage stamp options but '--transients' is not selected.")
+                logger.error("Please confirm settings and launch again")
+                exit(logger)
+            else:
+                for i in postage_options:
+                    logger.info(i)
+        
+    if args.transients:
+        if args.max_separation==None:
+            logger.error("Transients option selected but 'max-separation' is not defined.")
+            logger.error("Define the max-separation using '--max-separation' and run again.")
+            exit(logger)
+        # if args.create_postage_stamps!=True:
+        #     logger.warning("Transients option selected - turning on postage stamp production.")
+        #     args.create_postage_stamps=True
     
     for image in args.images:
         logger.info("Beginning processing of {}".format(image))
@@ -223,6 +258,11 @@ def main():
         askap_touse.add_distance_from_pos(theimg.centre)
         sumss_touse.add_distance_from_pos(theimg.centre)
         
+        #Add SUMSS S/N for ASKAP sources
+        askap_touse.add_sumss_sn(flux_col="peak_flux")
+        sumss_touse.add_sumss_sn(flux_col="Sp", dec_col="_DEJ2000", flux_scaling=0.001)
+        askap_touse._add_askap_sn()
+        
         #Annotation files
         if args.write_ann:
             if fetch_sumss:
@@ -271,11 +311,34 @@ def main():
         plots.flux_ratios_askap_flux(plotting_df, args.max_separation, 
             title=theimg.imagename+" ASKAP / SUMSS int. flux ratio vs. ASKAP Int Flux", base_filename=theimg.imagename.replace(".fits", ""))
         
+        if args.transients:
+            sumss_askap_crossmatch.transient_search(max_separation=args.max_separation)
+            os.makedirs("transients/no-match")
+            os.makedirs("transients/large-ratio")
+            os.makedirs("transients/askap-notseen")
+            subprocess.call("mv transients*.csv transients/", shell=True)
+        
         if args.create_postage_stamps:
-            logger.info("Beginning postage stamp production.")
-            sumss_askap_crossmatch.produce_postage_stamps(args.sumss_mosaic_dir, max_separation=args.max_separation)
-            os.mkdir("postage-stamps")
-            subprocess.call("mv *_sidebyside.png postage-stamps", shell=True)
+            logger.info("Starting postage stamp production.")
+            sumss_askap_crossmatch.produce_postage_stamps(args.sumss_mosaic_dir,postage_options, nprocs=1, max_separation=args.max_separation)
+            os.makedirs("postage-stamps/good")
+            os.makedirs("postage-stamps/bad")
+            if args.transients:
+                try:
+                    subprocess.check_output("mv transient*NOMATCH*_sidebyside.jpg transients/no-match/", shell=True, stderr=subprocess.STDOUT)
+                except subprocess.CalledProcessError as e:
+                    logger.warning("No transient 'NO MATCH' images to move.")
+                try:
+                    subprocess.check_output("mv transient*LARGERATIO*_sidebyside.jpg transients/large-ratio/", shell=True, stderr=subprocess.STDOUT)
+                except subprocess.CalledProcessError as e:
+                    logger.warning("No transient 'LARGE RATIO' images to move.")
+                try:
+                    subprocess.check_output("mv transient_askapnotseen*_sidebyside.jpg transients/askap-notseen/", shell=True, stderr=subprocess.STDOUT)
+                except subprocess.CalledProcessError as e:
+                    logger.warning("No transient 'ASKAP NOT SEEN' images to move.")
+                
+            subprocess.call("mv *GOOD*_sidebyside.jpg postage-stamps/good/", shell=True)
+            subprocess.call("mv *BAD*_sidebyside.jpg postage-stamps/bad/", shell=True)
             
         os.chdir("..")
         

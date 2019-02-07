@@ -28,6 +28,12 @@ class Catalog(object):
     def _add_name_col(self):
         self.df["name"]=self._crossmatch_catalog.to_string('hmsdms')
         self.df["name"]=self.df["name"].str.replace(" ", "_")
+        
+    def _sumss_rms(self,dec):
+        if dec>-50:
+            return 0.010
+        else:
+            return 0.006
     
     def add_single_val_col(self, colname, value, clobber=False):
         if colname in self.df.columns:
@@ -68,6 +74,15 @@ class Catalog(object):
                 self.df[ellipse_a].iloc[i]/conversions[ellipse_unit], self.df[ellipse_b].iloc[i]/conversions[ellipse_unit], self.df[ellipse_pa].iloc[i]))
                 
         self.logger.info("Wrote annotation file {}.".format(name))
+        
+    def add_sumss_sn(self, flux_col="int_flux", dec_col="dec", flux_scaling=1.):
+        self.df["sumss_snr"]=(flux_scaling*self.df[flux_col])/self.df[dec_col].apply(self._sumss_rms)
+        
+    def _add_askap_sn(self):
+        try:
+            self.df["snr"]=self.df["peak_flux"]/self.df["local_rms"]
+        except:
+            self.logger.error("Adding ASKAP SNR not supported for this dataframe.")
         
         
     
