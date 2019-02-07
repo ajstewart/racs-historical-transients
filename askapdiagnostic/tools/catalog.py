@@ -75,9 +75,14 @@ class Catalog(object):
                 
         self.logger.info("Wrote annotation file {}.".format(name))
         
-    def add_sumss_sn(self, flux_col="int_flux", dec_col="dec"):
-        self.df["sumss_snr"]=self.df[flux_col]/self.df[dec_col].apply(self._sumss_rms)
+    def add_sumss_sn(self, flux_col="int_flux", dec_col="dec", flux_scaling=1.):
+        self.df["sumss_snr"]=(flux_scaling*self.df[flux_col])/self.df[dec_col].apply(self._sumss_rms)
         
+    def _add_askap_sn(self):
+        try:
+            self.df["snr"]=self.df["peak_flux"]/self.df["local_rms"]
+        except:
+            self.logger.error("Adding ASKAP SNR not supported for this dataframe.")
         
         
     
