@@ -1,0 +1,66 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load units %}
+
+{% block breadcrumb %}
+ <li class="breadcrumb-item"><a href="{% url 'home' %}">Images</a></li>
+ <li class="breadcrumb-item active">{{ image.name }}</li>
+{% endblock %}
+
+
+{% block content %}
+<div class="card mb-3 mx-auto">
+ <h5 class="card-header bg-info mb-3 text-white">Image Details</h5>
+  <div class="card-body">
+    <!-- <h5 class="card-title">{{ image.name}} details</h5> -->
+    <p class="card-text"><b>Right Ascension:</b> {{image.ra|deg_to_hms}} &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 
+        <b>Number of ASKAP Sources:</b> {{image.number_askap_sources}}<br>
+    <b>Declination:</b> {{image.dec|deg_to_dms}} &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 
+        <b>Number of SUMSS Sources:</b> {{image.number_sumss_sources}}<br></p>
+  </div>
+</div>
+
+<div class="card mb-3 mx-auto">
+ <h5 class="card-header bg-info mb-3 text-white">Processing Options Used</h5>
+  <div class="card-body">
+    <!-- <h5 class="card-title">{{ image.name}} details</h5> -->
+    <p class="card-text"><b>Aegean Detection Sigma: </b>{{ processing_options.aegean_det_sigma }}&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+        <b>Aegean Fill Sigma: </b>{{ processing_options.aegean_fill_sigma }}&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+    <b>Max Separation: </b>{{ processing_options.max_separation }} arcsec</p>
+    <p class="card-text"><b>ASKAP Extended Threshold: </b>{{ processing_options.askap_ext_thresh }}&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+        <b>SUMSS Extended Threshold: </b>{{ processing_options.sumss_ext_thresh }}</p>
+    <p class="card-text"><b>ASKAP CSV: </b>{{ processing_options.askap_csv }}</p>
+    <p class="card-text"><b>SUMSS CSV: </b>{{ processing_options.sumss_csv }}</p>
+    <p class="card-text"><b>Output Directory: </b>{{ processing_options.output_dir }}</p>
+  </div>
+</div>
+
+<div class="card mb-3 mx-auto">
+ <h5 class="card-header bg-secondary mg-1 text-white">Crossmatch Outputs</h5>
+  <div class="card-body">
+    <!-- <h5 class="card-title">{{ image.name}} details</h5> -->
+    <p class="card-text">
+        <a href="{% url 'sumssnomatch' image.pk %}" class="btn btn-primary">No ASKAP Match to SUMSS</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+        <a href="{% url 'askapnotseen' image.pk %}" class="btn btn-primary mx-auto">No SUMSS Match to ASKAP</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+        <a href="{% url 'largeratio' image.pk %}" class="btn btn-primary mx-auto">Large Flux Ratio</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+        <a href="{% url 'goodmatch' image.pk %}" class="btn btn-primary mx-auto">Good Matches</a></p>
+  </div>
+</div>
+
+<div class="card mb-3 mx-auto">
+ <h5 class="card-header bg-dark mb-3 text-white">Diagnostic Plots</h5>
+  <div class="card-body">
+    <!-- <h5 class="card-title">{{ image.name}} details</h5> -->
+    <p class="card-text">    <img src="{% static image.flux_ratio_image_view %}" class="mx-auto d-block" width="90%" height="90%"/>
+    <img src="{% static image.position_offset %}" class="mx-auto d-block" width="90%" height="90%"/>
+    <img src="{% static image.source_counts %}" class="mx-auto d-block" width="90%" height="90%"/>
+    <img src="{% static image.flux_ratios %}" class="mx-auto d-block" width="90%" height="90%"/>
+    <img src="{% static image.flux_ratios_from_centre %}" class="mx-auto d-block" width="90%" height="90%"/></p>
+    <a href="{% static image.askap_overlay %}" >
+    <img src="{% static image.askap_overlay %}" class="mx-auto d-block" width="90%" height="90%"/></a>
+    <a href="{% static image.sumss_overlay %}" >
+    <img src="{% static image.sumss_overlay %}" class="mx-auto d-block" width="90%" height="90%"/></a></p>
+  </div>
+</div>
+{% endblock %}
+

@@ -1,0 +1,106 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load units %}
+
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{% url 'home' %}">Images</a></li>
+<li class="breadcrumb-item"><a href="{% url 'image_detail' image.pk %}">{{ image.name }}</a></li>
+<li class="breadcrumb-item"><a href="{% url type_url image.pk %}">{{ title }}</a></li>
+<li class="breadcrumb-item active">{{ crossmatch_source.sumss_name }}</li>
+{% endblock %}
+
+ {% block content %}   
+ {% if not user.is_authenticated %}
+ <div class="alert alert-danger alert-dismissible fade show" role="alert">
+   <strong>You must be logged in to assign a user tag!</strong>
+   <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+     <span aria-hidden="true">&times;</span>
+   </button>
+ </div>
+ {% endif %}
+ {% if crossmatch_source.checkedby != "N/A" %}
+ <div class="alert alert-warning alert-dismissible fade show" role="alert">
+   <strong>This source is already marked as checked!</strong> Checked by {{ crossmatch_source.checkedby }}.
+   <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+     <span aria-hidden="true">&times;</span>
+   </button>
+ </div>
+ {% endif %}
+ {% if saved %}
+ <div class="alert alert-success alert-dismissible fade show" role="alert">
+   <strong>User tag has been saved.</strong>
+   <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+     <span aria-hidden="true">&times;</span>
+   </button>
+ </div>
+ {% endif %}
+ 
+ {% if saved == False %}
+ <div class="alert alert-danger alert-dismissible fade show" role="alert">
+   <strong>User tag has not been saved.</strong> There is a previous definition.
+   <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+     <span aria-hidden="true">&times;</span>
+   </button>
+ </div>
+ {% endif %}
+ 
+    <div class="container">
+      <div class="row">
+        <div class="col text-center">
+            {% if crossmatch_source.match_id > min_id %}
+         <a href="{% url 'crossmatch_detail' pk=image.pk querytype=type cross_id=crossmatch_source.match_id|add:"-1" %}" class="btn btn-primary mx-auto">Previous Source</a>
+         {% else %}
+         <button type="button" class="btn btn-primary mx-auto" disabled>Previous Source</button>
+             {% endif %}
+             {% if crossmatch_source.match_id < max_id %}
+             <a href="{% url 'crossmatch_detail' pk=image.pk querytype=type cross_id=crossmatch_source.match_id|add:"1" %}" class="btn btn-primary mx-auto">Next Source</a>
+             {% else %}
+              <button type="button" class="btn btn-primary mx-auto" disabled>Next Source</button>
+              {% endif %}
+        </div>
+      </div>
+    </div>
+
+ <div class="card mb-3 mx-auto">
+  <h5 class="card-header bg-info mb-1 text-white">User Tag Assign Options</h5>
+   <div class="card-body">
+       <div class="col text-center">
+        {% if user.is_authenticated %}
+       <a href="{% url 'crossmatch_commit' pk=image.pk querytype=type cross_id=crossmatch_source.match_id %}?username={{user.username}}&usertag=ignore" class="btn btn-success mx-auto">Ignore</a>
+       <a href="{% url 'crossmatch_commit' pk=image.pk querytype=type cross_id=crossmatch_source.match_id %}?username={{user.username}}&usertag=not%20sure" class="btn btn-warning mx-auto">Not sure</a>
+       <a href="{% url 'crossmatch_commit' pk=image.pk querytype=type cross_id=crossmatch_source.match_id %}?username={{user.username}}&usertag=investigate" class="btn btn-danger mx-auto">Investigate</a>
+       <a href="{% url 'crossmatch_commit' pk=image.pk querytype=type cross_id=crossmatch_source.match_id %}?username={{user.username}}&usertag=sumss%20artefact" class="btn btn-dark mx-auto">SUMSS artefact</a>
+       <a href="{% url 'crossmatch_commit' pk=image.pk querytype=type cross_id=crossmatch_source.match_id %}?username={{user.username}}&usertag=askap%20artefact" class="btn btn-secondary mx-auto">ASKAP artefact</a>
+       {% else %}
+       <button type="button" class="btn btn-success mx-auto" disabled>Ignore</button>
+       <button type="button" class="btn btn-warning mx-auto" disabled>Not sure</button>
+       <button type="button" class="btn btn-danger mx-auto" disabled>Investigate</button>
+       <button type="button" class="btn btn-dark mx-auto" disabled>SUMSS artefact</button>
+       <button type="button" class="btn btn-secondary mx-auto" disabled>ASKAP artefact</button>
+       {% endif %}
+   </div>
+   </div>
+ </div>
+ 
+ 
+ <div class="card mb-3 mx-auto">
+  <h5 class="card-header bg-info mb-3 text-white">Crossmatch Plot</h5>
+   <div class="card-body">
+     <!-- <h5 class="card-title">{{ image.name}} details</h5> -->
+     <img src="{% static crossmatch_source.ploturl %}" class="mx-auto d-block" width="100%" height="100%"/>
+   </div>
+ </div>
+     
+<div class="card mb-3 mx-auto">
+ <h5 class="card-header bg-info mb-3 text-white">Crossmatch Details</h5>
+  <div class="card-body">
+    <!-- <h5 class="card-title">{{ image.name}} details</h5> -->
+    <p class="card-text"><b>Right Ascension:</b> {{crossmatch_source.ra|deg_to_hms}}<br>
+    <b>Declination:</b> {{crossmatch_source.dec|deg_to_dms}}<br>
+    <b>ASKAP Int Flux:</b> {{crossmatch_source.askap_iflux}} ({{crossmatch_source.askap_iflux_e}})<br>
+    <b>SUMSS Int Flux:</b> {{crossmatch_source.sumss_iflux}} ({{crossmatch_source.sumss_iflux_e}})<br>
+    <b>SUMSS SNR:</b> {{crossmatch_source.sumss_snr}}</p>
+  </div>
+</div>
+
+{% endblock %}

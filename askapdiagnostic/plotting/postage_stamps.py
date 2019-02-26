@@ -193,7 +193,7 @@ def produce_comp_postage_stamps_multicore(sumss_image, askap_image, params_dict,
         sumss_image_path=os.path.join(sumss_mosaic_dir, sumss_image+".FITS")
         panels={}
         fig = plt.figure(figsize=(12, 6))
-        key=0
+        key=1
         panels[key]=aplpy.FITSFigure(askap_image, figure=fig, subplot=(1,2,key+1))
         panels[key].show_grayscale()
             # panels[key].show_contour(images[n-1], colors='red', levels=[3.*12e-6, 4.*12.e-6, 8.*12.e-6, 16*12.e-6])
@@ -204,7 +204,7 @@ def produce_comp_postage_stamps_multicore(sumss_image, askap_image, params_dict,
         panels[key].show_ellipses(df["sumss__RAJ2000"],df["sumss__DEJ2000"],df["sumss_MinAxis"]/3600., 
             df["sumss_MajAxis"]/3600., angle=df["sumss_PA"], layer="SUMSS Sources", color="#d62728")
         
-        key=1
+        key=0
     
         panels[key]=aplpy.FITSFigure(sumss_image_path, figure=fig, subplot=(1,2,key+1))
         panels[key].show_grayscale()
@@ -242,16 +242,16 @@ def produce_comp_postage_stamps_multicore(sumss_image, askap_image, params_dict,
                 sumss_ra=params[6]
                 sumss_dec=params[7]
         
-            panels[0].set_title("ASKAP {}".format(askap_name))
-            panels[1].set_title("SUMSS {}".format(sumss_name))
+            panels[1].set_title("ASKAP {}".format(askap_name))
+            panels[0].set_title("SUMSS {}".format(sumss_name))
             #Centre each image on the ASKAP coordinates for clarity
             recentre_ra=askap_ra
             recentre_dec=askap_dec
             for p in panels:
                 panels[p].recenter(recentre_ra, recentre_dec, radius)
-            panels[0].show_circles([recentre_ra], [recentre_dec], 120./3600., color='C1', label="ASKAP source", layer="ASKAP Source")
-            if not askap_only:
-                panels[1].show_circles([sumss_ra], [sumss_dec],120./3600., color='C9', label="SUMSS source", layer="SUMSS Source")
+                panels[p].show_circles([recentre_ra], [recentre_dec], 120./3600., color='C1', label="ASKAP source", layer="ASKAP Source")
+                if not askap_only:
+                    panels[p].show_circles([sumss_ra], [sumss_dec],120./3600., color='C9', label="SUMSS source", layer="SUMSS Source")
         
             # sep_text=plt.text(0.02, 0.02, "Distance Separation = {:.2f} arcsec".format(d2d), transform=plt.gcf().transFigure)
             # ratio_text=plt.text(0.8, 0.02, "Int. Flux Ratio ASKAP/SUMSS = {:.2f}".format(flux_ratio), transform=plt.gcf().transFigure)
@@ -264,7 +264,7 @@ def produce_comp_postage_stamps_multicore(sumss_image, askap_image, params_dict,
                 custom_lines = [Line2D([0], [0], color='#1f77b4'),
                                 Line2D([0], [0], color='#d62728'),    
                                 Line2D([0], [0], color='C1')]    
-                panels[1]._ax1.legend(custom_lines, ["ASKAP Sources", "SUMSSS Sources", "Matched ASKAP"])
+                panels[0]._ax1.legend(custom_lines, ["ASKAP Sources", "SUMSS Sources", "Matched ASKAP"])
             else:
                 if sumss_name in good_sources:
                     tag="GOOD"
@@ -275,15 +275,15 @@ def produce_comp_postage_stamps_multicore(sumss_image, askap_image, params_dict,
                                 Line2D([0], [0], color='#d62728'),    
                                 Line2D([0], [0], color='C1'),    
                                 Line2D([0], [0], color='C9')]
-                panels[1]._ax1.legend(custom_lines, ["ASKAP Sources", "SUMSSS Sources", "Matched ASKAP", "Matched SUMSS"])
+                panels[1]._ax1.legend(custom_lines, ["ASKAP Sources", "SUMSS Sources", "Matched ASKAP", "Matched SUMSS"])
                                 
 
             fig.savefig(figname, bbox_inches="tight")
 
             logger.info("Saved figure {}.".format(figname))
         
-            panels[0].remove_layer("ASKAP Source")
-            panels[1].remove_layer("SUMSS Source")
+            panels[1].remove_layer("ASKAP Source")
+            panels[0].remove_layer("SUMSS Source")
 
             # sep_text.set_visible(False)
             # ratio_text.set_visible(False)
@@ -308,30 +308,30 @@ def produce_postage_stamps(df, full_df, askap_fits, sumss_mosaic_dir, good_sourc
         #First initialise the figure and set up the askap panel with the image.
         panels={}
         fig = plt.figure(figsize=(12, 6))
-        panels=_plotinitial(panels, 0, fig, askap_fits)
+        panels=_plotinitial(panels, 1, fig, askap_fits)
         
         #Load the ellipses onto the askap image
-        panels[0].show_ellipses(askap_extractions["ra"],askap_extractions["dec"],askap_extractions["b"]/3600., 
+        panels[1].show_ellipses(askap_extractions["ra"],askap_extractions["dec"],askap_extractions["b"]/3600., 
             askap_extractions["a"]/3600., angle=askap_extractions["pa"], layer="ASKAP Sources", color="#1f77b4")
-        panels[0].show_ellipses(sumss_extractions["_RAJ2000"],sumss_extractions["_DEJ2000"],sumss_extractions["MinAxis"]/3600., 
+        panels[1].show_ellipses(sumss_extractions["_RAJ2000"],sumss_extractions["_DEJ2000"],sumss_extractions["MinAxis"]/3600., 
             sumss_extractions["MajAxis"]/3600., angle=sumss_extractions["PA"], layer="SUMSS Sources", color="#d62728")
         
         bbox_dict=dict(boxstyle="round", ec="white", fc="white", alpha=0.7)
         
         #Now start the SUMSS loop
-        for s_image in sumss_fits_mosaics:
+        for s_image in sumss_fits_mosaics:# [:1]:
             #Get the actual fits file
             logger.debug("SUMSS image: {}".format(s_image))
             s_image_path=os.path.join(sumss_mosaic_dir, s_image+".FITS")
             #Filter the dataframe such that only the SUMSS sources are present
             filtered_cross_matches=df[df["sumss_Mosaic"]==s_image].reset_index(drop=True)
             #Generate the base SUMSS panel
-            panels=_plotinitial(panels, 1, fig, s_image_path)
+            panels=_plotinitial(panels, 0, fig, s_image_path)
             # panels[1].set_title("SUMSS")
             #Add the sources
-            panels[1].show_ellipses(askap_extractions["ra"],askap_extractions["dec"],askap_extractions["b"]/3600., 
+            panels[0].show_ellipses(askap_extractions["ra"],askap_extractions["dec"],askap_extractions["b"]/3600., 
                 askap_extractions["a"]/3600., angle=askap_extractions["pa"], layer="ASKAP Sources", color="#1f77b4")
-            panels[1].show_ellipses(sumss_extractions["_RAJ2000"],sumss_extractions["_DEJ2000"],sumss_extractions["MinAxis"]/3600., 
+            panels[0].show_ellipses(sumss_extractions["_RAJ2000"],sumss_extractions["_DEJ2000"],sumss_extractions["MinAxis"]/3600., 
                 sumss_extractions["MajAxis"]/3600., angle=sumss_extractions["PA"], layer="SUMSS Sources", color="#d62728")
             panels[1].axis_labels.hide()
             panels[1].tick_labels.hide()
@@ -339,25 +339,31 @@ def produce_postage_stamps(df, full_df, askap_fits, sumss_mosaic_dir, good_sourc
             # debug_num=0
             for i, row in filtered_cross_matches.iterrows():
                 if not askap_only:
-                    panels[0].set_title("ASKAP "+row["askap_name"])
-                    panels[1].set_title("SUMSS "+row["sumss_name"])
+                    panels[1].set_title("ASKAP "+row["askap_name"])
+                    panels[0].set_title("SUMSS "+row["sumss_name"])
                     recentre_ra=row["askap_ra"]
                     recentre_dec=row["askap_dec"]
                 else:
-                    panels[0].set_title("ASKAP "+row["name"])
-                    panels[1].set_title("SUMSS")
+                    panels[1].set_title("ASKAP "+row["name"])
+                    panels[0].set_title("SUMSS")
                     recentre_ra=row["ra"]
                     recentre_dec=row["dec"]
                 #Centre each image on the ASKAP coordinates for clarity
 
-                for p in panels:
-                    panels[p].recenter(recentre_ra, recentre_dec, radius)
-                panels[0].show_circles([recentre_ra], [recentre_dec], 120./3600., color='C1', label="ASKAP source", layer="ASKAP Source")
-                if not askap_only:
-                    panels[1].show_circles([row["sumss__RAJ2000"]], [row["sumss__DEJ2000"]],120./3600., color='C9', label="SUMSS source", layer="SUMSS Source")
-                else:
-                    panels[1].show_circles([recentre_ra], [recentre_dec], 120./3600., color='C1', label="ASKAP position", layer="SUMSS Source")
                 
+		try:
+		    for p in panels:
+                    	panels[p].recenter(recentre_ra, recentre_dec, radius)
+                    	panels[p].show_circles([recentre_ra], [recentre_dec], 120./3600., color='C1', label="ASKAP source", layer="ASKAP Source")
+		        
+		    	if not askap_only:
+                            panels[p].show_circles([row["sumss__RAJ2000"]], [row["sumss__DEJ2000"]],120./3600., color='C9', label="SUMSS source", layer="SUMSS Source")
+                    	else:
+                            panels[p].show_circles([recentre_ra], [recentre_dec], 120./3600., color='C1', label="ASKAP position", layer="SUMSS Source")
+                except:
+		    logger.error("Can't zoom to region for source. Will skip.")
+		    continue
+
                 
                 if not askap_only:
                     sep_text=plt.text(0.02, 0.02, "Distance Separation = {:.2f} arcsec".format(row["d2d"]), transform=plt.gcf().transFigure)
@@ -374,7 +380,7 @@ def produce_postage_stamps(df, full_df, askap_fits, sumss_mosaic_dir, good_sourc
                     custom_lines = [Line2D([0], [0], color='#1f77b4'),
                                     Line2D([0], [0], color='#d62728'),    
                                     Line2D([0], [0], color='C1')]    
-                    panels[1]._ax1.legend(custom_lines, ["ASKAP Sources", "SUMSSS Sources", "ASKAP Source Position"])
+                    panels[1]._ax1.legend(custom_lines, ["ASKAP Sources", "SUMSS Sources", "ASKAP Source Position"])
                 else:
                     if row["sumss_name"] in good_sources:
                         tag="GOOD"
@@ -385,13 +391,15 @@ def produce_postage_stamps(df, full_df, askap_fits, sumss_mosaic_dir, good_sourc
                                     Line2D([0], [0], color='#d62728'),    
                                     Line2D([0], [0], color='C1'),    
                                     Line2D([0], [0], color='C9')]
-                    panels[1]._ax1.legend(custom_lines, ["ASKAP Sources", "SUMSSS Sources", "Matched ASKAP", "Matched SUMSS"])
+                    panels[1]._ax1.legend(custom_lines, ["ASKAP Sources", "SUMSS Sources", "Matched ASKAP", "Matched SUMSS"])
 
                 plt.savefig(figname, bbox_inches="tight")
 
                 logger.info("Saved figure {}.".format(figname))
                 
                 panels[0].remove_layer("ASKAP Source")
+                panels[1].remove_layer("ASKAP Source")
+                panels[0].remove_layer("SUMSS Source")
                 panels[1].remove_layer("SUMSS Source")
 
                 askap_snr_text.set_visible(False)
@@ -400,7 +408,7 @@ def produce_postage_stamps(df, full_df, askap_fits, sumss_mosaic_dir, good_sourc
                     ratio_text.set_visible(False)
                     sumss_snr_text.set_visible(False)
                 # debug_num+=1
-                # if debug_num==2:
+                # if debug_num==3:
                 #     debug_num=0
                 #     break
             

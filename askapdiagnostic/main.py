@@ -13,6 +13,7 @@ import pandas as pd
 import sys
 import subprocess
 import ConfigParser
+import getpass
 # from multiprocessing import Pool
 
 
@@ -58,6 +59,15 @@ def source_finding(askapimg, logger, sf="aegean", options=None, save_diag_images
         if save_diag_images:
             aegean_sf_options["save"]=""
             askapimg.find_sources(options=aegean_sf_options)
+    if "floodclip" in aegean_sf_options:
+        aegean_fill_sigma=aegean_sf_options["floodclip"]
+    else:
+        aegean_sigma=99
+    if "seedclip" in aegean_sf_options:
+        aegean_det_sigma=aegean_sf_options["seedclip"]
+    else:
+        aegean_det_sigma=99
+    return [float(aegean_det_sigma), float(aegean_fill_sigma)]
 
 def main():
     launchtime=datetime.datetime.now().strftime("%Y-%m-%d_%H:%M:%S")
@@ -91,8 +101,8 @@ def main():
     parser.add_argument("--boundary-value", type=str, choices=["nan", "zero"], help="Define whether the out-of-bounds value in the ASKAP FITS is 'nan' or 'zero'.", default="nan")
     parser.add_argument("--crossmatch-base", type=str, help="Define the base catalogue in the cross matching (currently not supported).", default="sumss")
     parser.add_argument("--max-separation", type=float, help="Maximum crossmatch distance (in arcsec) to be consdiered when creating plots.", default=None)
-    parser.add_argument("--create-postage-stamps", action="store_true", help="Produce postage stamp plots of the cross matched sources within the max separation.")
-    parser.add_argument("--postage-stamp-selection", type=str, nargs="+", choices=["all", "good", "bad", "transients"], help="Select which postage stamps to create.", default=["good"])
+    parser.add_argument("--postage-stamps", action="store_true", help="Produce postage stamp plots of the cross matched sources within the max separation.")
+    parser.add_argument("--postage-stamp-selection", type=str, nargs="+", choices=["all", "good", "bad", "transients"], help="Select which postage stamps to create.", default=["all"])
     # parser.add_argument("--nprocs", type=int, help="Number of simulataneous SUMSS images at once when producing postage stamps.", default=1)
     parser.add_argument("--sumss-mosaic-dir", type=str, help="Directory containing the SUMSS survey mosaic image files.", default=None)
     parser.add_argument("--aegean-settings-config", type=str, help="Select a config file containing the Aegean settings to be used (instead of defaults if none provided).", default=None)
@@ -107,7 +117,10 @@ def main():
     logname="askapdiagnostic-{}".format(launchtime)
     utils.setup_logging(logname, args.log_level, use_colorlog)
     
-    if args.create_postage_stamps:
+    #get user running
+    username=getpass.getuser()
+    
+    if args.postage_stamps:
         if args.sumss_mosaic_dir == None:
             logger.error("SUMSS mosaic directory has not been defined for generating the postage stamps!")
             logger.error("Define the SUMSS mosaic directory using '--sumss-mosaic-dir' and run again.")
@@ -138,9 +151,9 @@ def main():
             logger.error("Transients option selected but 'max-separation' is not defined.")
             logger.error("Define the max-separation using '--max-separation' and run again.")
             exit(logger)
-        # if args.create_postage_stamps!=True:
+        # if args.postage_stamps!=True:
         #     logger.warning("Transients option selected - turning on postage stamp production.")
-        #     args.create_postage_stamps=True
+        #     args.postage_stamps=True
     
     for image in args.images:
         logger.info("Beginning processing of {}".format(image))
@@ -156,6 +169,9 @@ def main():
         output="{}".format(theimg.imagename.replace(".fits", "_results"))
         if args.output_tag!="":
             output=output.replace("_results", "_results_{}".format(args.output_tag))
+        
+        #Get full path
+        full_output=os.path.abspath(output)
             
         if not utils.createdir(output, clobber=args.clobber):
             exit(logger)
@@ -194,7 +210,7 @@ def main():
         #Perform source finding if needed
         if source_find:
             askap_cat_file=theimg.imagename.replace(".fits", "_comp.csv")
-            source_finding(theimg, logger, options=aegean_settings_config)
+            aegean_sigmas=source_finding(theimg, logger, options=aegean_settings_config)
             #Check that the source finding was successful
             if not os.path.isfile(askap_cat_file):
                 logger.error("Source finding failed.")
@@ -203,6 +219,7 @@ def main():
             logger.info("Using provided catalog for {}:".format(theimg.imagename))
             logger.info(askap_cat_file)
             subprocess.call(["cp", askap_cat_file, "."])
+            aegean_sigmas=[99.,99.]
 
         #Load the askap catalog into a new catalog object (but load it first to filter good sources)
         if sf=="aegean":
@@ -213,6 +230,7 @@ def main():
                 askap_catalog=askap_catalog[askap_catalog["flags"]==0].reset_index(drop=True)
                 aegean_good_fits=len(askap_catalog.index)
                 logger.info("Total number of good fit sources found by Aegean: {} ({} sources removed).".format(aegean_good_fits, aegean_total - aegean_good_fits))
+            theimg.total_askap_sources = len(askap_catalog.index)
             askap_catalog=Catalog(askap_catalog, "{}".format(theimg.imagename.replace(".fits", "_askap")), ra_col="ra", dec_col="dec", add_name_col=True)
             
         #Now check for SUMSS file or fetch if none
@@ -236,6 +254,7 @@ def main():
         if fetch_sumss:
             raw_sumss=Catalog(theimg.raw_sumss_sources, "{}".format(theimg.imagename.replace(".fits", "_raw_sumss")))
         sumss_catalog=Catalog(sumss_cat_df, "{}".format(theimg.imagename.replace(".fits", "_sumss")), add_name_col=True)
+        theimg.total_sumss_sources = len(sumss_cat_df.index)
         
         #Filter extended sources if requested
         if args.remove_extended:
@@ -250,6 +269,19 @@ def main():
         else:
             sumss_touse = sumss_catalog
             askap_touse = askap_catalog
+        
+        
+        #Produce two plots of the image with overlay of ASKAP and SUMSS sources
+        theimg.plots={}
+        if args.remove_extended:
+            theimg.plots["sumss_overlay"]=theimg.create_overlay_plot(sumss_touse.df, overlay_cat_label="SUMSS Sources", overlay_cat_2=sumss_catalog.sumss_ext_cat, overlay_cat_label_2="SUMSS Extended Sources", sumss=True)
+            theimg.plots["askap_overlay"]=theimg.create_overlay_plot(askap_touse.df, overlay_cat_label="ASKAP Extracted Sources", overlay_cat_2=askap_catalog.askap_ext_cat, overlay_cat_label_2="ASKAP Extended Extracted Sources")
+        else:
+            theimg.plots["sumss_overlay"]=theimg.create_overlay_plot(sumss_touse.df, overlay_cat_label="SUMSS Sources", sumss=True)
+            theimg.plots["askap_overlay"]=theimg.create_overlay_plot(askap_touse.df, overlay_cat_label="ASKAP Extracted Sources")
+            
+        
+        
         
         #Add the respective image to the ASKAP catalog for later
         askap_touse.add_single_val_col("image", theimg.image)
@@ -277,7 +309,7 @@ def main():
         
         #Create new crossmatch object
         sumss_askap_crossmatch=crossmatch(sumss_touse, askap_touse)
-        sumss_askap_crossmatch.perform_crossmatch()
+        sumss_askap_crossmatch.perform_crossmatch(maxsep=args.max_separation)
         
         crossmatch_name=theimg.imagename.replace(".fits", "_sumss_askap_crossmatch.csv")
         
@@ -302,13 +334,14 @@ def main():
         
         #Plots    
         logger.info("Producing plots.")
-        plots.flux_ratio_image_view(plotting_df, title=theimg.imagename+" ASKAP / SUMSS flux ratio", base_filename=theimg.imagename.replace(".fits", ""))
-        plots.position_offset(plotting_df, title=theimg.imagename+" SUMSS Position Offset", base_filename=theimg.imagename.replace(".fits", ""))
-        plots.source_counts(sumss_touse.df, askap_touse.df, sumss_askap_crossmatch.crossmatch_df, args.max_separation, 
+        #Ratio view plot
+        theimg.plots["flux_ratio_image_view"]=plots.flux_ratio_image_view(plotting_df, title=theimg.imagename+" ASKAP / SUMSS flux ratio", base_filename=theimg.imagename.replace(".fits", ""))
+        theimg.plots["position_offset"]=plots.position_offset(plotting_df, title=theimg.imagename+" SUMSS Position Offset", base_filename=theimg.imagename.replace(".fits", ""))
+        theimg.plots["source_counts"]=plots.source_counts(sumss_touse.df, askap_touse.df, sumss_askap_crossmatch.crossmatch_df, args.max_separation, 
             title=theimg.imagename+" source counts", base_filename=theimg.imagename.replace(".fits", ""))
-        plots.flux_ratios_distance_from_centre(plotting_df, args.max_separation, 
+        theimg.plots["flux_ratios_from_centre"]=plots.flux_ratios_distance_from_centre(plotting_df, args.max_separation, 
             title=theimg.imagename+" ASKAP / SUMSS int. flux ratio vs. Distance from Image Centre", base_filename=theimg.imagename.replace(".fits", ""))
-        plots.flux_ratios_askap_flux(plotting_df, args.max_separation, 
+        theimg.plots["flux_ratios"]=plots.flux_ratios_askap_flux(plotting_df, args.max_separation, 
             title=theimg.imagename+" ASKAP / SUMSS int. flux ratio vs. ASKAP Int Flux", base_filename=theimg.imagename.replace(".fits", ""))
         
         if args.transients:
@@ -318,7 +351,7 @@ def main():
             os.makedirs("transients/askap-notseen")
             subprocess.call("mv transients*.csv transients/", shell=True)
         
-        if args.create_postage_stamps:
+        if args.postage_stamps:
             logger.info("Starting postage stamp production.")
             sumss_askap_crossmatch.produce_postage_stamps(args.sumss_mosaic_dir,postage_options, nprocs=1, max_separation=args.max_separation)
             os.makedirs("postage-stamps/good")
@@ -339,11 +372,33 @@ def main():
                 
             subprocess.call("mv *GOOD*_sidebyside.jpg postage-stamps/good/", shell=True)
             subprocess.call("mv *BAD*_sidebyside.jpg postage-stamps/bad/", shell=True)
-            
+        
+        
+        # Database Entry
+        # image_id=theimg.inject_db(datestamp=launchtime)
+        #Processing settings
+        image_id=theimg.inject_db(datestamp=launchtime, user=username)
+        theimg.inject_processing_db(image_id, full_output, askap_cat_file, sumss_source_cat, args.askap_ext_thresh, 
+            args.sumss_ext_thresh, args.max_separation, aegean_sigmas)
+        sumss_askap_crossmatch.inject_good_db(image_id)
+        if args.transients:
+            sumss_askap_crossmatch.inject_transients_db(image_id)
+        
+        media_dir=os.path.join("..", "static", "media", "{}".format(image_id))
+        stamp_media_dir=os.path.join(media_dir, "stamps")
+        os.makedirs(media_dir)
+        os.makedirs(stamp_media_dir)
+        subprocess.call("cp postage-stamps/good/*.jpg {}/".format(stamp_media_dir), shell=True)
+        subprocess.call("cp postage-stamps/bad/*.jpg {}/".format(stamp_media_dir), shell=True)
+        if args.transients:
+            subprocess.call("cp transients/askap-notseen/*.jpg {}/".format(stamp_media_dir), shell=True)
+        subprocess.call("cp *.png {}/".format(media_dir), shell=True)
+             
         os.chdir("..")
         
         logger.info("Analysis complete for {}.".format(theimg.imagename))
-        
+    
+    
     logger.info("All images done. Log will be placed in {}.".format(output))
     subprocess.call(["cp", logname+".log", output])
     subprocess.call(["rm", logname+".log"])

@@ -1,0 +1,42 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load units %}
+
+    
+{% block breadcrumb %}
+        <li class="breadcrumb-item"><a href="{% url 'home' %}">Images</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'image_detail' image.pk %}">{{ image.name }}</a></li>
+        <li class="breadcrumb-item active ">No SUMSS Match to ASKAP</li>
+{% endblock %}
+
+{% block content %}
+      <table class="table">
+        <thead class="thead-inverse bg-dark text-white">
+          <tr>
+            <th>id</th>
+            <th>name</th>
+            <th>RA</th>
+            <th>Dec</th>
+            <th>SUMSS SNR</th>
+            <th>Pipeline Tag</th>
+            <th>User Tag</th>
+            <th>Checked By</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for source in askapnotseen_sources %}
+	          <tr>
+                <td>{{ source.match_id }}</td>
+	            <td><a href="{% url 'crossmatch_detail' pk=image.pk querytype='askapnotseen' cross_id=source.match_id %}">RACS {{ source.askap_name }}</td>
+	            <td style="white-space:nowrap;">{{ source.ra|deg_to_hms }}</td>
+	            <td style="white-space:nowrap;">{{ source.dec|deg_to_dms }}</td>
+	            <td>{{ source.sumss_snr }}</td>
+	            <td>{{ source.pipelinetag }}</td>
+	            <td>{{ source.usertag }}</td>
+	            <td>{{ source.checkedby }}</td>
+	          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% endblock %}
+ 

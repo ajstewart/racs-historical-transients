@@ -1,0 +1,26 @@
+{% extends 'base.html' %}
+
+{% block body %}
+  <div class="container">
+    <h1 class="text-center logo my-4">
+      <a href="{% url 'home' %}">ASKAP RACS Analysis</a>
+    </h1>
+    <div class="row justify-content-center">
+      <div class="col-lg-5 col-md-6 col-sm-8">
+        <div class="card">
+          <div class="card-body">
+            <h3 class="card-title">Sign Up</h3>
+            <form method="post" novalidate>
+              {% csrf_token %}
+              {{ form.as_p }}
+              <button type="submit" class="btn btn-primary btn-block">Sign Up</button>
+            </form>
+          </div>
+          <div class="card-footer text-muted text-center">
+            New to ASKAP RACS Analysis? <a href="{% url 'login' %}">Log in</a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+{% endblock %}
