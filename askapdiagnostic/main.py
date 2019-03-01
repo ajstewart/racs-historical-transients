@@ -256,7 +256,7 @@ def main():
         sumss_catalog=Catalog(sumss_cat_df, "{}".format(theimg.imagename.replace(".fits", "_sumss")), add_name_col=True)
         theimg.total_sumss_sources = len(sumss_cat_df.index)
         
-        #Filter extended sources if requested
+        #Filter out extended sources if requested for diagnostics only
         if args.remove_extended:
             noext_sumss_catalog=Catalog(sumss_catalog.remove_extended(threshold=args.sumss_ext_thresh,sumss_psf=True),
                  "{}".format(theimg.imagename.replace(".fits", "_sumss_noext")))
@@ -285,49 +285,57 @@ def main():
         
         #Add the respective image to the ASKAP catalog for later
         askap_touse.add_single_val_col("image", theimg.image)
+        askap_catalog.add_single_val_col("image", theimg.image)
         
         #Calculate distance from centre for each catalog for later
         askap_touse.add_distance_from_pos(theimg.centre)
+        askap_catalog.add_distance_from_pos(theimg.centre)
         sumss_touse.add_distance_from_pos(theimg.centre)
+        sumss_catalog.add_distance_from_pos(theimg.centre)
         
         #Add SUMSS S/N for ASKAP sources
         askap_touse.add_sumss_sn(flux_col="peak_flux")
+        askap_catalog.add_sumss_sn(flux_col="peak_flux")
         sumss_touse.add_sumss_sn(flux_col="Sp", dec_col="_DEJ2000", flux_scaling=0.001)
+        sumss_catalog.add_sumss_sn(flux_col="Sp", dec_col="_DEJ2000", flux_scaling=0.001)
         askap_touse._add_askap_sn()
+        askap_catalog._add_askap_sn()
         
         #Annotation files
         if args.write_ann:
             if fetch_sumss:
                 raw_sumss.write_ann(color="RED")
-            sumss_touse.write_ann()
-            askap_touse.write_ann(color="BLUE", ellipse_a="a", ellipse_b="b", ellipse_pa="pa")
+            sumss_catalog.write_ann()
+            askap_catalog.write_ann(color="BLUE", ellipse_a="a", ellipse_b="b", ellipse_pa="pa")
         
-        #Start crossmatching
-        logger.info("Performing cross-match")
-        basecat=args.crossmatch_base
-        logger.info("Base catalogue: {}".format(basecat))
+        #Start crossmatching section
+        
+        #First we do a crossmatch for diagnostics only
+        logger.info("Performing diagnostic cross-match")
+        # basecat=args.crossmatch_base
+        # logger.info("Base catalogue: {}".format(basecat))
         
         #Create new crossmatch object
-        sumss_askap_crossmatch=crossmatch(sumss_touse, askap_touse)
-        sumss_askap_crossmatch.perform_crossmatch(maxsep=args.max_separation)
+        sumss_askap_crossmatch_diag=crossmatch(sumss_touse, askap_touse)
+        sumss_askap_crossmatch_diag.perform_crossmatch(maxsep=args.max_separation)
         
-        crossmatch_name=theimg.imagename.replace(".fits", "_sumss_askap_crossmatch.csv")
+        crossmatch_name=theimg.imagename.replace(".fits", "_sumss_askap_crossmatch_diagnostic.csv")
         
         #Calculate flux ratios and RA and Dec differences for plots
         logger.info("Calculating flux ratios and separations of crossmatches.")
-        sumss_askap_crossmatch.calculate_ratio("askap_int_flux", "sumss_St", "askap_sumss_int_flux_ratio", col2_scaling=1.e-3)
-        sumss_askap_crossmatch.calculate_ratio("sumss_St", "askap_int_flux", "sumss_askap_int_flux_ratio", col1_scaling=1.e-3)
-        sumss_askap_crossmatch.calculate_diff("askap_ra", "sumss__RAJ2000", "askap_sumss_ra_offset")
-        sumss_askap_crossmatch.calculate_diff("askap_dec", "sumss__DEJ2000", "askap_sumss_dec_offset")
+        sumss_askap_crossmatch_diag.calculate_ratio("askap_int_flux", "sumss_St", "askap_sumss_int_flux_ratio", col2_scaling=1.e-3)
+        sumss_askap_crossmatch_diag.calculate_ratio("sumss_St", "askap_int_flux", "sumss_askap_int_flux_ratio", col1_scaling=1.e-3)
+        sumss_askap_crossmatch_diag.calculate_diff("askap_ra", "sumss__RAJ2000", "askap_sumss_ra_offset")
+        sumss_askap_crossmatch_diag.calculate_diff("askap_dec", "sumss__DEJ2000", "askap_sumss_dec_offset")
         
         #Write out crossmatch df to file
-        sumss_askap_crossmatch.write_crossmatch(crossmatch_name)
+        sumss_askap_crossmatch_diag.write_crossmatch(crossmatch_name)
         
         #Get acceptable seperation df for plots
         if args.max_separation!=None:
-            plotting_df = sumss_askap_crossmatch.crossmatch_df[sumss_askap_crossmatch.crossmatch_df["d2d"]<= args.max_separation]
+            plotting_df = sumss_askap_crossmatch_diag.crossmatch_df[sumss_askap_crossmatch_diag.crossmatch_df["d2d"]<= args.max_separation]
         else:
-            plotting_df = sumss_askap_crossmatch.crossmatch_df
+            plotting_df = sumss_askap_crossmatch_diag.crossmatch_df
             
         plotting_len=len(plotting_df.index)
         logger.debug("Length of plotting_df: {}".format(plotting_len))
@@ -337,15 +345,31 @@ def main():
         #Ratio view plot
         theimg.plots["flux_ratio_image_view"]=plots.flux_ratio_image_view(plotting_df, title=theimg.imagename+" ASKAP / SUMSS flux ratio", base_filename=theimg.imagename.replace(".fits", ""))
         theimg.plots["position_offset"]=plots.position_offset(plotting_df, title=theimg.imagename+" SUMSS Position Offset", base_filename=theimg.imagename.replace(".fits", ""))
-        theimg.plots["source_counts"]=plots.source_counts(sumss_touse.df, askap_touse.df, sumss_askap_crossmatch.crossmatch_df, args.max_separation, 
+        theimg.plots["source_counts"]=plots.source_counts(sumss_touse.df, askap_touse.df, sumss_askap_crossmatch_diag.crossmatch_df, args.max_separation, 
             title=theimg.imagename+" source counts", base_filename=theimg.imagename.replace(".fits", ""))
         theimg.plots["flux_ratios_from_centre"]=plots.flux_ratios_distance_from_centre(plotting_df, args.max_separation, 
             title=theimg.imagename+" ASKAP / SUMSS int. flux ratio vs. Distance from Image Centre", base_filename=theimg.imagename.replace(".fits", ""))
         theimg.plots["flux_ratios"]=plots.flux_ratios_askap_flux(plotting_df, args.max_separation, 
             title=theimg.imagename+" ASKAP / SUMSS int. flux ratio vs. ASKAP Int Flux", base_filename=theimg.imagename.replace(".fits", ""))
+            
+        #Now create crossmatch for the purpose of transient searching
+        logger.info("Performing transient cross-match")
+        sumss_askap_crossmatch_transient=crossmatch(sumss_catalog, askap_catalog)
+        sumss_askap_crossmatch_transient.perform_crossmatch(maxsep=args.max_separation)
+        
+        crossmatch_name=theimg.imagename.replace(".fits", "_sumss_askap_crossmatch_transient.csv")
+        logger.info("Calculating flux ratios and separations of crossmatches.")
+        sumss_askap_crossmatch_transient.calculate_ratio("askap_int_flux", "sumss_St", "askap_sumss_int_flux_ratio", col2_scaling=1.e-3)
+        sumss_askap_crossmatch_transient.calculate_ratio("sumss_St", "askap_int_flux", "sumss_askap_int_flux_ratio", col1_scaling=1.e-3)
+        sumss_askap_crossmatch_transient.calculate_diff("askap_ra", "sumss__RAJ2000", "askap_sumss_ra_offset")
+        sumss_askap_crossmatch_transient.calculate_diff("askap_dec", "sumss__DEJ2000", "askap_sumss_dec_offset")
+        
+        #Write out crossmatch df to file
+        sumss_askap_crossmatch_transient.write_crossmatch(crossmatch_name)
+        
         
         if args.transients:
-            sumss_askap_crossmatch.transient_search(max_separation=args.max_separation)
+            sumss_askap_crossmatch_transient.transient_search(max_separation=args.max_separation)
             os.makedirs("transients/no-match")
             os.makedirs("transients/large-ratio")
             os.makedirs("transients/askap-notseen")
@@ -353,7 +377,7 @@ def main():
         
         if args.postage_stamps:
             logger.info("Starting postage stamp production.")
-            sumss_askap_crossmatch.produce_postage_stamps(args.sumss_mosaic_dir,postage_options, nprocs=1, max_separation=args.max_separation)
+            sumss_askap_crossmatch_transient.produce_postage_stamps(args.sumss_mosaic_dir,postage_options, nprocs=1, max_separation=args.max_separation)
             os.makedirs("postage-stamps/good")
             os.makedirs("postage-stamps/bad")
             if args.transients:
@@ -380,9 +404,9 @@ def main():
         image_id=theimg.inject_db(datestamp=launchtime, user=username)
         theimg.inject_processing_db(image_id, full_output, askap_cat_file, sumss_source_cat, args.askap_ext_thresh, 
             args.sumss_ext_thresh, args.max_separation, aegean_sigmas)
-        sumss_askap_crossmatch.inject_good_db(image_id)
+        sumss_askap_crossmatch_transient.inject_good_db(image_id)
         if args.transients:
-            sumss_askap_crossmatch.inject_transients_db(image_id)
+            sumss_askap_crossmatch_transient.inject_transients_db(image_id)
         
         media_dir=os.path.join("..", "static", "media", "{}".format(image_id))
         stamp_media_dir=os.path.join(media_dir, "stamps")

@@ -311,8 +311,8 @@ def produce_postage_stamps(df, full_df, askap_fits, sumss_mosaic_dir, good_sourc
         panels=_plotinitial(panels, 1, fig, askap_fits)
         
         #Load the ellipses onto the askap image
-        panels[1].show_ellipses(askap_extractions["ra"],askap_extractions["dec"],askap_extractions["b"]/3600., 
-            askap_extractions["a"]/3600., angle=askap_extractions["pa"], layer="ASKAP Sources", color="#1f77b4")
+        panels[1].show_ellipses(askap_extractions["ra"],askap_extractions["dec"],askap_extractions["b"]/3600.*1.5, 
+            askap_extractions["a"]/3600.*1.5, angle=askap_extractions["pa"], layer="ASKAP Sources", color="#1f77b4")
         panels[1].show_ellipses(sumss_extractions["_RAJ2000"],sumss_extractions["_DEJ2000"],sumss_extractions["MinAxis"]/3600., 
             sumss_extractions["MajAxis"]/3600., angle=sumss_extractions["PA"], layer="SUMSS Sources", color="#d62728")
         
@@ -341,8 +341,8 @@ def produce_postage_stamps(df, full_df, askap_fits, sumss_mosaic_dir, good_sourc
                 if not askap_only:
                     panels[1].set_title("ASKAP "+row["askap_name"])
                     panels[0].set_title("SUMSS "+row["sumss_name"])
-                    recentre_ra=row["askap_ra"]
-                    recentre_dec=row["askap_dec"]
+                    recentre_ra=row["sumss__RAJ2000"]
+                    recentre_dec=row["sumss__DEJ2000"]
                 else:
                     panels[1].set_title("ASKAP "+row["name"])
                     panels[0].set_title("SUMSS")
@@ -351,27 +351,27 @@ def produce_postage_stamps(df, full_df, askap_fits, sumss_mosaic_dir, good_sourc
                 #Centre each image on the ASKAP coordinates for clarity
 
                 
-		try:
-		    for p in panels:
-                    	panels[p].recenter(recentre_ra, recentre_dec, radius)
-                    	panels[p].show_circles([recentre_ra], [recentre_dec], 120./3600., color='C1', label="ASKAP source", layer="ASKAP Source")
-		        
-		    	if not askap_only:
-                            panels[p].show_circles([row["sumss__RAJ2000"]], [row["sumss__DEJ2000"]],120./3600., color='C9', label="SUMSS source", layer="SUMSS Source")
-                    	else:
-                            panels[p].show_circles([recentre_ra], [recentre_dec], 120./3600., color='C1', label="ASKAP position", layer="SUMSS Source")
+                try:
+                    for p in panels:
+                        panels[p].recenter(recentre_ra, recentre_dec, radius)
+
+                        if not askap_only:
+                            panels[p].show_circles([row["askap_ra"]], [row["askap_dec"]], 120./3600., color='C1', linewidth=3, label="ASKAP source", layer="ASKAP Source")
+                            panels[p].show_circles([recentre_ra], [recentre_dec],120./3600., color='C9', linewidth=3, label="SUMSS source", layer="SUMSS Source")
+                        else:
+                            panels[p].show_circles([recentre_ra], [recentre_dec], 120./3600., color='C1', linewidth=3, label="ASKAP position", layer="ASKAP Source")
                 except:
-		    logger.error("Can't zoom to region for source. Will skip.")
-		    continue
+                    logger.error("Can't zoom to region for source. Will skip.")
+                    continue
 
                 
                 if not askap_only:
                     sep_text=plt.text(0.02, 0.02, "Distance Separation = {:.2f} arcsec".format(row["d2d"]), transform=plt.gcf().transFigure)
                     ratio_text=plt.text(0.8, 0.02, "Int. Flux Ratio ASKAP/SUMSS = {:.2f}".format(row["askap_sumss_int_flux_ratio"]), transform=plt.gcf().transFigure)
-                    askap_snr_text=plt.text(0.14, 0.78, "ASKAP Sigma = {:.2f}\nSUMSS Sigma = {:.2f}".format(row["askap_snr"], row["askap_sumss_snr"]), transform=plt.gcf().transFigure, bbox=bbox_dict)
-                    sumss_snr_text=plt.text(0.57, 0.81, "SUMSS Sigma = {:.2f}".format(row["sumss_sumss_snr"]), transform=plt.gcf().transFigure, bbox=bbox_dict)
+                    askap_snr_text=plt.text(0.57, 0.78, "ASKAP Sigma = {:.2f}\nSUMSS Sigma = {:.2f}".format(row["askap_snr"], row["askap_sumss_snr"]), transform=plt.gcf().transFigure, bbox=bbox_dict)
+                    sumss_snr_text=plt.text(0.14, 0.81, "SUMSS Sigma = {:.2f}".format(row["sumss_sumss_snr"]), transform=plt.gcf().transFigure, bbox=bbox_dict)
                 else:
-                    askap_snr_text=plt.text(0.14, 0.78, "ASKAP Sigma = {:.2f}\nSUMSS Sigma = {:.2f}".format(row["snr"], row["sumss_snr"]), transform=plt.gcf().transFigure, bbox=bbox_dict)
+                    askap_snr_text=plt.text(0.57, 0.78, "ASKAP Sigma = {:.2f}\nSUMSS Sigma = {:.2f}".format(row["snr"], row["sumss_snr"]), transform=plt.gcf().transFigure, bbox=bbox_dict)
                 
                 #Figure name
                 # plt.title(row["sumss_name"])
@@ -396,11 +396,12 @@ def produce_postage_stamps(df, full_df, askap_fits, sumss_mosaic_dir, good_sourc
                 plt.savefig(figname, bbox_inches="tight")
 
                 logger.info("Saved figure {}.".format(figname))
-                
+        
                 panels[0].remove_layer("ASKAP Source")
                 panels[1].remove_layer("ASKAP Source")
-                panels[0].remove_layer("SUMSS Source")
-                panels[1].remove_layer("SUMSS Source")
+                if not askap_only:
+                    panels[0].remove_layer("SUMSS Source")
+                    panels[1].remove_layer("SUMSS Source")
 
                 askap_snr_text.set_visible(False)
                 if not askap_only:

@@ -20,7 +20,7 @@
  {% endif %}
  {% if crossmatch_source.checkedby != "N/A" %}
  <div class="alert alert-warning alert-dismissible fade show" role="alert">
-   <strong>This source is already marked as checked!</strong> Checked by {{ crossmatch_source.checkedby }}.
+   <strong>This source is already marked as checked!</strong> Checked by <strong>{{ crossmatch_source.checkedby }}</strong>, tag: <strong>{{ crossmatch_source.usertag }}</strong>, reason: <strong>{{ crossmatch_source.userreason }}</strong>.
    <button type="button" class="close" data-dismiss="alert" aria-label="Close">
      <span aria-hidden="true">&times;</span>
    </button>
@@ -35,7 +35,16 @@
  </div>
  {% endif %}
  
- {% if saved == False %}
+ {% if updated %}
+ <div class="alert alert-success alert-dismissible fade show" role="alert">
+   <strong>Your user tag has been updated.</strong>
+   <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+     <span aria-hidden="true">&times;</span>
+   </button>
+ </div>
+ {% endif %}
+ 
+ {% if saved == False and updated == False %}
  <div class="alert alert-danger alert-dismissible fade show" role="alert">
    <strong>User tag has not been saved.</strong> There is a previous definition.
    <button type="button" class="close" data-dismiss="alert" aria-label="Close">
@@ -66,17 +75,29 @@
    <div class="card-body">
        <div class="col text-center">
         {% if user.is_authenticated %}
-       <a href="{% url 'crossmatch_commit' pk=image.pk querytype=type cross_id=crossmatch_source.match_id %}?username={{user.username}}&usertag=ignore" class="btn btn-success mx-auto">Ignore</a>
-       <a href="{% url 'crossmatch_commit' pk=image.pk querytype=type cross_id=crossmatch_source.match_id %}?username={{user.username}}&usertag=not%20sure" class="btn btn-warning mx-auto">Not sure</a>
-       <a href="{% url 'crossmatch_commit' pk=image.pk querytype=type cross_id=crossmatch_source.match_id %}?username={{user.username}}&usertag=investigate" class="btn btn-danger mx-auto">Investigate</a>
-       <a href="{% url 'crossmatch_commit' pk=image.pk querytype=type cross_id=crossmatch_source.match_id %}?username={{user.username}}&usertag=sumss%20artefact" class="btn btn-dark mx-auto">SUMSS artefact</a>
-       <a href="{% url 'crossmatch_commit' pk=image.pk querytype=type cross_id=crossmatch_source.match_id %}?username={{user.username}}&usertag=askap%20artefact" class="btn btn-secondary mx-auto">ASKAP artefact</a>
+       <a href="{% url 'crossmatch_commit' pk=image.pk querytype=type cross_id=crossmatch_source.match_id %}?username={{user.username}}&usertag=ignore&userreason=is%20match" class="btn btn-success mx-auto btn-sm">There is a match</a>
+       <a href="{% url 'crossmatch_commit' pk=image.pk querytype=type cross_id=crossmatch_source.match_id %}?username={{user.username}}&usertag=ignore&userreason=sumss%20extended" class="btn btn-success mx-auto btn-sm">SUMSS Extended/Diffuse</a>
+       <a href="{% url 'crossmatch_commit' pk=image.pk querytype=type cross_id=crossmatch_source.match_id %}?username={{user.username}}&usertag=ignore&userreason=bright%20source" class="btn btn-success mx-auto btn-sm">Close to bright source</a>
+       <a href="{% url 'crossmatch_commit' pk=image.pk querytype=type cross_id=crossmatch_source.match_id %}?username={{user.username}}&usertag=help&userreason=not%20sure" class="btn btn-warning mx-auto btn-sm">Not sure</a><br><br>
+       <a href="{% url 'crossmatch_commit' pk=image.pk querytype=type cross_id=crossmatch_source.match_id %}?username={{user.username}}&usertag=investigate&userreason=sumss%20non-detection" class="btn btn-danger mx-auto btn-sm">SUMSS Non-detection</a>
+       <a href="{% url 'crossmatch_commit' pk=image.pk querytype=type cross_id=crossmatch_source.match_id %}?username={{user.username}}&usertag=investigate&userreason=askap%20non-detection" class="btn btn-danger mx-auto btn-sm">ASKAP Non-detection</a>
+       <a href="{% url 'crossmatch_commit' pk=image.pk querytype=type cross_id=crossmatch_source.match_id %}?username={{user.username}}&usertag=problem&userreason=edge%20of%20field" class="btn btn-secondary mx-auto btn-sm">Edge of Field</a>
+       <a href="{% url 'crossmatch_commit' pk=image.pk querytype=type cross_id=crossmatch_source.match_id %}?username={{user.username}}&usertag=problem&userreason=out%20of%20range" class="btn btn-secondary mx-auto btn-sm">Out of Range</a>
+       <a href="{% url 'crossmatch_commit' pk=image.pk querytype=type cross_id=crossmatch_source.match_id %}?username={{user.username}}&usertag=problem&userreason=askap%20double" class="btn btn-secondary mx-auto btn-sm">ASKAP double</a>
+       <a href="{% url 'crossmatch_commit' pk=image.pk querytype=type cross_id=crossmatch_source.match_id %}?username={{user.username}}&usertag=problem&userreason=sumss%20artefact" class="btn btn-secondary mx-auto btn-sm">SUMSS artefact</a>
+       <a href="{% url 'crossmatch_commit' pk=image.pk querytype=type cross_id=crossmatch_source.match_id %}?username={{user.username}}&usertag=problem&userreason=askap%20artefact" class="btn btn-secondary mx-auto btn-sm">ASKAP artefact</a>
        {% else %}
-       <button type="button" class="btn btn-success mx-auto" disabled>Ignore</button>
-       <button type="button" class="btn btn-warning mx-auto" disabled>Not sure</button>
-       <button type="button" class="btn btn-danger mx-auto" disabled>Investigate</button>
-       <button type="button" class="btn btn-dark mx-auto" disabled>SUMSS artefact</button>
-       <button type="button" class="btn btn-secondary mx-auto" disabled>ASKAP artefact</button>
+       <button type="button" class="btn btn-success mx-auto btn-sm" disabled>There is a match</button>
+       <button type="button" class="btn btn-success mx-auto btn-sm" disabled>SUMSS Extended/Diffuse</button>
+       <button type="button" class="btn btn-success mx-auto btn-sm" disabled>Close to bright source</button>
+       <button type="button" class="btn btn-warning mx-auto btn-sm" disabled>Not sure</button><br><br>
+       <button type="button" class="btn btn-danger mx-auto btn-sm" disabled>SUMSS Non-detection</button>
+       <button type="button" class="btn btn-danger mx-auto btn-sm" disabled>ASKAP Non-detection</button>
+       <button type="button" class="btn btn-secondary mx-auto btn-sm" disabled>Edge of Field</button>
+       <button type="button" class="btn btn-secondary mx-auto btn-sm" disabled>Out of Range</button>
+       <button type="button" class="btn btn-secondary mx-auto btn-sm" disabled>ASKAP double</button>
+       <button type="button" class="btn btn-secondary mx-auto btn-sm" disabled>SUMSS artefact</button>
+       <button type="button" class="btn btn-secondary mx-auto btn-sm" disabled>ASKAP artefact</button>
        {% endif %}
    </div>
    </div>

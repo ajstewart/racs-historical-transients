@@ -243,8 +243,9 @@ class crossmatch(object):
         db_df["postage_stamp"]=[os.path.join("media/{}/stamps/{}".format(image_id, i)) for i in db_df["postage_stamp"].values]
         db_df["pipelinetag"]="N/A"
         db_df["usertag"]="N/A"
+        db_df["userreason"]="N/A"
         db_df["checkedby"]="N/A"
-        db_df.columns=["image_id", "match_id", "sumss_name", "ra", "dec", "sumss_iflux", "sumss_iflux_e", "askap_iflux", "askap_iflux_e", "sumss_snr","ploturl", "pipelinetag", "usertag", "checkedby"]
+        db_df.columns=["image_id", "match_id", "sumss_name", "ra", "dec", "sumss_iflux", "sumss_iflux_e", "askap_iflux", "askap_iflux_e", "sumss_snr","ploturl", "pipelinetag", "usertag", "userreason", "checkedby"]
         # newpostage_sta
         
         # tempdf=pd.DataFrame([[image_id, self.imagename, "ASKAP RACS image", self.centre.ra.degree,
@@ -266,8 +267,9 @@ class crossmatch(object):
         db_df["postage_stamp"]=[os.path.join("media/{}/stamps/{}".format(image_id, i)) for i in db_df["postage_stamp"].values]
         db_df["pipelinetag"]="N/A"
         db_df["usertag"]="N/A"
+        db_df["userreason"]="N/A"
         db_df["checkedby"]="N/A"
-        db_df.columns=["image_id", "match_id", "sumss_name", "ra", "dec", "sumss_iflux", "sumss_iflux_e", "askap_iflux", "askap_iflux_e", "sumss_snr","ploturl", "pipelinetag", "usertag", "checkedby"]
+        db_df.columns=["image_id", "match_id", "sumss_name", "ra", "dec", "sumss_iflux", "sumss_iflux_e", "askap_iflux", "askap_iflux_e", "sumss_snr","ploturl", "pipelinetag", "usertag","userreason", "checkedby"]
         db_df.to_sql("images_largeratio", engine, if_exists="append", index=False)
         
         #ASKAP not seen
@@ -285,8 +287,9 @@ class crossmatch(object):
         db_df["postage_stamp"]=[os.path.join("media/{}/stamps/{}".format(image_id, i)) for i in db_df["postage_stamp"].values]
         db_df["pipelinetag"]="N/A"
         db_df["usertag"]="N/A"
+        db_df["userreason"]="N/A"
         db_df["checkedby"]="N/A"
-        db_df.columns=["image_id", "match_id", "askap_name", "ra", "dec", "askap_iflux", "askap_iflux_e", "sumss_snr", "ploturl", "pipelinetag", "usertag", "checkedby"]
+        db_df.columns=["image_id", "match_id", "askap_name", "ra", "dec", "askap_iflux", "askap_iflux_e", "sumss_snr", "ploturl", "pipelinetag", "usertag", "userreason", "checkedby"]
         db_df.to_sql("images_askapnotseen", engine, if_exists="append", index=False)
         
     def inject_good_db(self, image_id):        
@@ -308,8 +311,9 @@ class crossmatch(object):
         db_df["postage_stamp"]=[os.path.join("media/{}/stamps/{}".format(image_id, i)) for i in db_df["postage_stamp"].values]
         db_df["pipelinetag"]="N/A"
         db_df["usertag"]="N/A"
+        db_df["userreason"]="N/A"
         db_df["checkedby"]="N/A"
-        db_df.columns=["image_id", "match_id", "sumss_name", "ra", "dec", "sumss_iflux", "sumss_iflux_e", "askap_iflux", "askap_iflux_e", "sumss_snr","ploturl", "pipelinetag", "usertag", "checkedby"]
+        db_df.columns=["image_id", "match_id", "sumss_name", "ra", "dec", "sumss_iflux", "sumss_iflux_e", "askap_iflux", "askap_iflux_e", "sumss_snr","ploturl", "pipelinetag", "usertag", "userreason", "checkedby"]
         db_df.to_sql("images_goodmatch", engine, if_exists="append", index=False)
         
         

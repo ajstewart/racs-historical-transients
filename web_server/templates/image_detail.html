@@ -10,6 +10,18 @@
 
 {% block content %}
 <div class="card mb-3 mx-auto">
+ <h5 class="card-header bg-secondary mg-1 text-white">Crossmatch Outputs</h5>
+  <div class="card-body">
+    <!-- <h5 class="card-title">{{ image.name}} details</h5> -->
+    <p class="card-text">
+        <a href="{% url 'noaskapmatchtosumss' image.pk %}" class="btn btn-primary">No ASKAP Match to SUMSS</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+        <a href="{% url 'nosumssmatchtoaskap' image.pk %}" class="btn btn-primary mx-auto">No SUMSS Match to ASKAP</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+        <a href="{% url 'largeratio' image.pk %}" class="btn btn-primary mx-auto">Large Flux Ratio</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+        <a href="{% url 'goodmatch' image.pk %}" class="btn btn-primary mx-auto">Good Matches</a></p>
+  </div>
+</div>
+
+<div class="card mb-3 mx-auto">
  <h5 class="card-header bg-info mb-3 text-white">Image Details</h5>
   <div class="card-body">
     <!-- <h5 class="card-title">{{ image.name}} details</h5> -->
@@ -32,18 +44,6 @@
     <p class="card-text"><b>ASKAP CSV: </b>{{ processing_options.askap_csv }}</p>
     <p class="card-text"><b>SUMSS CSV: </b>{{ processing_options.sumss_csv }}</p>
     <p class="card-text"><b>Output Directory: </b>{{ processing_options.output_dir }}</p>
-  </div>
-</div>
-
-<div class="card mb-3 mx-auto">
- <h5 class="card-header bg-secondary mg-1 text-white">Crossmatch Outputs</h5>
-  <div class="card-body">
-    <!-- <h5 class="card-title">{{ image.name}} details</h5> -->
-    <p class="card-text">
-        <a href="{% url 'sumssnomatch' image.pk %}" class="btn btn-primary">No ASKAP Match to SUMSS</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-        <a href="{% url 'askapnotseen' image.pk %}" class="btn btn-primary mx-auto">No SUMSS Match to ASKAP</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-        <a href="{% url 'largeratio' image.pk %}" class="btn btn-primary mx-auto">Large Flux Ratio</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-        <a href="{% url 'goodmatch' image.pk %}" class="btn btn-primary mx-auto">Good Matches</a></p>
   </div>
 </div>
 

@@ -75,6 +75,7 @@ class Sumssnomatch(models.Model):
     ploturl = models.CharField(max_length=200, unique=False, default="plot")
     pipelinetag = models.CharField(max_length=30, unique=False, default="N/A")
     usertag = models.CharField(max_length=30, unique=False, default="N/A")
+    userreason = models.CharField(max_length=30, unique=False, default="N/A")
     checkedby = models.CharField(max_length=20, unique=False, default="N/A")
     
     def __str__(self):
@@ -95,6 +96,7 @@ class Largeratio(models.Model):
     ploturl = models.CharField(max_length=200, unique=False, default="plot")
     pipelinetag = models.CharField(max_length=30, unique=False, default="N/A")
     usertag = models.CharField(max_length=30, unique=False, default="N/A")
+    userreason = models.CharField(max_length=30, unique=False, default="N/A")
     checkedby = models.CharField(max_length=20, unique=False, default="N/A")
     
     def __str__(self):
@@ -113,6 +115,7 @@ class Askapnotseen(models.Model):
     ploturl = models.CharField(max_length=200, unique=False, default="plot")
     pipelinetag = models.CharField(max_length=30, unique=False, default="N/A")
     usertag = models.CharField(max_length=30, unique=False, default="N/A")
+    userreason = models.CharField(max_length=30, unique=False, default="N/A")
     checkedby = models.CharField(max_length=20, unique=False, default="N/A")
     
     def __str__(self):
@@ -132,6 +135,7 @@ class Goodmatch(models.Model):
     ploturl = models.CharField(max_length=200, unique=False, default="plot")
     pipelinetag = models.CharField(max_length=30, unique=False, default="N/A")
     usertag = models.CharField(max_length=30, unique=False, default="N/A")
+    userreason = models.CharField(max_length=30, unique=False, default="N/A")
     checkedby = models.CharField(max_length=20, unique=False, default="N/A")
     
     def __str__(self):

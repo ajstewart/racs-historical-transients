@@ -16,7 +16,8 @@ setup(name='askap-image-diagnostic',
                         'pandas',
                         'astroquery',
                         'colorlog',
-                        'django < 2.0'
+                        'django < 2.0',
+                        'django_tables2'
                         ],
       scripts=["bin/processASKAPimage.py"],
       include_package_data=True)
