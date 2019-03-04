@@ -346,7 +346,7 @@ def produce_postage_stamps(df, full_df, askap_fits, sumss_mosaic_dir, good_sourc
         bbox_dict=dict(boxstyle="round", ec="white", fc="white", alpha=0.7)
         
         #Now start the SUMSS loop
-        for s_image in sumss_fits_mosaics[:1]:
+        for s_image in sumss_fits_mosaics:# [:1]:
             #Get the actual fits file
             logger.debug("SUMSS image: {}".format(s_image))
             s_image_path=os.path.join(sumss_mosaic_dir, s_image+".FITS")
@@ -363,7 +363,7 @@ def produce_postage_stamps(df, full_df, askap_fits, sumss_mosaic_dir, good_sourc
             panels[1].axis_labels.hide()
             panels[1].tick_labels.hide()
             #Now begin the main loop per source
-            debug_num=0
+            # debug_num=0
             for i, row in filtered_cross_matches.iterrows():
                 if not askap_only:
                     panels[1].set_title("ASKAP "+row["askap_name"])
@@ -436,10 +436,10 @@ def produce_postage_stamps(df, full_df, askap_fits, sumss_mosaic_dir, good_sourc
                 if not askap_only:
                     sep_text.set_visible(False)
                     ratio_text.set_visible(False)
-                debug_num+=1
-                if debug_num==3:
-                    debug_num=0
-                    break
+                # debug_num+=1
+                # if debug_num==3:
+                #     debug_num=0
+                #     break
             
             #I think this will clear the SUMSS one, must be a more specific way.    
             plt.gca().remove()
