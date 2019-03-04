@@ -12,7 +12,7 @@ from matplotlib.lines import Line2D
 from askapdiagnostic.plotting import postage_stamps
 import sqlalchemy
 import psycopg2
-
+import pkg_resources
 
 class crossmatch(object):
     """docstring for crossmatch"""
@@ -211,19 +211,25 @@ class crossmatch(object):
         # - Obtain a list of ASKAP sources that have been matched well.
         # - Go through ASKAP sources - if not in list check SUMSS S/N.
         # - If S/N means it should be seen, it is a candidate (order by S/N).
+        # - Fetch watch SUMSS image the ASKAP source should be in.
+        # - Extract SUMSS peak (?) flux at that position +/- 1 pixel.
         self.logger.info("Finding non-matched ASKAP sources that should have been seen...")
         matched_askap_sources=matches["askap_name"].tolist()
         not_matched_askap_sources=self.comp_catalog.df[~self.comp_catalog.df.name.isin(matched_askap_sources)].reset_index(drop=True)
-        # Now get those sources with a SNR ratio above 4.5
-        not_matched_askap_sources_should_see=not_matched_askap_sources[not_matched_askap_sources["sumss_snr"]>=4.5].reset_index(drop=True)
+        # Now get those sources with a SNR ratio above 4.5 #Note March 4 - switch to 5.0, too many candidates at 4.5.
+        not_matched_askap_sources_should_see=not_matched_askap_sources[not_matched_askap_sources["sumss_snr"]>=5.0].reset_index(drop=True)
+        # find_sumss_image_and_flux(not_matched_askap_sources_should_see)
         askapnotseen_postage_stamps=["transient_askapnotseen_ASKAP_{}_sidebyside.jpg".format(val) for i,val in not_matched_askap_sources_should_see["name"].iteritems()]
         not_matched_askap_sources_should_see["postage_stamp"]=askapnotseen_postage_stamps
+        
+        
         self.transients_not_matched_askap_should_see_df=not_matched_askap_sources_should_see
         not_matched_askap_sources_should_see.to_csv("transients_askap_sources_no_match_should_be_seen.csv", index=False)
         self.logger.info("Written 'transients_askap_sources_no_match_should_be_seen.csv'.")
         
-    def inject_transients_db(self, image_id):
-        engine = sqlalchemy.create_engine('postgresql://aste7152@localhost:5434/RACS')
+    def inject_transients_db(self, image_id, db_engine="postgresql", 
+            db_username="postgres", db_host="localhost", db_port="5432", db_database="postgres"):
+        engine = sqlalchemy.create_engine('{}://{}@{}:{}/{}'.format(db_engine, db_username, db_host, db_port, db_database))
         
         #First do sumss no match
         match_id=1
@@ -280,20 +286,21 @@ class crossmatch(object):
         except:
             match_id=1
         
-        db_df=self.transients_not_matched_askap_should_see_df.filter(["name", "ra", "dec", "postage_stamp", "int_flux", "err_int_flux", "sumss_snr"], axis=1)
+        db_df=self.transients_not_matched_askap_should_see_df.filter(["name", "ra", "dec", "postage_stamp", "int_flux", "err_int_flux", "sumss_snr", "sumss_peak_flux"], axis=1)
         db_df["image_id"]=image_id
         db_df["match_id"]=[i for i in range(match_id, match_id+len(db_df.index))]
-        db_df=db_df[["image_id", "match_id", "name", "ra", "dec", "int_flux", "err_int_flux", "sumss_snr", "postage_stamp",]]
+        db_df=db_df[["image_id", "match_id", "name", "ra", "dec", "int_flux", "err_int_flux", "sumss_snr", "sumss_peak_flux", "postage_stamp",]]
         db_df["postage_stamp"]=[os.path.join("media/{}/stamps/{}".format(image_id, i)) for i in db_df["postage_stamp"].values]
         db_df["pipelinetag"]="N/A"
         db_df["usertag"]="N/A"
         db_df["userreason"]="N/A"
         db_df["checkedby"]="N/A"
-        db_df.columns=["image_id", "match_id", "askap_name", "ra", "dec", "askap_iflux", "askap_iflux_e", "sumss_snr", "ploturl", "pipelinetag", "usertag", "userreason", "checkedby"]
+        db_df.columns=["image_id", "match_id", "askap_name", "ra", "dec", "askap_iflux", "askap_iflux_e", "sumss_snr", "sumss_flux", "ploturl", "pipelinetag", "usertag", "userreason", "checkedby"]
         db_df.to_sql("images_askapnotseen", engine, if_exists="append", index=False)
         
-    def inject_good_db(self, image_id):        
-        engine = sqlalchemy.create_engine('postgresql://aste7152@localhost:5434/RACS')
+    def inject_good_db(self, image_id, db_engine="postgresql", 
+            db_username="postgres", db_host="localhost", db_port="5432", db_database="postgres"):        
+        engine = sqlalchemy.create_engine('{}://{}@{}:{}/{}'.format(db_engine, db_username, db_host, db_port, db_database))
         match_id=1
         result = engine.execute("SELECT match_id FROM images_goodmatch")
         try:

@@ -78,24 +78,24 @@
        <a href="{% url 'crossmatch_commit' pk=image.pk querytype=type cross_id=crossmatch_source.match_id %}?username={{user.username}}&usertag=ignore&userreason=is%20match" class="btn btn-success mx-auto btn-sm">There is a match</a>
        <a href="{% url 'crossmatch_commit' pk=image.pk querytype=type cross_id=crossmatch_source.match_id %}?username={{user.username}}&usertag=ignore&userreason=sumss%20extended" class="btn btn-success mx-auto btn-sm">SUMSS Extended/Diffuse</a>
        <a href="{% url 'crossmatch_commit' pk=image.pk querytype=type cross_id=crossmatch_source.match_id %}?username={{user.username}}&usertag=ignore&userreason=bright%20source" class="btn btn-success mx-auto btn-sm">Close to bright source</a>
+       <a href="{% url 'crossmatch_commit' pk=image.pk querytype=type cross_id=crossmatch_source.match_id %}?username={{user.username}}&usertag=ignore&userreason=askap%20double" class="btn btn-success mx-auto btn-sm">ASKAP double</a>
        <a href="{% url 'crossmatch_commit' pk=image.pk querytype=type cross_id=crossmatch_source.match_id %}?username={{user.username}}&usertag=help&userreason=not%20sure" class="btn btn-warning mx-auto btn-sm">Not sure</a><br><br>
        <a href="{% url 'crossmatch_commit' pk=image.pk querytype=type cross_id=crossmatch_source.match_id %}?username={{user.username}}&usertag=investigate&userreason=sumss%20non-detection" class="btn btn-danger mx-auto btn-sm">SUMSS Non-detection</a>
        <a href="{% url 'crossmatch_commit' pk=image.pk querytype=type cross_id=crossmatch_source.match_id %}?username={{user.username}}&usertag=investigate&userreason=askap%20non-detection" class="btn btn-danger mx-auto btn-sm">ASKAP Non-detection</a>
        <a href="{% url 'crossmatch_commit' pk=image.pk querytype=type cross_id=crossmatch_source.match_id %}?username={{user.username}}&usertag=problem&userreason=edge%20of%20field" class="btn btn-secondary mx-auto btn-sm">Edge of Field</a>
        <a href="{% url 'crossmatch_commit' pk=image.pk querytype=type cross_id=crossmatch_source.match_id %}?username={{user.username}}&usertag=problem&userreason=out%20of%20range" class="btn btn-secondary mx-auto btn-sm">Out of Range</a>
-       <a href="{% url 'crossmatch_commit' pk=image.pk querytype=type cross_id=crossmatch_source.match_id %}?username={{user.username}}&usertag=problem&userreason=askap%20double" class="btn btn-secondary mx-auto btn-sm">ASKAP double</a>
        <a href="{% url 'crossmatch_commit' pk=image.pk querytype=type cross_id=crossmatch_source.match_id %}?username={{user.username}}&usertag=problem&userreason=sumss%20artefact" class="btn btn-secondary mx-auto btn-sm">SUMSS artefact</a>
        <a href="{% url 'crossmatch_commit' pk=image.pk querytype=type cross_id=crossmatch_source.match_id %}?username={{user.username}}&usertag=problem&userreason=askap%20artefact" class="btn btn-secondary mx-auto btn-sm">ASKAP artefact</a>
        {% else %}
        <button type="button" class="btn btn-success mx-auto btn-sm" disabled>There is a match</button>
        <button type="button" class="btn btn-success mx-auto btn-sm" disabled>SUMSS Extended/Diffuse</button>
        <button type="button" class="btn btn-success mx-auto btn-sm" disabled>Close to bright source</button>
+       <button type="button" class="btn btn-success mx-auto btn-sm" disabled>ASKAP double</button>
        <button type="button" class="btn btn-warning mx-auto btn-sm" disabled>Not sure</button><br><br>
        <button type="button" class="btn btn-danger mx-auto btn-sm" disabled>SUMSS Non-detection</button>
        <button type="button" class="btn btn-danger mx-auto btn-sm" disabled>ASKAP Non-detection</button>
        <button type="button" class="btn btn-secondary mx-auto btn-sm" disabled>Edge of Field</button>
        <button type="button" class="btn btn-secondary mx-auto btn-sm" disabled>Out of Range</button>
-       <button type="button" class="btn btn-secondary mx-auto btn-sm" disabled>ASKAP double</button>
        <button type="button" class="btn btn-secondary mx-auto btn-sm" disabled>SUMSS artefact</button>
        <button type="button" class="btn btn-secondary mx-auto btn-sm" disabled>ASKAP artefact</button>
        {% endif %}
@@ -118,8 +118,8 @@
     <!-- <h5 class="card-title">{{ image.name}} details</h5> -->
     <p class="card-text"><b>Right Ascension:</b> {{crossmatch_source.ra|deg_to_hms}}<br>
     <b>Declination:</b> {{crossmatch_source.dec|deg_to_dms}}<br>
-    <b>ASKAP Int Flux:</b> {{crossmatch_source.askap_iflux}} ({{crossmatch_source.askap_iflux_e}})<br>
-    <b>SUMSS Int Flux:</b> {{crossmatch_source.sumss_iflux}} ({{crossmatch_source.sumss_iflux_e}})<br>
+    <b>ASKAP Int Flux:</b> {{crossmatch_source.askap_iflux|jy_to_mjy}} +/- {{crossmatch_source.askap_iflux_e|jy_to_mjy}} mJy<br>
+    <b>SUMSS Int Flux:</b> {{crossmatch_source.sumss_iflux}} +/- {{crossmatch_source.sumss_iflux_e}} mJy<br>
     <b>SUMSS SNR:</b> {{crossmatch_source.sumss_snr}}</p>
   </div>
 </div>

@@ -112,6 +112,7 @@ class Askapnotseen(models.Model):
     askap_iflux = models.DecimalField(max_digits=20, decimal_places=3, default=0)
     askap_iflux_e = models.DecimalField(max_digits=20, decimal_places=3, default=0)
     sumss_snr = models.DecimalField(max_digits=20, decimal_places=2, default=0)
+    sumss_flux = models.DecimalField(max_digits=20, decimal_places=2, default=0)
     ploturl = models.CharField(max_length=200, unique=False, default="plot")
     pipelinetag = models.CharField(max_length=30, unique=False, default="N/A")
     usertag = models.CharField(max_length=30, unique=False, default="N/A")

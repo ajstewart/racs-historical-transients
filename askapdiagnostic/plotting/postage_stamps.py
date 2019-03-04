@@ -20,9 +20,23 @@ import pandas as pd
 
 logger = logging.getLogger(__name__)
 
-def _plotinitial(panels, key, figure, image):
+def _sumss_rms(dec):
+    if dec>-50:
+        return 0.002
+    else:
+        return 0.0012
+
+def _plotinitial(panels, key, figure, image, vmin=-99, vmax=-99):
     panels[key]=aplpy.FITSFigure(image, figure=figure, subplot=(1,2,key+1))
-    panels[key].show_grayscale()
+    if vmin == -99 and vmax == -99:
+        panels[key].show_grayscale()
+    elif vmin != -99 and vmax != -99:
+        panels[key].show_grayscale(vmin=vmin, vmax=vmax)
+    elif vmin == -99:
+        panels[key].show_grayscale(vmax=vmax)
+    else:
+        panels[key].show_grayscale(vmin=vmin)
+            
         # panels[key].show_contour(images[n-1], colors='red', levels=[3.*12e-6, 4.*12.e-6, 8.*12.e-6, 16*12.e-6])
     panels[key].set_theme('publication')
     return panels
@@ -60,6 +74,7 @@ def create_askap_postage_stamps(askap_df,crossmatch_df,askap_image, nprocs, sums
     sumss_centres = SkyCoord(ra=sumss_mosaic_data["center-ra"].values*u.deg, dec=sumss_mosaic_data["center-dec"].values*u.deg)
     
     matching_images=[]
+    sumss_fluxes=[]
     
     for i,row in askap_df.iterrows():
         askap_target=SkyCoord(ra=row["ra"]*u.deg, dec=row["dec"]*u.deg)
@@ -71,8 +86,20 @@ def create_askap_postage_stamps(askap_df,crossmatch_df,askap_image, nprocs, sums
         # print image
         # print askap_target.to_string('hmsdms')
         matching_images.append(image.replace(".FITS", ""))
+        #Open the image using aplpy as it has simple world2pixel function
+        sumssfits = aplpy.FITSFigure(os.path.join(sumss_mosaic_dir, image))
+        source_pixel_loc = sumssfits.world2pixel(askap_target.ra.deg, askap_target.dec.deg)
+        source_pixel_loc_x = int(source_pixel_loc[0])
+        source_pixel_loc_y = int(source_pixel_loc[1])
+        temp_flux_values = []
+        for i in [[0,0], [0, 1], [0,-1], [1,1], [1,0], [1,-1], [-1,-1], [-1, 0], [-1,1]]:
+            temp_flux_values.append(sumssfits._data[source_pixel_loc_y+i[1], source_pixel_loc_x+i[0]])
+        peak_flux = np.max(temp_flux_values)
+        sumss_fluxes.append(peak_flux)
+        sumssfits.close()
         
     askap_df["sumss_Mosaic"]=matching_images
+    askap_df["sumss_peak_flux"]=sumss_fluxes
     
     if nprocs > 1:
         sumss_fits_mosaics = askap_df["sumss_Mosaic"].unique()
@@ -308,7 +335,7 @@ def produce_postage_stamps(df, full_df, askap_fits, sumss_mosaic_dir, good_sourc
         #First initialise the figure and set up the askap panel with the image.
         panels={}
         fig = plt.figure(figsize=(12, 6))
-        panels=_plotinitial(panels, 1, fig, askap_fits)
+        panels=_plotinitial(panels, 1, fig, askap_fits, vmin=-0.0025, vmax=0.007829)
         
         #Load the ellipses onto the askap image
         panels[1].show_ellipses(askap_extractions["ra"],askap_extractions["dec"],askap_extractions["b"]/3600.*1.5, 
@@ -319,7 +346,7 @@ def produce_postage_stamps(df, full_df, askap_fits, sumss_mosaic_dir, good_sourc
         bbox_dict=dict(boxstyle="round", ec="white", fc="white", alpha=0.7)
         
         #Now start the SUMSS loop
-        for s_image in sumss_fits_mosaics:# [:1]:
+        for s_image in sumss_fits_mosaics[:1]:
             #Get the actual fits file
             logger.debug("SUMSS image: {}".format(s_image))
             s_image_path=os.path.join(sumss_mosaic_dir, s_image+".FITS")
@@ -336,7 +363,7 @@ def produce_postage_stamps(df, full_df, askap_fits, sumss_mosaic_dir, good_sourc
             panels[1].axis_labels.hide()
             panels[1].tick_labels.hide()
             #Now begin the main loop per source
-            # debug_num=0
+            debug_num=0
             for i, row in filtered_cross_matches.iterrows():
                 if not askap_only:
                     panels[1].set_title("ASKAP "+row["askap_name"])
@@ -368,10 +395,11 @@ def produce_postage_stamps(df, full_df, askap_fits, sumss_mosaic_dir, good_sourc
                 if not askap_only:
                     sep_text=plt.text(0.02, 0.02, "Distance Separation = {:.2f} arcsec".format(row["d2d"]), transform=plt.gcf().transFigure)
                     ratio_text=plt.text(0.8, 0.02, "Int. Flux Ratio ASKAP/SUMSS = {:.2f}".format(row["askap_sumss_int_flux_ratio"]), transform=plt.gcf().transFigure)
-                    askap_snr_text=plt.text(0.57, 0.78, "ASKAP Sigma = {:.2f}\nSUMSS Sigma = {:.2f}".format(row["askap_snr"], row["askap_sumss_snr"]), transform=plt.gcf().transFigure, bbox=bbox_dict)
-                    sumss_snr_text=plt.text(0.14, 0.81, "SUMSS Sigma = {:.2f}".format(row["sumss_sumss_snr"]), transform=plt.gcf().transFigure, bbox=bbox_dict)
+                    askap_snr_text=plt.text(0.57, 0.75, "ASKAP Flux = {:.2f} mJy\nASKAP Sigma = {:.2f}\nSUMSS Sigma = {:.2f}".format(row["askap_int_flux"]*1.e3, row["askap_snr"], row["askap_sumss_snr"]), transform=plt.gcf().transFigure, bbox=bbox_dict)
+                    sumss_snr_text=plt.text(0.14, 0.78, "SUMSS Flux = {:.2f} mJy\nSUMSS Sigma ~ {:.2f}".format(row["sumss_St"], row["sumss_sumss_snr"]), transform=plt.gcf().transFigure, bbox=bbox_dict)
                 else:
-                    askap_snr_text=plt.text(0.57, 0.78, "ASKAP Sigma = {:.2f}\nSUMSS Sigma = {:.2f}".format(row["snr"], row["sumss_snr"]), transform=plt.gcf().transFigure, bbox=bbox_dict)
+                    askap_snr_text=plt.text(0.57, 0.75, "ASKAP Flux = {:.2f} mJy\nASKAP Sigma = {:.2f}\nSUMSS Sigma ~ {:.2f}".format(row["int_flux"]*1.e3, row["snr"], row["sumss_snr"]), transform=plt.gcf().transFigure, bbox=bbox_dict)
+                    sumss_snr_text=plt.text(0.14, 0.78, "SUMSS Peak Flux = {:.2f} mJy\nSUMSS Sigma ~ {:.2f}".format(row["sumss_peak_flux"]*1.e3, row["sumss_peak_flux"]/_sumss_rms(row["dec"])), transform=plt.gcf().transFigure, bbox=bbox_dict)
                 
                 #Figure name
                 # plt.title(row["sumss_name"])
@@ -404,14 +432,14 @@ def produce_postage_stamps(df, full_df, askap_fits, sumss_mosaic_dir, good_sourc
                     panels[1].remove_layer("SUMSS Source")
 
                 askap_snr_text.set_visible(False)
+                sumss_snr_text.set_visible(False)
                 if not askap_only:
                     sep_text.set_visible(False)
                     ratio_text.set_visible(False)
-                    sumss_snr_text.set_visible(False)
-                # debug_num+=1
-                # if debug_num==3:
-                #     debug_num=0
-                #     break
+                debug_num+=1
+                if debug_num==3:
+                    debug_num=0
+                    break
             
             #I think this will clear the SUMSS one, must be a more specific way.    
             plt.gca().remove()

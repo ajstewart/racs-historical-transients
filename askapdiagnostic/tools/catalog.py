@@ -85,7 +85,7 @@ class Catalog(object):
         
     def _add_askap_sn(self):
         try:
-            self.df["snr"]=self.df["peak_flux"]/self.df["local_rms"]
+            self.df["snr"]=self.df["int_flux"]/self.df["local_rms"]
         except:
             self.logger.error("Adding ASKAP SNR not supported for this dataframe.")
         

@@ -107,6 +107,13 @@ def main():
     parser.add_argument("--sumss-mosaic-dir", type=str, help="Directory containing the SUMSS survey mosaic image files.", default=None)
     parser.add_argument("--aegean-settings-config", type=str, help="Select a config file containing the Aegean settings to be used (instead of defaults if none provided).", default=None)
     parser.add_argument("--transients", action="store_true", help="Perform a transient search analysis using the crossmatch data. Requires '--max-separation' to be defined.", default=None)
+    parser.add_argument("--db-engine", type=str, help="Define the database engine.", default="postgresql")
+    parser.add_argument("--db-username", type=str, help="Define the username to use for the database", default="postgres")
+    parser.add_argument("--db-host", type=str, help="Define the host for the databse.", default="localhost")
+    parser.add_argument("--db-port", type=str, help="Define the port for the databse.", default="5432")
+    parser.add_argument("--db-database", type=str, help="Define the name of the database.", default="postgres")
+    parser.add_argument("--database-tag", type=str, help="The description field in the databased attached to the image.", default="ASKAP Image")
+    parser.add_argument("--website-media-dir", type=str, help="Copy the image directory directly to the static media directory of the website.", default="none")
     # parser.add_argument("--dont-mask-sumss", action="store_true", help="Do not filter the SUMSS catalogue such that only sources that should be in the ASKAP image remain.")
     args = parser.parse_args()
     
@@ -294,10 +301,10 @@ def main():
         sumss_catalog.add_distance_from_pos(theimg.centre)
         
         #Add SUMSS S/N for ASKAP sources
-        askap_touse.add_sumss_sn(flux_col="peak_flux")
-        askap_catalog.add_sumss_sn(flux_col="peak_flux")
-        sumss_touse.add_sumss_sn(flux_col="Sp", dec_col="_DEJ2000", flux_scaling=0.001)
-        sumss_catalog.add_sumss_sn(flux_col="Sp", dec_col="_DEJ2000", flux_scaling=0.001)
+        askap_touse.add_sumss_sn(flux_col="int_flux")
+        askap_catalog.add_sumss_sn(flux_col="int_flux")
+        sumss_touse.add_sumss_sn(flux_col="St", dec_col="_DEJ2000", flux_scaling=1.e-3)
+        sumss_catalog.add_sumss_sn(flux_col="St", dec_col="_DEJ2000", flux_scaling=1.e-3)
         askap_touse._add_askap_sn()
         askap_catalog._add_askap_sn()
         
@@ -401,16 +408,23 @@ def main():
         # Database Entry
         # image_id=theimg.inject_db(datestamp=launchtime)
         #Processing settings
-        image_id=theimg.inject_db(datestamp=launchtime, user=username)
+        image_id=theimg.inject_db(datestamp=launchtime, user=username, description=args.database_tag, db_engine=args.db_engine, db_username=args.db_username, db_host=args.db_host, 
+            db_port=args.db_port, db_database=args.db_database)
         theimg.inject_processing_db(image_id, full_output, askap_cat_file, sumss_source_cat, args.askap_ext_thresh, 
-            args.sumss_ext_thresh, args.max_separation, aegean_sigmas)
-        sumss_askap_crossmatch_transient.inject_good_db(image_id)
+            args.sumss_ext_thresh, args.max_separation, aegean_sigmas, db_engine=args.db_engine, db_username=args.db_username, db_host=args.db_host, 
+            db_port=args.db_port, db_database=args.db_database)
+        sumss_askap_crossmatch_transient.inject_good_db(image_id, db_engine=args.db_engine, db_username=args.db_username, db_host=args.db_host, 
+            db_port=args.db_port, db_database=args.db_database)
         if args.transients:
-            sumss_askap_crossmatch_transient.inject_transients_db(image_id)
+            sumss_askap_crossmatch_transient.inject_transients_db(image_id, db_engine=args.db_engine, db_username=args.db_username, db_host=args.db_host, 
+            db_port=args.db_port, db_database=args.db_database)
         
-        media_dir=os.path.join("..", "static", "media", "{}".format(image_id))
+        if args.website_media_dir!="none":
+            media_dir=os.path.join(args.website_media_dir, str(image_id))
+        else:
+            media_dir=os.path.join("..", "static", "media", "{}".format(image_id))
         stamp_media_dir=os.path.join(media_dir, "stamps")
-        os.makedirs(media_dir)
+        # os.makedirs(media_dir)
         os.makedirs(stamp_media_dir)
         subprocess.call("cp postage-stamps/good/*.jpg {}/".format(stamp_media_dir), shell=True)
         subprocess.call("cp postage-stamps/bad/*.jpg {}/".format(stamp_media_dir), shell=True)

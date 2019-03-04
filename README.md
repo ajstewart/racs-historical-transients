@@ -1,5 +1,5 @@
 # askap-image-diagnostic
-A module to perform diagnostic analysis on ASKAP images using the SUMSS catalogue. Creates a crossmatch catalogue for SUMSS -> ASKAP sources and also produces diagnostic plots. Also includes the ability to create postage stamps of each crossmatch.
+A module to perform diagnostic analysis on ASKAP images using the SUMSS catalogue. Creates a crossmatch catalogue for SUMSS -> ASKAP sources and also produces diagnostic plots. Also includes the ability to create postage stamps of each crossmatch and to search for transients from either catalogue.
 
 ## Installation
 I recommend to install the module to a new python environment using, for example, conda or virtualenv.
@@ -12,19 +12,28 @@ To install using pip:
 
 Or you can clone the git repository and install using `python setup.py install` or `pip install .`.
 
+###Creating a Database
+This script was intended to be run on the ada machine which has a installation of postgresql available.
+
+###Installation of the Website
+Included in the repository is `web_server` which is a basic website built using Django to allow the user to explore the results in a convienient way and for other users to give feedback on the crossmatching.
+
+To install, copy the `web_server` directory to a location where you wish to host the website from.
+
 ## Usage
 The built in processing script for the module, available from the command line, is `processASKAPimage.py`.
 
 By default, which means no askap or sumss csv files are provided, `aegean` will be run on the ASKAP image to extract a source catalogue and the SUMSS catalogue will be automatically fetched from Vizier. The SUMSS catalogue will be trimmed to only those sources that fall within the image area.
 
-More than one image can be passed through the processing script at once - however currently the manual csv inputs do not support multiple entires. Hence let the script automatically do source finding and SUMSS fetching.
+More than one image can be passed through the processing script at once - however currently the manual csv inputs do not support multiple entires. Hence let the script automatically do source finding and SUMSS fetching if you want to run more than one image through.
 
 A range of options exist to influence processing:
 
 ```
 usage: processASKAPimage.py [-h] [--output-tag OUTPUT_TAG]
-                            [--log-level {WARNING,INFO,DEBUG}] [--clobber]
-                            [--askap-csv ASKAP_CSV] [--sumss-csv SUMSS_CSV]
+                            [--log-level {WARNING,INFO,DEBUG}] [--nice NICE]
+                            [--clobber] [--askap-csv ASKAP_CSV]
+                            [--sumss-csv SUMSS_CSV]
                             [--askap-csv-format {aegean}] [--remove-extended]
                             [--askap-ext-thresh ASKAP_EXT_THRESH]
                             [--sumss-ext-thresh SUMSS_EXT_THRESH]
@@ -32,9 +41,15 @@ usage: processASKAPimage.py [-h] [--output-tag OUTPUT_TAG]
                             [--boundary-value {nan,zero}]
                             [--crossmatch-base CROSSMATCH_BASE]
                             [--max-separation MAX_SEPARATION]
-                            [--create-postage-stamps]
+                            [--postage-stamps]
+                            [--postage-stamp-selection {all,good,bad,transients} [{all,good,bad,transients} ...]]
                             [--sumss-mosaic-dir SUMSS_MOSAIC_DIR]
                             [--aegean-settings-config AEGEAN_SETTINGS_CONFIG]
+                            [--transients] [--db-engine DB_ENGINE]
+                            [--db-username DB_USERNAME] [--db-host DB_HOST]
+                            [--db-port DB_PORT] [--db-database DB_DATABASE]
+                            [--database-tag DATABASE_TAG]
+                            [--website-media-dir WEBSITE_MEDIA_DIR]
                             images [images ...]
 
 positional arguments:
@@ -46,6 +61,7 @@ optional arguments:
                         Add a tag to the output name. (default: )
   --log-level {WARNING,INFO,DEBUG}
                         Set the logging level. (default: INFO)
+  --nice NICE           Set the 'nice' level of processes. (default: 10)
   --clobber             Overwrite output if already exists. (default: False)
   --askap-csv ASKAP_CSV
                         Manually define a aegean csv file containing the
@@ -85,9 +101,11 @@ optional arguments:
   --max-separation MAX_SEPARATION
                         Maximum crossmatch distance (in arcsec) to be
                         consdiered when creating plots. (default: None)
-  --create-postage-stamps
-                        Produce postage stamp plots of the cross matched
+  --postage-stamps      Produce postage stamp plots of the cross matched
                         sources within the max separation. (default: False)
+  --postage-stamp-selection {all,good,bad,transients} [{all,good,bad,transients} ...]
+                        Select which postage stamps to create. (default:
+                        ['all'])
   --sumss-mosaic-dir SUMSS_MOSAIC_DIR
                         Directory containing the SUMSS survey mosaic image
                         files. (default: None)
@@ -95,6 +113,25 @@ optional arguments:
                         Select a config file containing the Aegean settings to
                         be used (instead of defaults if none provided).
                         (default: None)
+  --transients          Perform a transient search analysis using the
+                        crossmatch data. Requires '--max-separation' to be
+                        defined. (default: None)
+  --db-engine DB_ENGINE
+                        Define the database engine. (default: postgresql)
+  --db-username DB_USERNAME
+                        Define the username to use for the database (default:
+                        postgres)
+  --db-host DB_HOST     Define the host for the databse. (default: localhost)
+  --db-port DB_PORT     Define the port for the databse. (default: 5432)
+  --db-database DB_DATABASE
+                        Define the name of the database. (default: postgres)
+  --database-tag DATABASE_TAG
+                        The description field in the databased attached to the
+                        image. (default: ASKAP Image)
+  --website-media-dir WEBSITE_MEDIA_DIR
+                        Copy the image directory directly to the static media
+                        directory of the website. (default: none)
+
 
 ````
 
@@ -130,3 +167,5 @@ floodclip=4
 autoload=True
 ````
 To deactivate a setting remove it from the config file.
+
+## Website

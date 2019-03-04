@@ -188,9 +188,10 @@ class askapimage(object):
         self.logger.info("Wrote SUMSS sources to {}.".format(name))
         
         
-    def inject_db(self, datestamp=datetime.datetime.utcnow(), user="unknown"):
+    def inject_db(self, datestamp=datetime.datetime.utcnow(), user="unknown", description="", db_engine="postgresql", 
+            db_username="postgres", db_host="localhost", db_port="5432", db_database="postgres"):
         image_id=1
-        engine = sqlalchemy.create_engine('postgresql://aste7152@localhost:5434/RACS')
+        engine = sqlalchemy.create_engine('{}://{}@{}:{}/{}'.format(db_engine, db_username, db_host, db_port, db_database))
         result = engine.execute("SELECT id FROM images_image")
         try:
             image_id+=int(result.fetchall()[-1][0])
@@ -201,14 +202,15 @@ class askapimage(object):
         plots_values=["media/{}/{}".format(image_id, self.plots[i]) for i in plots_columns]
         self.logger.info("Image run assigned id {}".format(image_id))
         # conn = psycopg2.connect("host=localhost dbname=RACS user=aste7152 port=5434")
-        tempdf=pd.DataFrame([[image_id, self.imagename, "ASKAP RACS image", self.centre.ra.degree, 
+        tempdf=pd.DataFrame([[image_id, self.imagename, description, self.centre.ra.degree, 
             self.centre.dec.degree, datestamp, self.image]+plots_values+[user,self.total_askap_sources, self.total_sumss_sources]], columns=["image_id", "name", "description", 
                 "ra", "dec", "runtime", "url"]+plots_columns+["runby", "number_askap_sources", "number_sumss_sources"])
         tempdf.to_sql("images_image", engine, if_exists="append", index=False)
         return image_id
         
-    def inject_processing_db(self, image_id, output, askap_cat_file, sumss_source_cat, askap_ext_thresh, sumss_ext_thresh, max_separation, aegean_sigmas):
-        engine = sqlalchemy.create_engine('postgresql://aste7152@localhost:5434/RACS')
+    def inject_processing_db(self, image_id, output, askap_cat_file, sumss_source_cat, askap_ext_thresh, sumss_ext_thresh, max_separation, aegean_sigmas, db_engine="postgresql", 
+            db_username="postgres", db_host="localhost", db_port="5432", db_database="postgres"):
+        engine = sqlalchemy.create_engine('{}://{}@{}:{}/{}'.format(db_engine, db_username, db_host, db_port, db_database))
         settings_columns=["image_id", "output_dir", "askap_csv", "sumss_csv", "askap_ext_thresh", "sumss_ext_thresh", "max_separation", "aegean_det_sigma", "aegean_fill_sigma"]
         settings_data=[image_id, output, askap_cat_file, sumss_source_cat, askap_ext_thresh, sumss_ext_thresh, max_separation]+aegean_sigmas
         tempdf=pd.DataFrame([settings_data], columns=settings_columns)

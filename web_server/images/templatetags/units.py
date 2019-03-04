@@ -37,3 +37,10 @@ def deg_to_dms(deg):
     minutes, seconds = divmod(seconds, ASEC_IN_AMIN)
     return "{}{:02.0f}d {:02.0f}m {:02.2f}s".format(sign, degrees, minutes, seconds)
     
+@register.filter
+def jy_to_mjy(flux):
+    """
+    convert jansky to millijansky
+    """
+    return float(flux) * 1.e3
+    
