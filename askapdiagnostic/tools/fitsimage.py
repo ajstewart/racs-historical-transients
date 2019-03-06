@@ -10,6 +10,10 @@ import astropy.units as u
 from astropy.coordinates import SkyCoord
 import numpy as np
 import pandas as pd
+import datetime
+import sqlalchemy
+import psycopg2
+from askapdiagnostic.plotting import plots
 
 class askapimage(object):
     """docstring for fitsimage"""
@@ -182,6 +186,43 @@ class askapimage(object):
         name=self.imagename.replace(".fits", "_sumss_comp.csv")
         self.sumss_sources.to_csv(name, sep=",", index=False)
         self.logger.info("Wrote SUMSS sources to {}.".format(name))
+        
+        
+    def inject_db(self, datestamp=datetime.datetime.utcnow(), user="unknown", description="", db_engine="postgresql", 
+            db_username="postgres", db_host="localhost", db_port="5432", db_database="postgres"):
+        image_id=1
+        engine = sqlalchemy.create_engine('{}://{}@{}:{}/{}'.format(db_engine, db_username, db_host, db_port, db_database))
+        result = engine.execute("SELECT id FROM images_image")
+        try:
+            image_id+=int(result.fetchall()[-1][0])
+        except:
+            image_id=1
+        #Better to control the order
+        plots_columns=["flux_ratio_image_view", "position_offset", "source_counts", "flux_ratios", "flux_ratios_from_centre", "askap_overlay", "sumss_overlay"]
+        plots_values=["media/{}/{}".format(image_id, self.plots[i]) for i in plots_columns]
+        self.logger.info("Image run assigned id {}".format(image_id))
+        # conn = psycopg2.connect("host=localhost dbname=RACS user=aste7152 port=5434")
+        tempdf=pd.DataFrame([[image_id, self.imagename, description, self.centre.ra.degree, 
+            self.centre.dec.degree, datestamp, self.image]+plots_values+[user,self.total_askap_sources, self.total_sumss_sources]], columns=["image_id", "name", "description", 
+                "ra", "dec", "runtime", "url"]+plots_columns+["runby", "number_askap_sources", "number_sumss_sources"])
+        tempdf.to_sql("images_image", engine, if_exists="append", index=False)
+        return image_id
+        
+    def inject_processing_db(self, image_id, output, askap_cat_file, sumss_source_cat, askap_ext_thresh, sumss_ext_thresh, max_separation, aegean_sigmas, db_engine="postgresql", 
+            db_username="postgres", db_host="localhost", db_port="5432", db_database="postgres"):
+        engine = sqlalchemy.create_engine('{}://{}@{}:{}/{}'.format(db_engine, db_username, db_host, db_port, db_database))
+        settings_columns=["image_id", "output_dir", "askap_csv", "sumss_csv", "askap_ext_thresh", "sumss_ext_thresh", "max_separation", "aegean_det_sigma", "aegean_fill_sigma"]
+        settings_data=[image_id, output, askap_cat_file, sumss_source_cat, askap_ext_thresh, sumss_ext_thresh, max_separation]+aegean_sigmas
+        tempdf=pd.DataFrame([settings_data], columns=settings_columns)
+        tempdf.to_sql("images_processingsettings", engine, if_exists="append", index=False)
+        
+    def create_overlay_plot(self, overlay_cat, overlay_cat_label="sources", overlay_cat_2=None, overlay_cat_label_2=None, sumss=False):
+        thename=plots.image_sources_overlay(self.image, self.imagename, overlay_cat, overlay_cat_label=overlay_cat_label, overlay_cat_2=overlay_cat_2, overlay_cat_label_2=overlay_cat_label_2, sumss=sumss)
+        return thename
+        
+        
+        
+        
             
                  
             

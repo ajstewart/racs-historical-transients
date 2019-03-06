@@ -1,7 +1,7 @@
 from setuptools import setup, find_packages
 
 setup(name='askap-image-diagnostic',
-      version='0.3',
+      version='0.4',
       description='Perform analysis tasks on ASKAP images.',
       url='http://github.com/ajstewart/askap-image-diagnostic',
       author='Adam Stewart',
@@ -16,7 +16,8 @@ setup(name='askap-image-diagnostic',
                         'pandas',
                         'astroquery',
                         'colorlog',
-                        # 'jupyter'
+                        'django < 2.0',
+                        'django_tables2'
                         ],
       scripts=["bin/processASKAPimage.py"],
       include_package_data=True)

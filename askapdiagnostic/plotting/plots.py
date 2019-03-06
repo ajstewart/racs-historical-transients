@@ -7,6 +7,10 @@ import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib import patches
 from matplotlib.lines import Line2D
+import aplpy
+from astropy.coordinates import SkyCoord
+from astropy import units as u
+import pandas as pd
 
 logger = logging.getLogger(__name__)
 
@@ -26,12 +30,13 @@ def flux_ratio_image_view(df, title="Flux ratio plot", save=True, base_filename=
     plt.gca().invert_xaxis()
     
     plt.title(title)
+    filename="{}_flux_ratio_image_view.png".format(base_filename)
     
     if save:
-        filename="{}_flux_ratio_image_view.png".format(base_filename)
         plt.savefig(filename, bbox_inches="tight")
         logger.info("Figure {} saved.".format(filename))
     plt.close()
+    return filename
     
     
 def position_offset(df, title="Position offset plot", save=True, base_filename="image"):
@@ -62,11 +67,12 @@ def position_offset(df, title="Position offset plot", save=True, base_filename="
     custom_lines=[Line2D([0], [0], color="r"),]
     ax.legend(custom_lines, ['Median Offset'])
     ax.text(10,-19, "Median RA Offset = {:.2f}\nMedian Dec Offset = {:.2f}".format(med_ra_offset, med_dec_offset))
+    filename="{}_position_offset_from_sumss.png".format(base_filename)
     if save:
-        filename="{}_position_offset_from_sumss.png".format(base_filename)
         plt.savefig(filename, bbox_inches="tight")
         logger.info("Figure {} saved.".format(filename))
     plt.close()
+    return filename
     
     
 def source_counts(sumss_df, askap_df, crossmatch_df, max_sep, title="Source counts plot", save=True, base_filename="image"):
@@ -96,12 +102,12 @@ def source_counts(sumss_df, askap_df, crossmatch_df, max_sep, title="Source coun
     ax.set_ylabel("Number of Sources")
     for i,val in enumerate((total_askap_sources, total_askap_expected, num_sumss_sources, num_sumss_sources_matched)):
         ax.text((i+1-0.1), val+20, "{}".format(val),zorder=10)
+    filename="{}_source_counts.png".format(base_filename)
     if save:
-        filename="{}_source_counts.png".format(base_filename)
         plt.savefig(filename, bbox_inches="tight")
         logger.info("Figure {} saved.".format(filename))
     plt.close()
-    
+    return filename
     
 def flux_ratios_askap_flux(df, max_sep, title="Flux ratio", save=True, base_filename="image"):
     fig = plt.figure(figsize=(10, 8))
@@ -121,11 +127,12 @@ def flux_ratios_askap_flux(df, max_sep, title="Flux ratio", save=True, base_file
     ax.axhline(median_flux_ratio-std_flux_ratio, color="gold")
     ax.set_xscale("log")
     plt.legend()
+    filename="{}_flux_ratio_vs_askap_flux.png".format(base_filename)
     if save:
-        filename="{}_flux_ratio_vs_askap_flux.png".format(base_filename)
         plt.savefig(filename, bbox_inches="tight")
         logger.info("Figure {} saved.".format(filename))
     plt.close()
+    return filename
     
     
 def flux_ratios_distance_from_centre(df, max_sep, title="Flux ratio", save=True, base_filename="image"):
@@ -145,12 +152,51 @@ def flux_ratios_distance_from_centre(df, max_sep, title="Flux ratio", save=True,
     ax.axhline(median_flux_ratio+std_flux_ratio, label="Median +/- STD (STD = {:.2f})".format(std_flux_ratio), color="gold")
     ax.axhline(median_flux_ratio-std_flux_ratio, color="gold")
     plt.legend()
+    filename="{}_flux_ratio_vs_distance_from_centre.png".format(base_filename)
     if save:
-        filename="{}_flux_ratio_vs_distance_from_centre.png".format(base_filename)
         plt.savefig(filename, bbox_inches="tight")
         logger.info("Figure {} saved.".format(filename))
     plt.close()
+    return filename
     
+  
+def image_sources_overlay(imagetoplot, imagename, overlay_cat, overlay_cat_label="sources", overlay_cat_2=pd.DataFrame(), overlay_cat_label_2="None", sumss=False):
+    fig = plt.figure(figsize=(12, 12))
+    ax=aplpy.FITSFigure(imagetoplot, figure=fig)
+    ax.show_grayscale()
+        # panels[key].show_contour(images[n-1], colors='red', levels=[3.*12e-6, 4.*12.e-6, 8.*12.e-6, 16*12.e-6])
+    ax.set_theme('publication')
+    ax.show_colorbar()
+    
+    if not sumss:
+        ra = "ra"
+        dec = "dec"
+        a="a"
+        b="b"
+        pa="pa"
+        plotname=imagename.replace(".fits", "_askap_source_overlay.png")
+    else:
+        ra = "_RAJ2000"
+        dec = "_DEJ2000"
+        a="MinAxis"
+        b="MajAxis"
+        pa="PA"
+        plotname=imagename.replace(".fits", "_sumss_source_overlay.png")
     
 
+    ax.show_ellipses(overlay_cat[ra],overlay_cat[dec],overlay_cat[b]/3600., overlay_cat[a]/3600., angle=overlay_cat[pa], layer="Sources1", color="#1f77b4")
+    custom_lines = [Line2D([0], [0], color='#1f77b4'),]
+    labels=[overlay_cat_label]
+    if not overlay_cat_2.empty:
+        ax.show_ellipses(overlay_cat_2[ra],overlay_cat_2[dec],overlay_cat_2[b]/3600., overlay_cat_2[a]/3600., angle=overlay_cat_2[pa], layer="Sources2", color='#d62728')
+        custom_lines+=[Line2D([0], [0], color='#d62728'),]
+        labels+=[overlay_cat_label_2]
+    
+    ax._ax1.legend(custom_lines, labels)
+    
+    fig.savefig(plotname, bbox_inches="tight", dpi=300)
+    
+    return plotname
+    
+            
 

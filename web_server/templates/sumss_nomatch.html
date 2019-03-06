@@ -1,0 +1,24 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load units %}
+{% load render_table from django_tables2 %}
+
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{% url 'home' %}">Images</a></li>
+<li class="breadcrumb-item"><a href="{% url 'image_detail' image.pk %}">{{ image.name }}</a></li>
+<li class="breadcrumb-item active ">No ASKAP Match to SUMSS</li>
+{% endblock %}
+
+
+      {% block content %}
+      <div class="container">
+        <div class="row">
+          <div class="col text-center">
+      <a href="{% url 'nosumssmatchtoaskap' image.pk %}" class="btn btn-info mx-auto">No SUMSS Match to ASKAP</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+      <a href="{% url 'largeratio' image.pk %}" class="btn btn-info mx-auto">Large Flux Ratio</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+      <a href="{% url 'goodmatch' image.pk %}" class="btn btn-info mx-auto">Good Matches</a></p>
+  </div>
+   </div>
+    </div>
+      {% render_table table %}
+      {% endblock %}
