@@ -112,7 +112,7 @@ def main():
     parser.add_argument("--db-host", type=str, help="Define the host for the databse.", default="localhost")
     parser.add_argument("--db-port", type=str, help="Define the port for the databse.", default="5432")
     parser.add_argument("--db-database", type=str, help="Define the name of the database.", default="postgres")
-    parser.add_argument("--database-tag", type=str, help="The description field in the databased attached to the image.", default="ASKAP Image")
+    parser.add_argument("--db-tag", type=str, help="The description field in the databased attached to the image.", default="ASKAP Image")
     parser.add_argument("--website-media-dir", type=str, help="Copy the image directory directly to the static media directory of the website.", default="none")
     # parser.add_argument("--dont-mask-sumss", action="store_true", help="Do not filter the SUMSS catalogue such that only sources that should be in the ASKAP image remain.")
     args = parser.parse_args()
@@ -408,7 +408,7 @@ def main():
         # Database Entry
         # image_id=theimg.inject_db(datestamp=launchtime)
         #Processing settings
-        image_id=theimg.inject_db(datestamp=launchtime, user=username, description=args.database_tag, db_engine=args.db_engine, db_username=args.db_username, db_host=args.db_host, 
+        image_id=theimg.inject_db(datestamp=launchtime, user=username, description=args.db_tag, db_engine=args.db_engine, db_username=args.db_username, db_host=args.db_host, 
             db_port=args.db_port, db_database=args.db_database)
         theimg.inject_processing_db(image_id, full_output, askap_cat_file, sumss_source_cat, args.askap_ext_thresh, 
             args.sumss_ext_thresh, args.max_separation, aegean_sigmas, db_engine=args.db_engine, db_username=args.db_username, db_host=args.db_host, 
