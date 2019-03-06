@@ -18,7 +18,7 @@
    </button>
  </div>
  {% endif %}
- {% if crossmatch_source.checkedby != "N/A" %}
+ {% if crossmatch_source.checkedby != "N/A" and saved == False and updated == False %}
  <div class="alert alert-warning alert-dismissible fade show" role="alert">
    <strong>This source is already marked as checked!</strong> Checked by <strong>{{ crossmatch_source.checkedby }}</strong>, tag: <strong>{{ crossmatch_source.usertag }}</strong>, reason: <strong>{{ crossmatch_source.userreason }}</strong>.
    <button type="button" class="close" data-dismiss="alert" aria-label="Close">
@@ -44,7 +44,7 @@
  </div>
  {% endif %}
  
- {% if saved == False and updated == False %}
+ {% if saved == False and updated == False and conflict == True %}
  <div class="alert alert-danger alert-dismissible fade show" role="alert">
    <strong>User tag has not been saved.</strong> There is a previous definition.
    <button type="button" class="close" data-dismiss="alert" aria-label="Close">
@@ -108,7 +108,8 @@
   <h5 class="card-header bg-info mb-3 text-white">Crossmatch Plot</h5>
    <div class="card-body">
      <!-- <h5 class="card-title">{{ image.name}} details</h5> -->
-     <img src="{% static crossmatch_source.ploturl %}" class="mx-auto d-block" width="100%" height="100%"/>
+     <a href="{% static crossmatch_source.ploturl %}" >
+     <img src="{% static crossmatch_source.ploturl %}" class="mx-auto d-block" width="100%" height="100%"/></a>
    </div>
  </div>
      

@@ -23,7 +23,7 @@ class ImageTable(tables.Table):
     runby = tables.Column(verbose_name= 'Run By')
     class Meta:
         model = Image
-        template_name = 'django_tables2/bootstrap-responsive.html'
+        template_name = 'django_tables2/bootstrap4.html'
         fields = ("image_id", "name", "description", "ra", "dec", "number_askap_sources", "number_sumss_sources", "runtime", "runby" )
         attrs = {"th":{"bgcolor":"#EBEDEF"}}
         

@@ -71,7 +71,7 @@ def crossmatch_detail(request,pk,querytype,cross_id):
     title_to_use = title[querytype]
     url_to_use = html[querytype]
     return render(request, 'crossmatch_detail.html', {'crossmatch_source':crossmatch_source, 'image':image, 'type':querytype, 
-                                                        'title':title_to_use, 'type_url':url_to_use, 'max_id':max_id, 'min_id':min_id},)
+                                                        'title':title_to_use, 'type_url':url_to_use, 'max_id':max_id, 'min_id':min_id, "saved":False, "updated":False, "conflict":False},)
                                                         
 def crossmatch_commit(request,pk,querytype,cross_id):
     username = request.GET['username']
@@ -100,6 +100,7 @@ def crossmatch_commit(request,pk,querytype,cross_id):
         crossmatch_source.save()
         saved=True
         updated=False
+        conflict=False
     elif crossmatch_source.checkedby == username:
         crossmatch_source.checkedby=username
         crossmatch_source.usertag=usertag
@@ -107,12 +108,14 @@ def crossmatch_commit(request,pk,querytype,cross_id):
         crossmatch_source.save()
         updated=True
         saved=False
+        conflict = False
     else:
         saved=False
         updated=False
+        conflict=True
     image = Image.objects.get(pk=pk)
     title_to_use = title[querytype]
     url_to_use = html[querytype]
     return render(request, 'crossmatch_detail.html', {'crossmatch_source':crossmatch_source, 'image':image, 'type':querytype, 
-                                                        'title':title_to_use, 'type_url':url_to_use, 'max_id':max_id, 'min_id':min_id, "saved":saved, "updated":updated},)
+                                                        'title':title_to_use, 'type_url':url_to_use, 'max_id':max_id, 'min_id':min_id, "saved":saved, "updated":updated, "conflict":conflict},)
     
