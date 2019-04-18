@@ -13,6 +13,7 @@ from askapdiagnostic.plotting import postage_stamps
 import sqlalchemy
 import psycopg2
 import pkg_resources
+import numpy as np
 
 class crossmatch(object):
     """docstring for crossmatch"""
@@ -64,9 +65,10 @@ class crossmatch(object):
         panels[key].set_theme('publication')
         return panels
     
-    def produce_postage_stamps(self, sumss_mosaic_dir, postage_options, radius=13./60., nprocs=1, max_separation=15.):
+    def produce_postage_stamps(self, sumss_mosaic_dir, postage_options, radius=15./60., nprocs=1, max_separation=15., convolve=False, pre_convolve_image=None):
         askap_fits = self.crossmatch_df["askap_image"].iloc[0]
-        postage_stamps.crossmatch_stamps(self, askap_fits, postage_options, nprocs, sumss_mosaic_dir, radius=13./60., max_separation=max_separation)
+        postage_stamps.crossmatch_stamps(self, askap_fits, postage_options, nprocs, sumss_mosaic_dir, radius=13./60., max_separation=max_separation, convolve=convolve,
+            askap_pre_convolve_image=pre_convolve_image)
         
     # def produce_postage_stamps(self, sumss_mosaic_dir, radius=13./60., max_separation=None):
     #     if max_separation!=None:
@@ -152,7 +154,7 @@ class crossmatch(object):
     #     plt.close()
         
         
-    def transient_search(self, max_separation=15.0):
+    def transient_search(self, max_separation=15.0, askap_sumss_snr_thresh=5.0, large_flux_thresh=3.0, pre_conv_crossmatch=None):
         # Stage 1 - Define SUMSS sources with no match to ASKAP.
         # Stage 2 - Find those that have large flux ratios.
         # Stage 3 - Find ASKAP sources above the SUMSS threshold that have not been matched.
@@ -168,6 +170,7 @@ class crossmatch(object):
         num_dup_matches=len(dup_matches.index)
         if num_dup_matches==0:
             self.logger.info("No double ASKAP source matches found.")
+            moved_names=[]
         else:
             self.logger.warning("Matches to the same ASKAP source found!")
             self.logger.warning("Will keep the best match and move other match to 'no match' list.")
@@ -182,12 +185,45 @@ class crossmatch(object):
                         indexes_to_move.append(j)
             rows=matches.loc[indexes_to_move]
             no_matches = no_matches.append(rows, ignore_index=True)
-            matches.drop(rows.index, inplace=True)            
+            matches.drop(rows.index, inplace=True)  
+            #We need to know which ones were moved to get the right image - this is a bit of a hacky fix unfortunately
+            moved_names = rows["sumss_name"].tolist()
+        #Check the pre-convolved catalogue (if available) to see if a match is found there
+        if pre_conv_crossmatch !=None:
+            self.logger.info("Checking pre-convolved catalogue to check for matches that have been convolved out")
+            preconv_df=pre_conv_crossmatch.crossmatch_df
+            no_matches_names = no_matches["sumss_name"].tolist()
+            preconv_df_no_matches = preconv_df[preconv_df["sumss_name"].isin(no_matches_names)].reset_index(drop=True)
+            preconv_df_have_match = preconv_df_no_matches[preconv_df_no_matches["d2d"]<max_separation].reset_index(drop=True)
+            if len(preconv_df_have_match.index)>0:
+                self.logger.info("{} no match sources have a match in the pre-convolved image.".format(len(preconv_df_have_match.index)))
+                preconv_matches_names = preconv_df_have_match["sumss_name"].tolist()
+                #Need to move these ones that do have a match to good matches
+                rows_to_move = no_matches[no_matches["sumss_name"].isin(preconv_matches_names)]
+                matches = matches.append(rows_to_move, ignore_index=True)
+                no_matches.drop(rows_to_move.index, inplace=True)
+                #We need to know which ones were moved to get the right image - this is a bit of a hacky fix unfortunately
+                # conv_moved_names = rows["sumss_name"].tolist()
+                #Update the goodmatches for injection later
+                self.goodmatches_df=matches
+            else:
+                self.logger.info("No further matches found in the convolved image.")
+                   
                 
         # Stage 1
         # Consider all SUMSS sources with matches > max_sep to be 'not matched'
         self.logger.info("Finding SUMSS sources with no ASKAP matches...")
-        no_match_postage_stamps=["SUMSS_{}_BAD_sidebyside.jpg".format(val) for i,val in no_matches["sumss_name"].iteritems()]
+        #For moved double matched sources the tag needs to be changed from BAD -> GOOD to load the correct image.
+        if len(moved_names)==0:
+            no_match_postage_stamps=["SUMSS_{}_BAD_sidebyside.jpg".format(val) for i,val in no_matches["sumss_name"].iteritems()]
+        else:
+            no_match_postage_stamps=[]
+            for i,val in no_matches["sumss_name"].iteritems():
+                if val not in moved_names:
+                    no_match_postage_stamps.append("SUMSS_{}_BAD_sidebyside.jpg".format(val))
+                else:
+                    no_match_postage_stamps.append("SUMSS_{}_GOOD_sidebyside.jpg".format(val))
+    
         no_matches["postage_stamp"]=no_match_postage_stamps
         self.transients_no_matches_df=no_matches
         no_matches.to_csv("transients_sumss_sources_no_askap_match.csv", index=False)
@@ -199,8 +235,8 @@ class crossmatch(object):
         median_match_flux_ratio=matches["askap_sumss_int_flux_ratio"].median()
         std_match_flux_ratio=matches["askap_sumss_int_flux_ratio"].std()
         #For now define sources with 'large' ratios as being more than median +/- std.
-        large_ratios=matches[(matches["askap_sumss_int_flux_ratio"]<(median_match_flux_ratio-std_match_flux_ratio)) | 
-            (matches["askap_sumss_int_flux_ratio"]>(median_match_flux_ratio+std_match_flux_ratio))].reset_index(drop=True)
+        large_ratios=matches[(matches["askap_sumss_int_flux_ratio"]<(median_match_flux_ratio-(large_flux_thresh*std_match_flux_ratio))) | 
+            (matches["askap_sumss_int_flux_ratio"]>(median_match_flux_ratio+(large_flux_thresh*std_match_flux_ratio)))].reset_index(drop=True)
         large_ratios_postage_stamps=["SUMSS_{}_GOOD_sidebyside.jpg".format(val) for i,val in large_ratios["sumss_name"].iteritems()]
         large_ratios["postage_stamp"] = large_ratios_postage_stamps
         self.transients_large_ratios_df=large_ratios
@@ -216,8 +252,8 @@ class crossmatch(object):
         self.logger.info("Finding non-matched ASKAP sources that should have been seen...")
         matched_askap_sources=matches["askap_name"].tolist()
         not_matched_askap_sources=self.comp_catalog.df[~self.comp_catalog.df.name.isin(matched_askap_sources)].reset_index(drop=True)
-        # Now get those sources with a SNR ratio above 4.5 #Note March 4 - switch to 5.0, too many candidates at 4.5.
-        not_matched_askap_sources_should_see=not_matched_askap_sources[not_matched_askap_sources["sumss_snr"]>=5.0].reset_index(drop=True)
+        # Now get those sources with a SNR ratio above the user defined threshold #Note March 4 - switch to 5.0, too many candidates at 4.5. March 13 - Added user option.
+        not_matched_askap_sources_should_see=not_matched_askap_sources[not_matched_askap_sources["sumss_snr"]>=askap_sumss_snr_thresh].reset_index(drop=True)
         # find_sumss_image_and_flux(not_matched_askap_sources_should_see)
         askapnotseen_postage_stamps=["transient_askapnotseen_ASKAP_{}_sidebyside.jpg".format(val) for i,val in not_matched_askap_sources_should_see["name"].iteritems()]
         not_matched_askap_sources_should_see["postage_stamp"]=askapnotseen_postage_stamps
@@ -242,7 +278,8 @@ class crossmatch(object):
         # plots_columns=["flux_ratio_image_view", "position_offset", "source_counts", "flux_ratios", "flux_ratios_from_centre"]
         # self.logger.info("Image run assigned id {}".format(image_id))
         # conn = psycopg2.connect("host=localhost dbname=RACS user=aste7152 port=5434")
-        db_df=self.transients_no_matches_df.filter(["sumss_name", "sumss__RAJ2000", "sumss__DEJ2000","sumss_St", "sumss_e_St", "askap_int_flux", "askap_err_int_flux", "sumss_sumss_snr", "postage_stamp"], axis=1)
+        db_df=self.transients_no_matches_df.filter(["sumss_name", "sumss__RAJ2000", "sumss__DEJ2000","sumss_St", "sumss_e_St", "askap_int_flux", "askap_err_int_flux", 
+            "sumss_sumss_snr", "postage_stamp"], axis=1).sort_values(by=["sumss_sumss_snr"], ascending=False)
         db_df["image_id"]=image_id
         db_df["match_id"]=[i for i in range(match_id, match_id+len(db_df.index))]
         db_df=db_df[["image_id", "match_id", "sumss_name", "sumss__RAJ2000", "sumss__DEJ2000", "sumss_St", "sumss_e_St", "askap_int_flux", "askap_err_int_flux", "sumss_sumss_snr", "postage_stamp"]]
@@ -266,16 +303,17 @@ class crossmatch(object):
             match_id+=int(result.fetchall()[-1][-1])
         except:
             match_id=1
-        db_df=self.transients_large_ratios_df.filter(["sumss_name", "sumss__RAJ2000", "sumss__DEJ2000","sumss_St", "sumss_e_St", "askap_int_flux", "askap_err_int_flux", "sumss_sumss_snr", "postage_stamp"], axis=1)
+        db_df=self.transients_large_ratios_df.filter(["sumss_name", "sumss__RAJ2000", "sumss__DEJ2000","sumss_St", "sumss_e_St", "askap_int_flux", "askap_err_int_flux", "sumss_sumss_snr",
+            "askap_sumss_int_flux_ratio", "postage_stamp"], axis=1).sort_values(by=["askap_sumss_int_flux_ratio"], ascending=False)
         db_df["image_id"]=image_id
         db_df["match_id"]=[i for i in range(match_id, match_id+len(db_df.index))]
-        db_df=db_df[["image_id", "match_id", "sumss_name", "sumss__RAJ2000", "sumss__DEJ2000", "sumss_St", "sumss_e_St", "askap_int_flux", "askap_err_int_flux", "sumss_sumss_snr", "postage_stamp"]]
+        db_df=db_df[["image_id", "match_id", "sumss_name", "sumss__RAJ2000", "sumss__DEJ2000", "sumss_St", "sumss_e_St", "askap_int_flux", "askap_err_int_flux", "sumss_sumss_snr", "askap_sumss_int_flux_ratio", "postage_stamp"]]
         db_df["postage_stamp"]=[os.path.join("media/{}/stamps/{}".format(image_id, i)) for i in db_df["postage_stamp"].values]
         db_df["pipelinetag"]="N/A"
         db_df["usertag"]="N/A"
         db_df["userreason"]="N/A"
         db_df["checkedby"]="N/A"
-        db_df.columns=["image_id", "match_id", "sumss_name", "ra", "dec", "sumss_iflux", "sumss_iflux_e", "askap_iflux", "askap_iflux_e", "sumss_snr","ploturl", "pipelinetag", "usertag","userreason", "checkedby"]
+        db_df.columns=["image_id", "match_id", "sumss_name", "ra", "dec", "sumss_iflux", "sumss_iflux_e", "askap_iflux", "askap_iflux_e", "sumss_snr","askap_sumss_ratio", "ploturl", "pipelinetag", "usertag","userreason", "checkedby"]
         db_df.to_sql("images_largeratio", engine, if_exists="append", index=False)
         
         #ASKAP not seen
@@ -286,9 +324,12 @@ class crossmatch(object):
         except:
             match_id=1
         
-        db_df=self.transients_not_matched_askap_should_see_df.filter(["name", "ra", "dec", "postage_stamp", "int_flux", "err_int_flux", "sumss_snr", "sumss_peak_flux"], axis=1)
+        db_df=self.transients_not_matched_askap_should_see_df.filter(["name", "ra", "dec", "postage_stamp", "int_flux", "err_int_flux", 
+            "sumss_snr", "sumss_peak_flux"], axis=1).sort_values(by=["sumss_snr"], ascending=False)
         db_df["image_id"]=image_id
         db_df["match_id"]=[i for i in range(match_id, match_id+len(db_df.index))]
+        if "sumss_peak_flux" not in db_df.columns:
+            db_df["sumss_peak_flux"]=0.0
         db_df=db_df[["image_id", "match_id", "name", "ra", "dec", "int_flux", "err_int_flux", "sumss_snr", "sumss_peak_flux", "postage_stamp",]]
         db_df["postage_stamp"]=[os.path.join("media/{}/stamps/{}".format(image_id, i)) for i in db_df["postage_stamp"].values]
         db_df["pipelinetag"]="N/A"
@@ -299,7 +340,7 @@ class crossmatch(object):
         db_df.to_sql("images_askapnotseen", engine, if_exists="append", index=False)
         
     def inject_good_db(self, image_id, db_engine="postgresql", 
-            db_username="postgres", db_host="localhost", db_port="5432", db_database="postgres"):        
+            db_username="postgres", db_host="localhost", db_port="5432", db_database="postgres", max_separation=45.0):        
         engine = sqlalchemy.create_engine('{}://{}@{}:{}/{}'.format(db_engine, db_username, db_host, db_port, db_database))
         match_id=1
         result = engine.execute("SELECT match_id FROM images_goodmatch")
@@ -309,7 +350,16 @@ class crossmatch(object):
             match_id=1
         
         #create the good images url
-        self.goodmatches_df["postage_stamp"]=["SUMSS_{}_GOOD_sidebyside.jpg".format(i) for i in self.goodmatches_df["sumss_name"].values]
+        postage_stamps=[]
+        for i,row in self.goodmatches_df.iterrows():
+            if row["d2d"] <= max_separation:
+                postage_stamps.append("SUMSS_{}_GOOD_sidebyside.jpg".format(row["sumss_name"]))
+            else:
+                postage_stamps.append("SUMSS_{}_BAD_sidebyside.jpg".format(row["sumss_name"]))
+        
+        self.goodmatches_df["postage_stamp"]=np.array(postage_stamps)
+            
+        # self.goodmatches_df["postage_stamp"]=["SUMSS_{}_GOOD_sidebyside.jpg".format(i) for i in self.goodmatches_df["sumss_name"].values]
         
         db_df=self.goodmatches_df.filter(["sumss_name", "sumss__RAJ2000", "sumss__DEJ2000", "sumss_St", "sumss_e_St", "askap_int_flux", "askap_err_int_flux", "sumss_sumss_snr", "postage_stamp"], axis=1)
         db_df["image_id"]=image_id

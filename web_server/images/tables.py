@@ -8,16 +8,26 @@ from templatetags import units
 class RAColumn(tables.Column):
     def render(self, value):
         return units.deg_to_hms(value)
+    def value(self, value):
+        return value
 
 class DecColumn(tables.Column):
     def render(self, value):
         return units.deg_to_dms(value)
+    def value(self, value):
+        return value
+        
+class RMSColumn(tables.Column):
+    def render(self, value):
+        return "{:.3f}".format(units.jy_to_mjy(value))
+    
 
 class ImageTable(tables.Table):
     image_id = tables.Column(verbose_name= 'ID')
     name = tables.LinkColumn('image_detail', args=[A('pk')], orderable=True,)
     ra = RAColumn(attrs={"td":{"style":"white-space:nowrap;"}}, verbose_name= 'RA' )
     dec = DecColumn(attrs={"td":{"style":"white-space:nowrap;"}}, verbose_name= 'Dec')
+    # rms = RMSColumn(verbose_name="RMS (mJy)")
     number_askap_sources = tables.Column(verbose_name= '# ASKAP Sources')
     number_sumss_sources = tables.Column(verbose_name= '# SUMSS Sources')
     runby = tables.Column(verbose_name= 'Run By')
@@ -25,11 +35,13 @@ class ImageTable(tables.Table):
         model = Image
         template_name = 'django_tables2/bootstrap4.html'
         fields = ("image_id", "name", "description", "ra", "dec", "number_askap_sources", "number_sumss_sources", "runtime", "runby" )
-        attrs = {"th":{"bgcolor":"#EBEDEF"}}
+        attrs = {"th":{"bgcolor":"#EBEDEF"},}
         
         
 class SumssNoMatchListTable(tables.Table):
+    export_formats = ['csv',]
     match_id = tables.Column(verbose_name= 'ID')
+    image_id = tables.LinkColumn('image_detail', args=[A('image_id'),], orderable=True, verbose_name= 'Img. ID')
     sumss_name = tables.LinkColumn('crossmatch_detail', args=[A('image_id'), "noaskapmatchtosumss", A('match_id')], orderable=True, verbose_name= 'SUMSS Name')
     ra = RAColumn(attrs={"td":{"style":"white-space:nowrap;"}}, verbose_name= 'RA' )
     dec = DecColumn(attrs={"td":{"style":"white-space:nowrap;"}}, verbose_name= 'Dec')
@@ -41,7 +53,7 @@ class SumssNoMatchListTable(tables.Table):
     class Meta:
         model = Sumssnomatch
         template_name = 'django_tables2/bootstrap4.html'
-        fields = ("match_id", "sumss_name", "ra", "dec", "sumss_snr", "pipelinetag", "usertag", "userreason", "checkedby")
+        fields = ("match_id", "image_id", "sumss_name", "ra", "dec", "sumss_snr", "usertag", "userreason", "checkedby")
         attrs = {"th":{"bgcolor":"#EBEDEF"}}
     
 class LargeRatioListTable(tables.Table):
@@ -50,14 +62,14 @@ class LargeRatioListTable(tables.Table):
     ra = RAColumn(attrs={"td":{"style":"white-space:nowrap;"}}, verbose_name= 'RA' )
     dec = DecColumn(attrs={"td":{"style":"white-space:nowrap;"}}, verbose_name= 'Dec')
     sumss_snr = tables.Column(verbose_name= 'SUMSS SNR')
-    pipelinetag = tables.Column(verbose_name= 'Pipeline Tag')
+    askap_sumss_ratio = tables.Column(verbose_name= 'ASKAP / SUMSS')
     usertag = tables.Column(verbose_name= 'User Tag')
     userreason = tables.Column(verbose_name= 'User Reason')
     checkedby = tables.Column(verbose_name= 'Checked By')
     class Meta:
         model = Largeratio
         template_name = 'django_tables2/bootstrap4.html'
-        fields = ("match_id", "sumss_name", "ra", "dec", "sumss_snr", "pipelinetag", "usertag", "userreason", "checkedby")
+        fields = ("match_id", "sumss_name", "ra", "dec", "sumss_snr", "askap_sumss_ratio", "usertag", "userreason", "checkedby")
         attrs = {"th":{"bgcolor":"#EBEDEF"}}   
         
 class GoodMatchListTable(tables.Table):

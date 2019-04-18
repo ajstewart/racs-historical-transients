@@ -2,6 +2,7 @@
 {% load static %}
 {% load units %}
 {% load render_table from django_tables2 %}
+{% load querystring from django_tables2 %}
 
     {% block breadcrumb %}
         <li class="breadcrumb-item"><a href="{% url 'home' %}">Images</a></li>
@@ -12,10 +13,13 @@
     {% block content %}
         <div class="container">
           <div class="row">
-            <div class="col text-center">
-        <a href="{% url 'nosumssmatchtoaskap' image.pk %}" class="btn btn-info mx-auto">No SUMSS Match to ASKAP</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-        <a href="{% url 'noaskapmatchtosumss' image.pk %}" class="btn btn-info mx-auto">No ASKAP Match to SUMSS</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+            <div class="col-md-auto text-left">
+        <a href="{% url 'nosumssmatchtoaskap' image.pk %}" class="btn btn-info mx-auto">No SUMSS Match to ASKAP</a>
+        <a href="{% url 'noaskapmatchtosumss' image.pk %}" class="btn btn-info mx-auto">No ASKAP Match to SUMSS</a>
         <a href="{% url 'largeratio' image.pk %}" class="btn btn-info mx-auto">Large Flux Ratio</a></p>
+    </div>
+         <div class="col text-right">
+         <a href="{% querystring '_export'='csv' %}" class="btn btn-success mx-auto">Download as CSV</a></p>
     </div>
      </div>
       </div>

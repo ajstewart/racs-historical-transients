@@ -22,7 +22,18 @@ def flux_ratio_image_view(df, title="Flux ratio plot", save=True, base_filename=
     mask=[True if i < 5. else False for i in df["askap_sumss_int_flux_ratio"]]
     fig = plt.figure(figsize=(10, 8))
     ax = fig.add_subplot(111)
-    ratio_plot=ax.scatter(df["askap_ra"].values[mask], df["askap_dec"].values[mask], c=df["askap_sumss_int_flux_ratio"][mask], cmap="Reds", marker="o")
+    #check for 360 deg boundary
+    ra_values=df["askap_ra"].values[mask]
+    if np.min(ra_values) < 1 and np.max(ra_values) > 359:
+        new_ra_values = []
+        for ra in ra_values:
+            if ra >= 0.0:
+                new_ra_values.append(ra + 360.)
+            else:
+                new_ra_values.append(ra)
+        ra_values = new_ra_values
+    
+    ratio_plot=ax.scatter(ra_values, df["askap_dec"].values[mask], c=df["askap_sumss_int_flux_ratio"][mask], cmap="Reds", marker="o")
     cb=plt.colorbar(ratio_plot, ax=ax)
     cb.set_label("ASKAP / SUMSS flux ratio")
     plt.xlabel("RA (deg)")
@@ -39,7 +50,7 @@ def flux_ratio_image_view(df, title="Flux ratio plot", save=True, base_filename=
     return filename
     
     
-def position_offset(df, title="Position offset plot", save=True, base_filename="image"):
+def position_offset(df, title="Position offset plot", save=True, base_filename="image", bmaj=45., bmin=45., pa=0.0):
     # filter_df=df[df["d2d"]<=maxsep]
     ra_offset=df["askap_sumss_ra_offset"]*3600.
     dec_offset=df["askap_sumss_dec_offset"]*3600.
@@ -47,7 +58,7 @@ def position_offset(df, title="Position offset plot", save=True, base_filename="
     med_dec_offset=dec_offset.median()
     fig = plt.figure(figsize=(10, 8))
     ax = fig.add_subplot(111)
-    beam=patches.Ellipse((0,0), df.iloc[0]["askap_psf_a"],df.iloc[0]["askap_psf_b"], df.iloc[0]["askap_psf_pa"], 
+    beam=patches.Ellipse((0,0), bmaj, bmin, pa, 
          edgecolor="k", facecolor="gold", fill=False, alpha=0.8)
     # beam.set_linestyle="dashed"
     # beam.set_edgecolor="gold"

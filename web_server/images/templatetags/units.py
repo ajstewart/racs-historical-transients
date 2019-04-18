@@ -44,3 +44,7 @@ def jy_to_mjy(flux):
     """
     return float(flux) * 1.e3
     
+@register.filter(name='subtract')
+def subtract(value, arg):
+    return value - arg
+    

@@ -23,6 +23,7 @@ class Image(models.Model):
     runby = models.CharField(max_length=20, unique=False, default="unknown")
     number_askap_sources=models.IntegerField(default=0)
     number_sumss_sources=models.IntegerField(default=0)
+    rms=models.DecimalField(max_digits=20, decimal_places=17, default=0.0)
     
     def __str__(self):
         return self.name
@@ -92,6 +93,7 @@ class Largeratio(models.Model):
     sumss_iflux_e = models.DecimalField(max_digits=20, decimal_places=3, default=0)
     askap_iflux = models.DecimalField(max_digits=20, decimal_places=3, default=0)
     askap_iflux_e = models.DecimalField(max_digits=20, decimal_places=3, default=0)
+    askap_sumss_ratio = models.DecimalField(max_digits=20, decimal_places=3, default=0)
     sumss_snr = models.DecimalField(max_digits=20, decimal_places=2, default=0)
     ploturl = models.CharField(max_length=200, unique=False, default="plot")
     pipelinetag = models.CharField(max_length=30, unique=False, default="N/A")
@@ -141,3 +143,12 @@ class Goodmatch(models.Model):
     
     def __str__(self):
         return self.sumss_name  
+        
+class Query(models.Model):
+    transient_type = models.CharField(max_length=50)
+    user_tag = models.CharField(max_length=50)
+    user = models.CharField(max_length=50)
+
+    # def get_absolute_url(self):
+    #     return reverse("queries:detail", kwargs={"id": self.id})
+        #return "/queries/%s/" %(self.id)

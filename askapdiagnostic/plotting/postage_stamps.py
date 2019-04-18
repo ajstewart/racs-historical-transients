@@ -26,8 +26,8 @@ def _sumss_rms(dec):
     else:
         return 0.0012
 
-def _plotinitial(panels, key, figure, image, vmin=-99, vmax=-99):
-    panels[key]=aplpy.FITSFigure(image, figure=figure, subplot=(1,2,key+1))
+def _plotinitial(panels, key, figure, image, vmin=-99, vmax=-99, total_num_panels=2):
+    panels[key]=aplpy.FITSFigure(image, figure=figure, subplot=(1,total_num_panels,key+1))
     if vmin == -99 and vmax == -99:
         panels[key].show_grayscale()
     elif vmin != -99 and vmax != -99:
@@ -60,10 +60,11 @@ def _copy_images_to_transient_folders(source_names, t_type, good_sources, bad_so
         try:
             subprocess.check_output(cmd, shell=True, stderr=subprocess.STDOUT)
         except subprocess.CalledProcessError as e:
-            logger.error("Copying of {} for transients failed.".format(thestamp))
+            pass
+            # logger.error("Copying of {} for transients failed.".format(thestamp))
 
 
-def create_askap_postage_stamps(askap_df,crossmatch_df,askap_image, nprocs, sumss_mosaic_dir, sumss_extractions, askap_extractions, radius=13./60.):
+def create_askap_postage_stamps(askap_df,crossmatch_df,askap_image, nprocs, sumss_mosaic_dir, sumss_extractions, askap_extractions, radius=13./60., convolve=False, askap_pre_convolve_image=None):
     try:
         logger.info("Loading SUMSS image data.")
         sumss_mosaic_data=pd.read_csv(pkg_resources.resource_filename(__name__, "../data/sumss_images_info.csv"))
@@ -120,7 +121,7 @@ def create_askap_postage_stamps(askap_df,crossmatch_df,askap_image, nprocs, sums
         
         askap_workers.close()
     else:
-        produce_postage_stamps(askap_df, crossmatch_df, askap_image, sumss_mosaic_dir, [],[], sumss_extractions, askap_extractions, radius=13./60., max_separation=None, askap_only=True)
+        produce_postage_stamps(askap_df, crossmatch_df, askap_image, sumss_mosaic_dir, [],[], sumss_extractions, askap_extractions, radius=24./60., max_separation=None, askap_only=True, convolve=convolve, askap_pre_convolve_image=askap_pre_convolve_image)
     
 
 def _get_stamp_looping_parameters(df, sumss_fits_mosaics, askap=False):
@@ -139,7 +140,8 @@ def _get_stamp_looping_parameters(df, sumss_fits_mosaics, askap=False):
                 break
     return sumss_looping_dict
 
-def crossmatch_stamps(crossmatch, askap_image, postage_options, nprocs,sumss_mosaic_dir, radius=13./60., max_separation=15.):
+def crossmatch_stamps(crossmatch, askap_image, postage_options, nprocs,sumss_mosaic_dir, radius=13./60., max_separation=15., convolve=False,
+            askap_pre_convolve_image=None):
     # For reference, the transient df's are:
     # self.transients_no_matches_df=no_matches - crossmatch format
     # self.transients_large_ratios_df=large_ratios - crossmatch format
@@ -185,7 +187,7 @@ def crossmatch_stamps(crossmatch, askap_image, postage_options, nprocs,sumss_mos
             sys.exit()
     else:
         produce_postage_stamps(df, crossmatch.crossmatch_df, askap_image, 
-            sumss_mosaic_dir,good_sources,bad_sources, sumss_extractions, askap_extractions, radius=13./60., max_separation=None, askap_only=False)
+            sumss_mosaic_dir,good_sources,bad_sources, sumss_extractions, askap_extractions, radius=13./60., max_separation=None, askap_only=False, convolve=convolve, askap_pre_convolve_image=askap_pre_convolve_image)
         
     if "transients" in postage_options:
         if mode=="all":
@@ -209,9 +211,9 @@ def crossmatch_stamps(crossmatch, askap_image, postage_options, nprocs,sumss_mos
                 #ASKAP only ones
                 workers.close()
             else:
-                produce_postage_stamps(df_required, crossmatch.crossmatch_df, askap_image, sumss_mosaic_dir, good_sources, bad_sources, radius=13./60., max_separation=None, askap_only=False) 
+                produce_postage_stamps(df_required, crossmatch.crossmatch_df, askap_image, sumss_mosaic_dir, good_sources, bad_sources, radius=13./60., max_separation=None, askap_only=False, convolve=convolve, askap_pre_convolve_image=askap_pre_convolve_image) 
         
-        create_askap_postage_stamps(crossmatch.transients_not_matched_askap_should_see_df, crossmatch.crossmatch_df, askap_image,nprocs, sumss_mosaic_dir, sumss_extractions, askap_extractions)
+        create_askap_postage_stamps(crossmatch.transients_not_matched_askap_should_see_df, crossmatch.crossmatch_df, askap_image,nprocs, sumss_mosaic_dir, sumss_extractions, askap_extractions, convolve=convolve, askap_pre_convolve_image=askap_pre_convolve_image)
         
             
             
@@ -326,22 +328,30 @@ def produce_comp_postage_stamps_multicore(sumss_image, askap_image, params_dict,
     #I think this will clear the SUMSS one, must be a more specific way.
     
     
-def produce_postage_stamps(df, full_df, askap_fits, sumss_mosaic_dir, good_sources, bad_sources, sumss_extractions, askap_extractions, radius=13./60., max_separation=None, askap_only=False):
+def produce_postage_stamps(df, full_df, askap_fits, sumss_mosaic_dir, good_sources, bad_sources, sumss_extractions, askap_extractions, radius=13./60., max_separation=None, askap_only=False,
+    convolve=False, askap_pre_convolve_image=None):
         logger.info("Estimated time to completion = {:.2f} hours".format(len(df.index)*6./3600.))
         #Minimise fits opening so first get a list of all the unique SUMSS fits files to be used
         sumss_fits_mosaics = df["sumss_Mosaic"].unique()
         #For now support one ASKAP image at a time so can just take this from the first entry.
         
         #First initialise the figure and set up the askap panel with the image.
+        if convolve:
+            total_panels = 3
+        else:
+            total_panels = 2
         panels={}
-        fig = plt.figure(figsize=(12, 6))
-        panels=_plotinitial(panels, 1, fig, askap_fits, vmin=-0.0025, vmax=0.007829)
+        fig = plt.figure(figsize=(18, 8))
+        panels=_plotinitial(panels, 1, fig, askap_fits, total_num_panels=total_panels)#, vmin=-0.0025, vmax=0.007829)
+        if convolve:
+            panels=_plotinitial(panels, 2, fig, askap_pre_convolve_image, vmin=-0.0025, vmax=0.007829, total_num_panels=total_panels)
         
         #Load the ellipses onto the askap image
-        panels[1].show_ellipses(askap_extractions["ra"],askap_extractions["dec"],askap_extractions["b"]/3600.*1.5, 
-            askap_extractions["a"]/3600.*1.5, angle=askap_extractions["pa"], layer="ASKAP Sources", color="#1f77b4")
-        panels[1].show_ellipses(sumss_extractions["_RAJ2000"],sumss_extractions["_DEJ2000"],sumss_extractions["MinAxis"]/3600., 
-            sumss_extractions["MajAxis"]/3600., angle=sumss_extractions["PA"], layer="SUMSS Sources", color="#d62728")
+        for i in range(1,total_panels):
+            panels[i].show_ellipses(askap_extractions["ra"],askap_extractions["dec"],askap_extractions["b"]/3600.*2.0, 
+                askap_extractions["a"]/3600.*2.0, angle=askap_extractions["pa"], layer="ASKAP Sources", color="#1f77b4")
+            panels[i].show_ellipses(sumss_extractions["_RAJ2000"],sumss_extractions["_DEJ2000"],sumss_extractions["MinAxis"]/3600., 
+                sumss_extractions["MajAxis"]/3600., angle=sumss_extractions["PA"], layer="SUMSS Sources", color="#d62728")
         
         bbox_dict=dict(boxstyle="round", ec="white", fc="white", alpha=0.7)
         
@@ -353,53 +363,88 @@ def produce_postage_stamps(df, full_df, askap_fits, sumss_mosaic_dir, good_sourc
             #Filter the dataframe such that only the SUMSS sources are present
             filtered_cross_matches=df[df["sumss_Mosaic"]==s_image].reset_index(drop=True)
             #Generate the base SUMSS panel
-            panels=_plotinitial(panels, 0, fig, s_image_path)
+            panels=_plotinitial(panels, 0, fig, s_image_path, total_num_panels=total_panels)
             # panels[1].set_title("SUMSS")
             #Add the sources
-            panels[0].show_ellipses(askap_extractions["ra"],askap_extractions["dec"],askap_extractions["b"]/3600., 
-                askap_extractions["a"]/3600., angle=askap_extractions["pa"], layer="ASKAP Sources", color="#1f77b4")
+            panels[0].show_ellipses(askap_extractions["ra"],askap_extractions["dec"],askap_extractions["b"]/3600.*2.0, 
+                askap_extractions["a"]/3600.*2.0, angle=askap_extractions["pa"], layer="ASKAP Sources", color="#1f77b4")
             panels[0].show_ellipses(sumss_extractions["_RAJ2000"],sumss_extractions["_DEJ2000"],sumss_extractions["MinAxis"]/3600., 
                 sumss_extractions["MajAxis"]/3600., angle=sumss_extractions["PA"], layer="SUMSS Sources", color="#d62728")
-            panels[1].axis_labels.hide()
-            panels[1].tick_labels.hide()
+            for i in range(1,total_panels):
+                panels[i].axis_labels.hide()
+                panels[i].tick_labels.hide()
             #Now begin the main loop per source
             # debug_num=0
             for i, row in filtered_cross_matches.iterrows():
                 if not askap_only:
                     panels[1].set_title("ASKAP "+row["askap_name"])
+                    if convolve:
+                        panels[2].set_title("ASKAP No Conv.")
                     panels[0].set_title("SUMSS "+row["sumss_name"])
                     recentre_ra=row["sumss__RAJ2000"]
                     recentre_dec=row["sumss__DEJ2000"]
                 else:
                     panels[1].set_title("ASKAP "+row["name"])
                     panels[0].set_title("SUMSS")
+                    if convolve:
+                        panels[2].set_title("ASKAP No Conv.")
                     recentre_ra=row["ra"]
                     recentre_dec=row["dec"]
                 #Centre each image on the ASKAP coordinates for clarity
 
                 
-                try:
-                    for p in panels:
-                        panels[p].recenter(recentre_ra, recentre_dec, radius)
+                # try:
+                for p in panels:
+                    logger.debug("SUMSS Image: {}".format(s_image))
+                    logger.debug("RA: {}".format(recentre_ra))
+                    logger.debug("Dec: {}".format(recentre_dec))
+                    logger.debug("Panel: {}".format(p))
+                    panels[p].recenter(recentre_ra, recentre_dec, height=radius, width=radius)
 
-                        if not askap_only:
-                            panels[p].show_circles([row["askap_ra"]], [row["askap_dec"]], 120./3600., color='C1', linewidth=3, label="ASKAP source", layer="ASKAP Source")
-                            panels[p].show_circles([recentre_ra], [recentre_dec],120./3600., color='C9', linewidth=3, label="SUMSS source", layer="SUMSS Source")
+                    if not askap_only:
+                        if row["sumss_name"] in bad_sources:
+                            linestyle="--"
                         else:
-                            panels[p].show_circles([recentre_ra], [recentre_dec], 120./3600., color='C1', linewidth=3, label="ASKAP position", layer="ASKAP Source")
-                except:
-                    logger.error("Can't zoom to region for source. Will skip.")
-                    continue
-
+                            linestyle="-"
+                        panels[p].show_circles([row["askap_ra"]], [row["askap_dec"]], 120./3600., color='C1', linewidth=3, linestyle=linestyle, label="ASKAP source", layer="ASKAP Source")
+                        panels[p].show_circles([recentre_ra], [recentre_dec], 120./3600., color='C9', linewidth=3, label="SUMSS source", layer="SUMSS Source")
+                    else:
+                        panels[p].show_circles([recentre_ra], [recentre_dec], 120./3600., color='C1', linewidth=3, label="ASKAP position", layer="ASKAP Source")
+                # except:
+                    # logger.error("Can't zoom to region for source. Will skip.")
+                    # logger.debug("SUMSS Image: {}".format(s_image))
+                    # logger.debug("RA: {}".format(recentre_ra))
+                    # logger.debug("Dec: {}".format(recentre_dec))
+                    # continue
+                
+                if convolve:
+                    pos_x_1 = 0.42
+                    pos_y_1 = 0.68
+                    pos_x_2 = 0.14
+                    pos_y_2 = 0.7
+                    pos_x_3 = 0.17
+                    pos_y_3 = 0.15
+                    pos_x_4 = 0.65
+                    size=15
+                else:
+                    pos_x_1 = 0.57
+                    pos_y_1 = 0.75
+                    pos_x_2 = 0.14
+                    pos_y_2 = 0.78
+                    pos_x_3 = 0.02
+                    pos_y_3 = 0.12
+                    pos_x_4 = 0.8
+                    size=12
                 
                 if not askap_only:
-                    sep_text=plt.text(0.02, 0.02, "Distance Separation = {:.2f} arcsec".format(row["d2d"]), transform=plt.gcf().transFigure)
-                    ratio_text=plt.text(0.8, 0.02, "Int. Flux Ratio ASKAP/SUMSS = {:.2f}".format(row["askap_sumss_int_flux_ratio"]), transform=plt.gcf().transFigure)
-                    askap_snr_text=plt.text(0.57, 0.75, "ASKAP Flux = {:.2f} mJy\nASKAP Sigma = {:.2f}\nSUMSS Sigma = {:.2f}".format(row["askap_int_flux"]*1.e3, row["askap_snr"], row["askap_sumss_snr"]), transform=plt.gcf().transFigure, bbox=bbox_dict)
-                    sumss_snr_text=plt.text(0.14, 0.78, "SUMSS Flux = {:.2f} mJy\nSUMSS Sigma ~ {:.2f}".format(row["sumss_St"], row["sumss_sumss_snr"]), transform=plt.gcf().transFigure, bbox=bbox_dict)
+                    sep_text=plt.text(pos_x_3, pos_y_3, "Distance Separation = {:.2f} arcsec".format(row["d2d"]), transform=plt.gcf().transFigure, size=size)
+                    ratio_text=plt.text(pos_x_4, pos_y_3, "Int. Flux Ratio ASKAP/SUMSS = {:.2f}".format(row["askap_sumss_int_flux_ratio"]), transform=plt.gcf().transFigure, size=size)
+                    if row["sumss_name"] in good_sources:
+                        askap_snr_text=plt.text(pos_x_1, pos_y_1, "ASKAP Flux = {:.2f} mJy\nASKAP SNR = {:.2f}\nSUMSS SNR = {:.2f}".format(row["askap_int_flux"]*1.e3, row["askap_snr"], row["askap_sumss_snr"]), transform=plt.gcf().transFigure, bbox=bbox_dict)
+                    sumss_snr_text=plt.text(pos_x_2, pos_y_2, "SUMSS Flux = {:.2f} mJy\nSUMSS SNR ~ {:.2f}".format(row["sumss_St"], row["sumss_sumss_snr"]), transform=plt.gcf().transFigure, bbox=bbox_dict)
                 else:
-                    askap_snr_text=plt.text(0.57, 0.75, "ASKAP Flux = {:.2f} mJy\nASKAP Sigma = {:.2f}\nSUMSS Sigma ~ {:.2f}".format(row["int_flux"]*1.e3, row["snr"], row["sumss_snr"]), transform=plt.gcf().transFigure, bbox=bbox_dict)
-                    sumss_snr_text=plt.text(0.14, 0.78, "SUMSS Peak Flux = {:.2f} mJy\nSUMSS Sigma ~ {:.2f}".format(row["sumss_peak_flux"]*1.e3, row["sumss_peak_flux"]/_sumss_rms(row["dec"])), transform=plt.gcf().transFigure, bbox=bbox_dict)
+                    askap_snr_text=plt.text(pos_x_1, pos_y_1, "ASKAP Flux = {:.2f} mJy\nASKAP SNR = {:.2f}\nSUMSS SNR ~ {:.2f}".format(row["int_flux"]*1.e3, row["snr"], row["sumss_snr"]), transform=plt.gcf().transFigure, bbox=bbox_dict)
+                    sumss_snr_text=plt.text(pos_x_2, pos_y_2, "SUMSS Peak Flux = {:.2f} mJy\nSUMSS SNR ~ {:.2f}".format(row["sumss_peak_flux"]*1.e3, row["sumss_peak_flux"]/_sumss_rms(row["dec"])), transform=plt.gcf().transFigure, bbox=bbox_dict)
                 
                 #Figure name
                 # plt.title(row["sumss_name"])
@@ -407,37 +452,52 @@ def produce_postage_stamps(df, full_df, askap_fits, sumss_mosaic_dir, good_sourc
                     figname = "transient_askapnotseen_ASKAP_{}_sidebyside.jpg".format(row["name"])
                     custom_lines = [Line2D([0], [0], color='#1f77b4'),
                                     Line2D([0], [0], color='#d62728'),    
-                                    Line2D([0], [0], color='C1')]    
-                    panels[1]._ax1.legend(custom_lines, ["ASKAP Sources", "SUMSS Sources", "ASKAP Source Position"])
+                                    Line2D([0], [0], color='C1')]  
+                    if convolve:  
+                        panels[2]._ax1.legend(custom_lines, ["ASKAP Sources", "SUMSS Sources", "ASKAP Source Position"])
+                    else:
+                        panels[1]._ax1.legend(custom_lines, ["ASKAP Sources", "SUMSS Sources", "ASKAP Source Position"])
                 else:
                     if row["sumss_name"] in good_sources:
                         tag="GOOD"
                     else:
                         tag="BAD"
                     figname = "SUMSS_{}_{}_sidebyside.jpg".format(row["sumss_name"], tag)
+                    if tag=="BAD":
+                        askap_source_line=Line2D([0], [0], color='C1', linestyle=linestyle)
+                    else:
+                        askap_source_line=Line2D([0], [0], color='C1')
                     custom_lines = [Line2D([0], [0], color='#1f77b4'),
                                     Line2D([0], [0], color='#d62728'),    
-                                    Line2D([0], [0], color='C1'),    
+                                    askap_source_line,    
                                     Line2D([0], [0], color='C9')]
-                    panels[1]._ax1.legend(custom_lines, ["ASKAP Sources", "SUMSS Sources", "Matched ASKAP", "Matched SUMSS"])
+                    
+                    if convolve:
+                        panels[2]._ax1.legend(custom_lines, ["ASKAP Sources", "SUMSS Sources", "Matched ASKAP", "Matched SUMSS"])
+                    else:
+                        panels[1]._ax1.legend(custom_lines, ["ASKAP Sources", "SUMSS Sources", "Matched ASKAP", "Matched SUMSS"])
 
                 plt.savefig(figname, bbox_inches="tight")
 
                 logger.info("Saved figure {}.".format(figname))
-        
-                panels[0].remove_layer("ASKAP Source")
-                panels[1].remove_layer("ASKAP Source")
-                if not askap_only:
-                    panels[0].remove_layer("SUMSS Source")
-                    panels[1].remove_layer("SUMSS Source")
+                
+                for i in panels:                    
+                    panels[i].remove_layer("ASKAP Source")
+                    # panels[1].remove_layer("ASKAP Source")
+                    if not askap_only:
+                        panels[i].remove_layer("SUMSS Source")
+                        # panels[1].remove_layer("SUMSS Source")
 
-                askap_snr_text.set_visible(False)
+                if not askap_only and row["sumss_name"] in good_sources:
+                    askap_snr_text.set_visible(False)
+                elif askap_only:
+                    askap_snr_text.set_visible(False)
                 sumss_snr_text.set_visible(False)
                 if not askap_only:
                     sep_text.set_visible(False)
                     ratio_text.set_visible(False)
                 # debug_num+=1
-                # if debug_num==3:
+                # if debug_num==1:
                 #     debug_num=0
                 #     break
             
