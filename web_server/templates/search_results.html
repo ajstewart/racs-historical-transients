@@ -1,0 +1,28 @@
+{% extends 'base.html' %}
+
+{% load render_table from django_tables2 %}
+{% load querystring from django_tables2 %}
+
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{% url 'home' %}">Images</a></li>
+<li class="breadcrumb-item"><a href="{% url 'search' %}">Search</a></li>
+<li class="breadcrumb-item active">Search results</li>
+{% endblock %}
+
+{% block content %}
+      <div class="container">
+        <div class="row">
+    <div class="col text-left">
+        <a href="{% url 'search' %}" class="btn btn-info mx-auto">New Search</a>
+    </div>
+    <div class="col text-right">
+        <a href="{% querystring '_export'='csv' %}" class="btn btn-success mx-auto">Download as CSV</a>
+    </div>
+    </div>
+    </div>
+    <p></p>
+    <h3 class="text-center logo my-4">
+      Results of search for <font color="blue">'{{ transient_type }}'</font> with tag <font color="blue">'{{ user_tag }}'</font> by <font color="blue">'{{ user }}'</font> 
+    </h3>
+{% render_table table %}
+{% endblock %}

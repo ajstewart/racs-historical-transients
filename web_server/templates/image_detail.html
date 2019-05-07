@@ -25,9 +25,10 @@
  <h5 class="card-header bg-info mb-3 text-white">Image Details</h5>
   <div class="card-body">
     <!-- <h5 class="card-title">{{ image.name}} details</h5> -->
-    <p class="card-text"><b>Right Ascension:</b> {{image.ra|deg_to_hms}} &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 
-        <b>Number of ASKAP Sources:</b> {{image.number_askap_sources}}<br>
-    <b>Declination:</b> {{image.dec|deg_to_dms}} &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 
+    <p class="card-text"><b>Right Ascension:</b> {{image.ra|deg_to_hms}} ({{image.ra}}d) &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 
+        <b>Number of ASKAP Sources:</b> {{image.number_askap_sources}}&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 
+        <b>RMS Estimate:</b> {{image.rms|jy_to_mjy|floatformat:3}} mJy<br>
+    <b>Declination:</b> {{image.dec|deg_to_dms}} ({{image.dec}}d) &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 
         <b>Number of SUMSS Sources:</b> {{image.number_sumss_sources}}<br></p>
   </div>
 </div>
@@ -51,11 +52,17 @@
  <h5 class="card-header bg-dark mb-3 text-white">Diagnostic Plots</h5>
   <div class="card-body">
     <!-- <h5 class="card-title">{{ image.name}} details</h5> -->
-    <p class="card-text">    <img src="{% static image.flux_ratio_image_view %}" class="mx-auto d-block" width="90%" height="90%"/>
-    <img src="{% static image.position_offset %}" class="mx-auto d-block" width="90%" height="90%"/>
-    <img src="{% static image.source_counts %}" class="mx-auto d-block" width="90%" height="90%"/>
-    <img src="{% static image.flux_ratios %}" class="mx-auto d-block" width="90%" height="90%"/>
-    <img src="{% static image.flux_ratios_from_centre %}" class="mx-auto d-block" width="90%" height="90%"/></p>
+    <p class="card-text">
+    <a href="{% static image.flux_ratio_image_view %}" >
+    <img src="{% static image.flux_ratio_image_view %}" class="mx-auto d-block" width="90%" height="90%"/></a>
+    <a href="{% static image.position_offset %}" >
+    <img src="{% static image.position_offset %}" class="mx-auto d-block" width="90%" height="90%"/></a>
+    <a href="{% static image.source_counts %}" >
+    <img src="{% static image.source_counts %}" class="mx-auto d-block" width="90%" height="90%"/></a>
+    <a href="{% static image.flux_ratios %}" >
+    <img src="{% static image.flux_ratios %}" class="mx-auto d-block" width="90%" height="90%"/></a>
+    <a href="{% static image.flux_ratios_from_centre %}" >
+    <img src="{% static image.flux_ratios_from_centre %}" class="mx-auto d-block" width="90%" height="90%"/></p></a>
     <a href="{% static image.askap_overlay %}" >
     <img src="{% static image.askap_overlay %}" class="mx-auto d-block" width="90%" height="90%"/></a>
     <a href="{% static image.sumss_overlay %}" >

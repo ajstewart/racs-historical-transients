@@ -49,13 +49,15 @@ class Catalog(object):
         
     def remove_extended(self, threshold=1.2, ellipse_a="MajAxis", ellipse_b="MinAxis", beam_a=45., beam_b=45., ellipse_unit="arcsec", sumss_psf=False):
         if sumss_psf:
-            sumss_beam = np.sqrt(45.*45.*(1./np.sin(np.deg2rad(np.abs(self.df[self.dec_col])))))
-            self.sumss_no_ext_cat = self.df[(self.df[ellipse_a] <= threshold*sumss_beam) & 
-                (self.df[ellipse_b] <= threshold*sumss_beam)].reset_index(drop=True)
-            self.sumss_ext_cat = self.df[(self.df[ellipse_a] > threshold*sumss_beam) | 
-                (self.df[ellipse_b] > threshold*sumss_beam)].reset_index(drop=True)
+            sumss_bmaj = 45.*(1./np.sin(np.deg2rad(np.abs(self.df[self.dec_col]))))
+            sumss_bmin = 45.
+            self.sumss_no_ext_cat = self.df[(self.df[ellipse_a] <= threshold*sumss_bmaj) & 
+                (self.df[ellipse_b] <= threshold*sumss_bmin)].reset_index(drop=True)
+            self.sumss_ext_cat = self.df[(self.df[ellipse_a] > threshold*sumss_bmaj) | 
+                (self.df[ellipse_b] > threshold*sumss_bmin)].reset_index(drop=True)
             return self.sumss_no_ext_cat
         else:
+            # askap_beam = 45.*45.*(1./np.sin(np.deg2rad(np.abs(self.df[self.dec_col]))))
             self.askap_no_ext_cat=self.df[(self.df[ellipse_a] <= threshold*beam_a) & (self.df[ellipse_b] <= threshold*beam_b)].reset_index(drop=True)
             self.askap_ext_cat=self.df[(self.df[ellipse_a] > threshold*beam_a) | (self.df[ellipse_b] > threshold*beam_b)].reset_index(drop=True)
             return self.askap_no_ext_cat

@@ -3,9 +3,19 @@
 {% load render_table from django_tables2 %}
 
 {% block breadcrumb %}
-  <li class="breadcrumb-item active">Images</li>
+  <li class="breadcrumb-item active">Images Home</li>
 {% endblock %}
 
+    
+
     {% block content %}
+    <div class='container'>
+    <div class="row ">
+    <div class="col text-center">
+        <a href="{% url 'search' %}" class="btn btn-info mx-auto">User Tag Search</a>
+    </div>
+    </div>
+    </div>
+    <p></p>
         {% render_table table %}
       {% endblock %}
