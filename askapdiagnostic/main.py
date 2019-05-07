@@ -351,6 +351,8 @@ def main():
         #Also get the rms
         theimg.get_rms_clipping()
         
+        #And load the SUMSS beam info
+        theimg.calculate_sumss_beam()
         
         #Create output name and check if output already exists (as now there is easy access to the image name).
         output="{}".format(theimg.imagename.replace(".fits", "_results"))
@@ -440,7 +442,9 @@ def main():
             logger.info("Will covolve image to SUMSS resolution")
             if not args.weight_crop:
                 original_theimg = theimg
-            non_convolved = theimg.imagename
+                non_convolved = theimg.image
+            else:
+                non_convolved = theimg.imagename
             if non_convolved_src_cat != None:
                 logger.info("Loading provided pre-convolved source catalogue: {}".format(non_convolved_src_cat))
                 subprocess.call(["cp", non_convolved_src_cat, "."])
@@ -468,6 +472,7 @@ def main():
             theimg.original_name = original_theimg.imagename
             theimg.non_convolved = non_convolved
             theimg.get_rms_clipping()
+            theimg.calculate_sumss_beam()
         
         else:
             non_conv_askap_cat = None
@@ -643,7 +648,7 @@ def main():
         
         if args.transients:
             sumss_askap_crossmatch_transient.transient_search(max_separation=args.transient_max_separation, askap_sumss_snr_thresh=askap_sumss_snr_thresh, large_flux_thresh=large_flux_ratio_thresh,
-                pre_conv_crossmatch=sumss_askap_preconv_crossmatch_transient)
+                pre_conv_crossmatch=sumss_askap_preconv_crossmatch_transient, image_beam_maj=theimg.bmaj*3600., image_beam_min=theimg.bmin*3600., image_sumss_beam_maj=theimg.img_sumss_bmaj, image_sumss_beam_min=theimg.img_sumss_bmin)
             os.makedirs("transients/no-match")
             os.makedirs("transients/large-ratio")
             os.makedirs("transients/askap-notseen")
@@ -651,7 +656,8 @@ def main():
         
         if args.postage_stamps:
             logger.info("Starting postage stamp production.")
-            sumss_askap_crossmatch_transient.produce_postage_stamps(args.sumss_mosaic_dir,postage_options, nprocs=1, max_separation=args.transient_max_separation, convolve=args.convolve, pre_convolve_image=theimg.non_convolved)
+            sumss_askap_crossmatch_transient.produce_postage_stamps(args.sumss_mosaic_dir,postage_options, nprocs=1, max_separation=args.transient_max_separation, convolve=args.convolve, pre_convolve_image=theimg.non_convolved, 
+                preconolve_catalog=non_conv_askap_cat)
             os.makedirs("postage-stamps/good")
             os.makedirs("postage-stamps/bad")
             if args.transients:

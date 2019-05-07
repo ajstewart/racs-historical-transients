@@ -14,6 +14,7 @@ import sqlalchemy
 import psycopg2
 import pkg_resources
 import numpy as np
+import pandas as pd
 
 class crossmatch(object):
     """docstring for crossmatch"""
@@ -65,10 +66,10 @@ class crossmatch(object):
         panels[key].set_theme('publication')
         return panels
     
-    def produce_postage_stamps(self, sumss_mosaic_dir, postage_options, radius=15./60., nprocs=1, max_separation=15., convolve=False, pre_convolve_image=None):
+    def produce_postage_stamps(self, sumss_mosaic_dir, postage_options, radius=15./60., nprocs=1, max_separation=15., convolve=False, pre_convolve_image=None, preconolve_catalog=None):
         askap_fits = self.crossmatch_df["askap_image"].iloc[0]
         postage_stamps.crossmatch_stamps(self, askap_fits, postage_options, nprocs, sumss_mosaic_dir, radius=13./60., max_separation=max_separation, convolve=convolve,
-            askap_pre_convolve_image=pre_convolve_image)
+            askap_pre_convolve_image=pre_convolve_image, askap_pre_convolve_catalog=preconolve_catalog)
         
     # def produce_postage_stamps(self, sumss_mosaic_dir, radius=13./60., max_separation=None):
     #     if max_separation!=None:
@@ -154,7 +155,7 @@ class crossmatch(object):
     #     plt.close()
         
         
-    def transient_search(self, max_separation=15.0, askap_sumss_snr_thresh=5.0, large_flux_thresh=3.0, pre_conv_crossmatch=None):
+    def transient_search(self, max_separation=15.0, askap_sumss_snr_thresh=5.0, large_flux_thresh=3.0, pre_conv_crossmatch=None, image_beam_maj=45., image_beam_min=45., image_sumss_beam_maj=45., image_sumss_beam_min=45.):
         # Stage 1 - Define SUMSS sources with no match to ASKAP.
         # Stage 2 - Find those that have large flux ratios.
         # Stage 3 - Find ASKAP sources above the SUMSS threshold that have not been matched.
@@ -225,6 +226,34 @@ class crossmatch(object):
                     no_match_postage_stamps.append("SUMSS_{}_GOOD_sidebyside.jpg".format(val))
     
         no_matches["postage_stamp"]=no_match_postage_stamps
+        
+        #Now check the sources to assign guesstimate type
+        #First check bright source proximity
+        try:
+            self.logger.info("Loading SUMSS bright sources")
+            sumss_bright_sources_df=pd.read_csv(pkg_resources.resource_filename(__name__, "../data/sumss_bright_sources.csv"), delimiter=";")
+            sumss_bright_tomatch = SkyCoord(ra=sumss_bright_sources_df["_RAJ2000"].values*u.deg, dec=sumss_bright_sources_df["_DEJ2000"].values*u.deg)
+        
+            pipeline_tags=[]
+        
+            for i, row in no_matches.iterrows():
+                sumss_target=SkyCoord(ra=row["sumss__RAJ2000"]*u.deg, dec=row["sumss__DEJ2000"]*u.deg)
+                seps = sumss_target.separation(sumss_bright_tomatch)
+                if np.min(seps.arcminute) <= 10.:
+                    pipeline_tags.append("Likely artefact (bright source)")
+                    #If it passes the bright source, then check if it is extremely extended
+                elif (row["sumss_MajAxis"] > (1.75 * image_sumss_beam_maj)) or (row["sumss_MinAxis"] > (1.75 * image_sumss_beam_min)):
+                    pipeline_tags.append("Likely artefact (extended)")
+                else:
+                    pipeline_tags.append("Candidate")
+                # print d2d_sumss.deg[min_index]
+                # print min_index
+            no_matches["pipelinetag"]=pipeline_tags
+        except:
+            self.logger.error("SUMSS bright source data cannot be found!")
+            self.logger.info("Skipping bright source check.")
+            no_matches["pipelinetag"]="N/A"
+        
         self.transients_no_matches_df=no_matches
         no_matches.to_csv("transients_sumss_sources_no_askap_match.csv", index=False)
         self.logger.info("Written 'transients_sumss_sources_no_askap_match.csv'.")
@@ -237,7 +266,12 @@ class crossmatch(object):
         #For now define sources with 'large' ratios as being more than median +/- std.
         large_ratios=matches[(matches["askap_sumss_int_flux_ratio"]<(median_match_flux_ratio-(large_flux_thresh*std_match_flux_ratio))) | 
             (matches["askap_sumss_int_flux_ratio"]>(median_match_flux_ratio+(large_flux_thresh*std_match_flux_ratio)))].reset_index(drop=True)
-        large_ratios_postage_stamps=["SUMSS_{}_GOOD_sidebyside.jpg".format(val) for i,val in large_ratios["sumss_name"].iteritems()]
+        large_ratios_postage_stamps=[]
+        for i,row in large_ratios.iterrows():
+            if row["d2d"] <= max_separation:
+                large_ratios_postage_stamps.append("SUMSS_{}_GOOD_sidebyside.jpg".format(row["sumss_name"]))
+            else:
+                large_ratios_postage_stamps.append("SUMSS_{}_BAD_sidebyside.jpg".format(row["sumss_name"]))
         large_ratios["postage_stamp"] = large_ratios_postage_stamps
         self.transients_large_ratios_df=large_ratios
         large_ratios.to_csv("transients_sumss_sources_matched_large_flux_ratio.csv", index=False)
@@ -258,6 +292,24 @@ class crossmatch(object):
         askapnotseen_postage_stamps=["transient_askapnotseen_ASKAP_{}_sidebyside.jpg".format(val) for i,val in not_matched_askap_sources_should_see["name"].iteritems()]
         not_matched_askap_sources_should_see["postage_stamp"]=askapnotseen_postage_stamps
         
+        #Perform checks for these 'transients'
+        #1. Doubles
+        #2. Extended/Diffuse
+        #3. Edge - need to work out how to do
+        pipeline_tags=[]
+        #Get the askap catalogue to match to
+        askap_sources_tomatch = self.comp_catalog._crossmatch_catalog
+        for i,row in not_matched_askap_sources_should_see.iterrows():
+            askap_target=SkyCoord(ra=row["ra"]*u.deg, dec=row["dec"]*u.deg)
+            seps = askap_target.separation(askap_sources_tomatch)
+            if sorted(seps.arcsecond)[1] <= 3.*45.:
+                pipeline_tags.append("Likely double")
+            elif (row["a"] > (1.5 * image_beam_maj)) or (row["b"] > (1.5 * image_beam_min)):
+                pipeline_tags.append("Likely diffuse/extended")
+            else:
+                pipeline_tags.append("Candidate")
+            
+        not_matched_askap_sources_should_see["pipelinetag"]=pipeline_tags
         
         self.transients_not_matched_askap_should_see_df=not_matched_askap_sources_should_see
         not_matched_askap_sources_should_see.to_csv("transients_askap_sources_no_match_should_be_seen.csv", index=False)
@@ -279,12 +331,12 @@ class crossmatch(object):
         # self.logger.info("Image run assigned id {}".format(image_id))
         # conn = psycopg2.connect("host=localhost dbname=RACS user=aste7152 port=5434")
         db_df=self.transients_no_matches_df.filter(["sumss_name", "sumss__RAJ2000", "sumss__DEJ2000","sumss_St", "sumss_e_St", "askap_int_flux", "askap_err_int_flux", 
-            "sumss_sumss_snr", "postage_stamp"], axis=1).sort_values(by=["sumss_sumss_snr"], ascending=False)
+            "sumss_sumss_snr", "postage_stamp", "pipelinetag"], axis=1).sort_values(by=["sumss_sumss_snr"], ascending=False)
         db_df["image_id"]=image_id
         db_df["match_id"]=[i for i in range(match_id, match_id+len(db_df.index))]
-        db_df=db_df[["image_id", "match_id", "sumss_name", "sumss__RAJ2000", "sumss__DEJ2000", "sumss_St", "sumss_e_St", "askap_int_flux", "askap_err_int_flux", "sumss_sumss_snr", "postage_stamp"]]
+        db_df=db_df[["image_id", "match_id", "sumss_name", "sumss__RAJ2000", "sumss__DEJ2000", "sumss_St", "sumss_e_St", "askap_int_flux", "askap_err_int_flux", "sumss_sumss_snr", "postage_stamp", "pipelinetag"]]
         db_df["postage_stamp"]=[os.path.join("media/{}/stamps/{}".format(image_id, i)) for i in db_df["postage_stamp"].values]
-        db_df["pipelinetag"]="N/A"
+        # db_df["pipelinetag"]="N/A"
         db_df["usertag"]="N/A"
         db_df["userreason"]="N/A"
         db_df["checkedby"]="N/A"
@@ -309,7 +361,8 @@ class crossmatch(object):
         db_df["match_id"]=[i for i in range(match_id, match_id+len(db_df.index))]
         db_df=db_df[["image_id", "match_id", "sumss_name", "sumss__RAJ2000", "sumss__DEJ2000", "sumss_St", "sumss_e_St", "askap_int_flux", "askap_err_int_flux", "sumss_sumss_snr", "askap_sumss_int_flux_ratio", "postage_stamp"]]
         db_df["postage_stamp"]=[os.path.join("media/{}/stamps/{}".format(image_id, i)) for i in db_df["postage_stamp"].values]
-        db_df["pipelinetag"]="N/A"
+        pipeline_tags = ["Convolved match" if "_GOOD_" in i else "Non-convolved match" for i in db_df["postage_stamp"].values]
+        db_df["pipelinetag"]=pipeline_tags
         db_df["usertag"]="N/A"
         db_df["userreason"]="N/A"
         db_df["checkedby"]="N/A"
@@ -325,14 +378,14 @@ class crossmatch(object):
             match_id=1
         
         db_df=self.transients_not_matched_askap_should_see_df.filter(["name", "ra", "dec", "postage_stamp", "int_flux", "err_int_flux", 
-            "sumss_snr", "sumss_peak_flux"], axis=1).sort_values(by=["sumss_snr"], ascending=False)
+            "sumss_snr", "sumss_peak_flux", "pipelinetag"], axis=1).sort_values(by=["sumss_snr"], ascending=False)
         db_df["image_id"]=image_id
         db_df["match_id"]=[i for i in range(match_id, match_id+len(db_df.index))]
         if "sumss_peak_flux" not in db_df.columns:
             db_df["sumss_peak_flux"]=0.0
-        db_df=db_df[["image_id", "match_id", "name", "ra", "dec", "int_flux", "err_int_flux", "sumss_snr", "sumss_peak_flux", "postage_stamp",]]
+        db_df=db_df[["image_id", "match_id", "name", "ra", "dec", "int_flux", "err_int_flux", "sumss_snr", "sumss_peak_flux", "postage_stamp", "pipelinetag"]]
         db_df["postage_stamp"]=[os.path.join("media/{}/stamps/{}".format(image_id, i)) for i in db_df["postage_stamp"].values]
-        db_df["pipelinetag"]="N/A"
+        # db_df["pipelinetag"]="N/A"
         db_df["usertag"]="N/A"
         db_df["userreason"]="N/A"
         db_df["checkedby"]="N/A"
@@ -366,7 +419,8 @@ class crossmatch(object):
         db_df["match_id"]=[i for i in range(match_id, match_id+len(db_df.index))]
         db_df=db_df[["image_id", "match_id", "sumss_name", "sumss__RAJ2000", "sumss__DEJ2000", "sumss_St", "sumss_e_St", "askap_int_flux", "askap_err_int_flux", "sumss_sumss_snr", "postage_stamp"]]
         db_df["postage_stamp"]=[os.path.join("media/{}/stamps/{}".format(image_id, i)) for i in db_df["postage_stamp"].values]
-        db_df["pipelinetag"]="N/A"
+        pipeline_tags = ["Convolved match" if "_GOOD_" in i else "Non-convolved match" for i in db_df["postage_stamp"].values]
+        db_df["pipelinetag"]= pipeline_tags
         db_df["usertag"]="N/A"
         db_df["userreason"]="N/A"
         db_df["checkedby"]="N/A"

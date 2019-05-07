@@ -14,8 +14,8 @@
       <div class="container">
         <div class="row">
           <div class="col-md-auto text-left">
+    <a href="{% url 'noaskapmatchtosumss' image.pk %}" class="btn btn-info mx-auto">No ASKAP Match to SUMSS</a>
       <a href="{% url 'nosumssmatchtoaskap' image.pk %}" class="btn btn-info mx-auto">No SUMSS Match to ASKAP</a>
-      <a href="{% url 'noaskapmatchtosumss' image.pk %}" class="btn btn-info mx-auto">No ASKAP Match to SUMSS</a>
       <a href="{% url 'goodmatch' image.pk %}" class="btn btn-info mx-auto">Good Matches</a></p>
   </div>
        <div class="col text-right">

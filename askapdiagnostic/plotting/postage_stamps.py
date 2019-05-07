@@ -64,7 +64,7 @@ def _copy_images_to_transient_folders(source_names, t_type, good_sources, bad_so
             # logger.error("Copying of {} for transients failed.".format(thestamp))
 
 
-def create_askap_postage_stamps(askap_df,crossmatch_df,askap_image, nprocs, sumss_mosaic_dir, sumss_extractions, askap_extractions, radius=13./60., convolve=False, askap_pre_convolve_image=None):
+def create_askap_postage_stamps(askap_df,crossmatch_df,askap_image, nprocs, sumss_mosaic_dir, sumss_extractions, askap_extractions, radius=13./60., convolve=False, askap_pre_convolve_image=None, askap_pre_convolve_catalog=None):
     try:
         logger.info("Loading SUMSS image data.")
         sumss_mosaic_data=pd.read_csv(pkg_resources.resource_filename(__name__, "../data/sumss_images_info.csv"))
@@ -121,7 +121,8 @@ def create_askap_postage_stamps(askap_df,crossmatch_df,askap_image, nprocs, sums
         
         askap_workers.close()
     else:
-        produce_postage_stamps(askap_df, crossmatch_df, askap_image, sumss_mosaic_dir, [],[], sumss_extractions, askap_extractions, radius=24./60., max_separation=None, askap_only=True, convolve=convolve, askap_pre_convolve_image=askap_pre_convolve_image)
+        produce_postage_stamps(askap_df, crossmatch_df, askap_image, sumss_mosaic_dir, [],[], sumss_extractions, askap_extractions, radius=16./60., max_separation=None, askap_only=True, convolve=convolve, askap_pre_convolve_image=askap_pre_convolve_image,
+        askap_pre_convolve_catalog=askap_pre_convolve_catalog)
     
 
 def _get_stamp_looping_parameters(df, sumss_fits_mosaics, askap=False):
@@ -141,7 +142,7 @@ def _get_stamp_looping_parameters(df, sumss_fits_mosaics, askap=False):
     return sumss_looping_dict
 
 def crossmatch_stamps(crossmatch, askap_image, postage_options, nprocs,sumss_mosaic_dir, radius=13./60., max_separation=15., convolve=False,
-            askap_pre_convolve_image=None):
+            askap_pre_convolve_image=None, askap_pre_convolve_catalog=None):
     # For reference, the transient df's are:
     # self.transients_no_matches_df=no_matches - crossmatch format
     # self.transients_large_ratios_df=large_ratios - crossmatch format
@@ -187,7 +188,8 @@ def crossmatch_stamps(crossmatch, askap_image, postage_options, nprocs,sumss_mos
             sys.exit()
     else:
         produce_postage_stamps(df, crossmatch.crossmatch_df, askap_image, 
-            sumss_mosaic_dir,good_sources,bad_sources, sumss_extractions, askap_extractions, radius=13./60., max_separation=None, askap_only=False, convolve=convolve, askap_pre_convolve_image=askap_pre_convolve_image)
+            sumss_mosaic_dir,good_sources,bad_sources, sumss_extractions, askap_extractions, radius=13./60., max_separation=None, askap_only=False, convolve=convolve, askap_pre_convolve_image=askap_pre_convolve_image, 
+            askap_pre_convolve_catalog=askap_pre_convolve_catalog)
         
     if "transients" in postage_options:
         if mode=="all":
@@ -211,9 +213,11 @@ def crossmatch_stamps(crossmatch, askap_image, postage_options, nprocs,sumss_mos
                 #ASKAP only ones
                 workers.close()
             else:
-                produce_postage_stamps(df_required, crossmatch.crossmatch_df, askap_image, sumss_mosaic_dir, good_sources, bad_sources, radius=13./60., max_separation=None, askap_only=False, convolve=convolve, askap_pre_convolve_image=askap_pre_convolve_image) 
+                produce_postage_stamps(df_required, crossmatch.crossmatch_df, askap_image, sumss_mosaic_dir, good_sources, bad_sources, radius=16./60., max_separation=None, askap_only=False, convolve=convolve, askap_pre_convolve_image=askap_pre_convolve_image, 
+                    askap_pre_convolve_catalog=askap_pre_convolve_catalog) 
         
-        create_askap_postage_stamps(crossmatch.transients_not_matched_askap_should_see_df, crossmatch.crossmatch_df, askap_image,nprocs, sumss_mosaic_dir, sumss_extractions, askap_extractions, convolve=convolve, askap_pre_convolve_image=askap_pre_convolve_image)
+        create_askap_postage_stamps(crossmatch.transients_not_matched_askap_should_see_df, crossmatch.crossmatch_df, askap_image,nprocs, sumss_mosaic_dir, sumss_extractions, askap_extractions, convolve=convolve, askap_pre_convolve_image=askap_pre_convolve_image,
+            askap_pre_convolve_catalog=askap_pre_convolve_catalog)
         
             
             
@@ -329,7 +333,7 @@ def produce_comp_postage_stamps_multicore(sumss_image, askap_image, params_dict,
     
     
 def produce_postage_stamps(df, full_df, askap_fits, sumss_mosaic_dir, good_sources, bad_sources, sumss_extractions, askap_extractions, radius=13./60., max_separation=None, askap_only=False,
-    convolve=False, askap_pre_convolve_image=None):
+    convolve=False, askap_pre_convolve_image=None, askap_pre_convolve_catalog=None):
         logger.info("Estimated time to completion = {:.2f} hours".format(len(df.index)*6./3600.))
         #Minimise fits opening so first get a list of all the unique SUMSS fits files to be used
         sumss_fits_mosaics = df["sumss_Mosaic"].unique()
@@ -352,6 +356,9 @@ def produce_postage_stamps(df, full_df, askap_fits, sumss_mosaic_dir, good_sourc
                 askap_extractions["a"]/3600.*2.0, angle=askap_extractions["pa"], layer="ASKAP Sources", color="#1f77b4")
             panels[i].show_ellipses(sumss_extractions["_RAJ2000"],sumss_extractions["_DEJ2000"],sumss_extractions["MinAxis"]/3600., 
                 sumss_extractions["MajAxis"]/3600., angle=sumss_extractions["PA"], layer="SUMSS Sources", color="#d62728")
+            if convolve:
+                panels[i].show_ellipses(askap_pre_convolve_catalog.df["ra"],askap_pre_convolve_catalog.df["dec"],askap_pre_convolve_catalog.df["b"]/3600.*2.0, 
+                    askap_pre_convolve_catalog.df["a"]/3600.*2.0, angle=askap_pre_convolve_catalog.df["pa"], layer="ASKAP Non-Conv Sources", color="#11BA1C")
         
         bbox_dict=dict(boxstyle="round", ec="white", fc="white", alpha=0.7)
         
@@ -370,6 +377,9 @@ def produce_postage_stamps(df, full_df, askap_fits, sumss_mosaic_dir, good_sourc
                 askap_extractions["a"]/3600.*2.0, angle=askap_extractions["pa"], layer="ASKAP Sources", color="#1f77b4")
             panels[0].show_ellipses(sumss_extractions["_RAJ2000"],sumss_extractions["_DEJ2000"],sumss_extractions["MinAxis"]/3600., 
                 sumss_extractions["MajAxis"]/3600., angle=sumss_extractions["PA"], layer="SUMSS Sources", color="#d62728")
+            if convolve:
+                panels[0].show_ellipses(askap_pre_convolve_catalog.df["ra"],askap_pre_convolve_catalog.df["dec"],askap_pre_convolve_catalog.df["b"]/3600.*2.0, 
+                    askap_pre_convolve_catalog.df["a"]/3600.*2.0, angle=askap_pre_convolve_catalog.df["pa"], layer="ASKAP Non-Conv Sources", color="#11BA1C")
             for i in range(1,total_panels):
                 panels[i].axis_labels.hide()
                 panels[i].tick_labels.hide()
@@ -432,7 +442,7 @@ def produce_postage_stamps(df, full_df, askap_fits, sumss_mosaic_dir, good_sourc
                     pos_x_2 = 0.14
                     pos_y_2 = 0.78
                     pos_x_3 = 0.02
-                    pos_y_3 = 0.12
+                    pos_y_3 = 0.08
                     pos_x_4 = 0.8
                     size=12
                 
@@ -450,8 +460,8 @@ def produce_postage_stamps(df, full_df, askap_fits, sumss_mosaic_dir, good_sourc
                 # plt.title(row["sumss_name"])
                 if askap_only:
                     figname = "transient_askapnotseen_ASKAP_{}_sidebyside.jpg".format(row["name"])
-                    custom_lines = [Line2D([0], [0], color='#1f77b4'),
-                                    Line2D([0], [0], color='#d62728'),    
+                    custom_lines = [Line2D([0], [0], color="w", marker="o", fillstyle="none", lw=2, markeredgecolor='#1f77b4'),
+                                    Line2D([0], [0], color="w", marker="o", fillstyle="none", lw=2, markeredgecolor='#d62728'),    
                                     Line2D([0], [0], color='C1')]  
                     if convolve:  
                         panels[2]._ax1.legend(custom_lines, ["ASKAP Sources", "SUMSS Sources", "ASKAP Source Position"])
@@ -467,13 +477,16 @@ def produce_postage_stamps(df, full_df, askap_fits, sumss_mosaic_dir, good_sourc
                         askap_source_line=Line2D([0], [0], color='C1', linestyle=linestyle)
                     else:
                         askap_source_line=Line2D([0], [0], color='C1')
-                    custom_lines = [Line2D([0], [0], color='#1f77b4'),
-                                    Line2D([0], [0], color='#d62728'),    
+                    custom_lines = [Line2D([0], [0], color="w", marker="o", fillstyle="none", lw=2, markeredgecolor='#1f77b4'),
+                                    Line2D([0], [0], color="w", marker="o", fillstyle="none", lw=2, markeredgecolor='#d62728'),    
                                     askap_source_line,    
                                     Line2D([0], [0], color='C9')]
+                                    
+                    if convolve:
+                        custom_lines.append(Line2D([0], [0], color="w", markeredgecolor='#11BA1C', marker="o", fillstyle="none", lw=2))
                     
                     if convolve:
-                        panels[2]._ax1.legend(custom_lines, ["ASKAP Sources", "SUMSS Sources", "Matched ASKAP", "Matched SUMSS"])
+                        panels[2]._ax1.legend(custom_lines, ["ASKAP Sources", "SUMSS Sources", "Matched ASKAP", "Matched SUMSS", "Non-conv ASKAP Sources"])
                     else:
                         panels[1]._ax1.legend(custom_lines, ["ASKAP Sources", "SUMSS Sources", "Matched ASKAP", "Matched SUMSS"])
 

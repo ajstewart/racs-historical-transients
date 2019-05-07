@@ -32,6 +32,7 @@ class askapimage(object):
         self.image = arg
         self.imagename=self.image.split("/")[-1]
         self.original_name = None
+        self.non_convolved = None
         if readinfo:
             self.load_all()
                 
@@ -92,6 +93,10 @@ class askapimage(object):
             self.wcs = wcs.WCS(self.header, naxis=2)
             self.load_position_dimensions()
             
+    def calculate_sumss_beam(self):
+        self.img_sumss_bmaj = 45.*(1./np.sin(np.deg2rad(np.abs(self.centre.dec.degree))))
+        self.img_sumss_bmin = 45.
+    
     def _get_default_selavy_options(self):
         mapnames=self.imagename.reaplce(".fits", "")
         selavy_options={"Selavy.imagetype":"fits",

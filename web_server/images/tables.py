@@ -53,7 +53,7 @@ class SumssNoMatchListTable(tables.Table):
     class Meta:
         model = Sumssnomatch
         template_name = 'django_tables2/bootstrap4.html'
-        fields = ("match_id", "image_id", "sumss_name", "ra", "dec", "sumss_snr", "usertag", "userreason", "checkedby")
+        fields = ("match_id", "image_id", "sumss_name", "ra", "dec", "sumss_snr","pipelinetag", "usertag", "userreason", "checkedby")
         attrs = {"th":{"bgcolor":"#EBEDEF"}}
     
 class LargeRatioListTable(tables.Table):
@@ -63,13 +63,14 @@ class LargeRatioListTable(tables.Table):
     dec = DecColumn(attrs={"td":{"style":"white-space:nowrap;"}}, verbose_name= 'Dec')
     sumss_snr = tables.Column(verbose_name= 'SUMSS SNR')
     askap_sumss_ratio = tables.Column(verbose_name= 'ASKAP / SUMSS')
+    pipelinetag = tables.Column(verbose_name= 'Pipeline Tag')
     usertag = tables.Column(verbose_name= 'User Tag')
     userreason = tables.Column(verbose_name= 'User Reason')
     checkedby = tables.Column(verbose_name= 'Checked By')
     class Meta:
         model = Largeratio
         template_name = 'django_tables2/bootstrap4.html'
-        fields = ("match_id", "sumss_name", "ra", "dec", "sumss_snr", "askap_sumss_ratio", "usertag", "userreason", "checkedby")
+        fields = ("match_id", "sumss_name", "ra", "dec", "sumss_snr", "askap_sumss_ratio", "pipelinetag", "usertag", "userreason", "checkedby")
         attrs = {"th":{"bgcolor":"#EBEDEF"}}   
         
 class GoodMatchListTable(tables.Table):

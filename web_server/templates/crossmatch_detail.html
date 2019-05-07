@@ -101,6 +101,7 @@
  <div class="card mb-3 mx-auto">
   <h5 class="card-header bg-info mb-1 text-white">User Tag Assign Options</h5>
    <div class="card-body">
+       <center>Pipeline Tag: <b>{{ crossmatch_source.pipelinetag }}</b></center><p></p>
        <div class="col text-center">
         {% if user.is_authenticated %}
        <a href="{% url 'crossmatch_commit' pk=image.pk querytype=type cross_id=crossmatch_source.match_id %}?usertag=ignore&userreason=is%20match" class="btn btn-success mx-auto btn-sm">There is a match</a>
@@ -151,6 +152,7 @@
     <p class="card-text">
         <font color="red"> Red circles </font> are SUMSS catalogue sources.<p></p>
         <font color="blue"> Blue circles </font> are ASKAP extracted sources.<p></p>
+        <font color="#11BA1C"> Green circles </font> are ASKAP extracted sources from the non-convolved image (when available).<p></p>
         <font color="#47DEE0"> Large light blue circle </font> signifies the SUMSS source that has been matched.<p></p>
         <font color="orange"> Large orange circle </font> signifies the ASKAP source that has been matched (dashed circle means it is the nearest ASKAP source).
     </p>
@@ -173,7 +175,8 @@
  <h5 class="card-header bg-info mb-3 text-white">Aladin</h5>
    <div class="card-body">
 <div class="row ">
-           <div class="mx-auto d-block">
+    <div class="col text-left">
+           <!-- <div class="mx-auto d-block"> -->
 <!-- include Aladin Lite CSS file in the head section of your page -->
 <link rel="stylesheet" href="//aladin.u-strasbg.fr/AladinLite/api/v2/latest/aladin.min.css" />
  
@@ -193,6 +196,24 @@
     aladin.getBaseImageLayer().getColorMap().reverse();
     
 </script>
+</div>
+    <div class="col text-center">
+        <div id="aladin-lite-div-2" style="width:400px;height:400px;"></div>
+        <script type="text/javascript" src="//aladin.u-strasbg.fr/AladinLite/api/v2/latest/aladin.min.js" charset="utf-8"></script>
+        <script type="text/javascript">
+            var aladin2 = A.aladin('#aladin-lite-div-2');
+            aladin2.setZoom(0.18);
+            aladin2.gotoPosition({{ crossmatch_source.ra }}, {{ crossmatch_source.dec }});
+            var gleam = aladin2.createImageSurvey('GLEAM_colored', 'GLEAM_colored', 'http://ict.icrar.org/store/gleam/gleam_color/', 'equatorial', 5, {imgFormat: 'png'});
+            var sumss = aladin2.createImageSurvey('SUMSS', 'SUMSS', 'http://alasky.u-strasbg.fr/SUMSS', 'equatorial', 6, {imgFormat: 'png'});
+            var nvss = aladin2.createImageSurvey('NVSS', 'NVSS', 'http://alasky.u-strasbg.fr/NVSS/intensity/', 'equatorial', 5, {imgFormat: 'jpg'});
+            var tgss = aladin2.createImageSurvey('TGSS', 'TGSS', 'http://tgssadr.strw.leidenuniv.nl/hips', 'equatorial', 7, {imgFormat: 'png'});
+            // gleam.getColorMap().update("grayscale")
+            aladin2.setImageSurvey(gleam);
+            // aladin2.getBaseImageLayer().getColorMap().update('grayscale').reverse();
+            </script>
+            <!-- </div> -->
+            <!-- </div> -->
             </div>
             </div>
             <center>
