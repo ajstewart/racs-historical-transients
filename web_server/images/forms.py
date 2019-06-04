@@ -14,8 +14,8 @@ tag_options=[("help", "Help"),
 ("investigate", "Investigate"),
 ("problem", "Problem")]
 
-transient_options=[("sumssnomatch", "No ASKAP match to SUMSS"),
-("askapnotseen", "No SUMSS match to ASKAP"),
+transient_options=[("sumssnomatch", "No ASKAP match to Catalog"),
+("askapnotseen", "No Catalog match to ASKAP"),
 ("largeratio", "Large flux ratio")]
 
 class TagForm(forms.ModelForm):

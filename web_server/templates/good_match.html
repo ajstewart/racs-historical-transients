@@ -14,14 +14,20 @@
         <div class="container">
           <div class="row">
             <div class="col-md-auto text-left">
-        <a href="{% url 'noaskapmatchtosumss' image.pk %}" class="btn btn-info mx-auto">No ASKAP Match to SUMSS</a>
-        <a href="{% url 'nosumssmatchtoaskap' image.pk %}" class="btn btn-info mx-auto">No SUMSS Match to ASKAP</a>
-        <a href="{% url 'largeratio' image.pk %}" class="btn btn-info mx-auto">Large Flux Ratio</a></p>
+        <a href="{% url 'noaskapmatchtocatalog' image.pk %}" class="btn btn-info mx-auto">No ASKAP Match to Catalog ({{ image.transients_noaskapmatchtocatalog_total }})</a>
+        <a href="{% url 'nocatalogmatchtoaskap' image.pk %}" class="btn btn-info mx-auto">No Catalog Match to ASKAP ({{ image.transients_nocatalogmatchtoaskap_total }})</a>
+        <a href="{% url 'largeratio' image.pk %}" class="btn btn-info mx-auto">Large Flux Ratio ({{ image.transients_largeratio_total }})</a></p>
     </div>
          <div class="col text-right">
-         <a href="{% querystring '_export'='csv' %}" class="btn btn-success mx-auto">Download as CSV</a></p>
+         <a href="{% querystring '_export'='csv' %}" class="btn btn-success mx-auto">CSV</a></p>
     </div>
      </div>
+     <div class="col text-center">
+        <h3>Total: {{ image.transients_goodmatches_total }}</h3>
+	Postage stamps of good matches are not produced by default.
       </div>
+      </div>
+       {% endblock %}
+       {% block table %}
      {% render_table table %}
       {% endblock %}

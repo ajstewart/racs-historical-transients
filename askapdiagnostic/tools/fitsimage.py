@@ -78,6 +78,7 @@ class askapimage(object):
             self.logger.info("Frequency = {} MHz".format(self.freq/1.e6))
         except:
             self.logger.warning("Frequency of image couldn't be determined.")
+            self.freq=None
         try:
             self.bmaj = float(self.header["BMAJ"])
             self.bmin = float(self.header["BMIN"])
@@ -193,8 +194,20 @@ class askapimage(object):
             
             
             
-    def get_sumss_catalogue(self, boundary_value="nan"):
-        cat_ids={"SUMSS":"VIII/81B/sumss212"}
+    def get_catalogue(self, catalogue, boundary_value="nan"):
+        cat_ids={"SUMSS":"VIII/81B/sumss212",
+                "NVSS":"VIII/65/nvss",
+                "MGPS2":"VIII/82/mgpscat"
+                }
+        if catalogue not in cat_ids:
+            self.logger.error("Requested catalogue not recongised.")
+            return
+        elif catalogue=="SUMSS":
+            search_cat=[cat_ids["SUMSS"], cat_ids["MGPS2"]]
+        elif catalogue=="NVSS":
+            search_cat=[cat_ids["NVSS"],]
+        else:
+            search_cat=[cat_ids["MGPS2"],]
         if not self.wcs:
             self.load_wcs()
         if not self.header:
@@ -202,51 +215,72 @@ class askapimage(object):
         if not self.centre:
             self.load_position_dimensions()
         if np.abs(self.size_x-self.size_y) > max([self.size_x,self.size_y])*0.05:
-            self.logger.warning("Non square image detected! Will pad the Vizier search area by 1.2.")
-            pad=1.2
+            self.logger.warning("Non square image detected! Will pad the Vizier search area by 1.6 (default 1.3).")
+            pad=1.6
         else:
-            pad=1.0
+            pad=1.3
         # if not self.data:
         #     self.load_data()
         v = Vizier(columns=["_r", "_RAJ2000","_DEJ2000", "**"])
         v.ROW_LIMIT=-1
-        self.logger.info("Querying SUMSS using Vizier...")
-        sumss_result=v.query_region(self.centre, radius=self.radius*pad, catalog="SUMSS")
-        sumss_result=sumss_result[cat_ids["SUMSS"]].to_pandas()
-        self.raw_sumss_sources=sumss_result
-        self.logger.info("SUMSS sources obtained.")
-        self.logger.info("Filtering SUMSS sources to only those within the image area...")
-        self.sumss_sources=self._filter_sumss_catalogue(self.raw_sumss_sources, boundary_value=boundary_value)
-        return self.sumss_sources
-        
-    def get_nvss_catalogue(self, boundary_value="nan"):
-        cat_ids={"NVSS":"VIII/65/nvss"}
-        if not self.wcs:
-            self.load_wcs()
-        if not self.header:
-            self.load_header()
-        if not self.centre:
-            self.load_position_dimensions()
-        if np.abs(self.size_x-self.size_y) > max([self.size_x,self.size_y])*0.05:
-            self.logger.warning("Non square image detected! Will pad the Vizier search area by 1.2.")
-            pad=1.2
+        self.logger.info("Querying {} using Vizier...".format(catalogue))
+        result=v.query_region(self.centre, radius=self.radius*pad, catalog=search_cat)
+        if catalogue=="SUMSS":
+            catalogs_returned=result.keys()
+            #Searching the galactic plane survey as well, check if there are any found in that one
+            if len(catalogs_returned) == 2:
+                #Here we have to merge them together, MGPS2 has two extra columns: 'MGPS' and 'E' pandas can just merge them
+                df_result=result[cat_ids["SUMSS"]].to_pandas()
+                mgps2_result=result[cat_ids["MGPS2"]].to_pandas()
+                # mgps2_result.drop(["MGPS", "E"])
+                #And just append the mgps2 sources to the sumss result
+                df_result=df_result.append(mgps2_result)
+            else:
+                df_result=result[0].to_pandas()
         else:
-            pad=1.0
-        # if not self.data:
-        #     self.load_data()
-        v = Vizier(columns=["_r", "_RAJ2000","_DEJ2000", "**"])
-        v.ROW_LIMIT=-1
-        self.logger.info("Querying NVSS using Vizier...")
-        nvss_result=v.query_region(self.centre, radius=self.radius*pad, catalog="NVSS")
-        nvss_result=nvss_result[cat_ids["NVSS"]].to_pandas()
-        self.raw_nvss_sources=nvss_result
-        self.logger.info("NVSS sources obtained.")
-        self.logger.info("Filtering NVSS sources to only those within the image area...")
-        self.nvss_sources=self._filter_sumss_catalogue(self.raw_nvss_sources, boundary_value=boundary_value)
-        return self.sumss_sources
+            df_result=result[0].to_pandas()
+        if catalogue=="NVSS":
+            df_result["PA"].fillna(0.0, inplace=True)
+            self.raw_nvss_sources=df_result
+            self.logger.info("{} sources obtained.".format(catalogue))
+            self.logger.info("Filtering {} sources to only those within the image area...".format(catalogue))
+            self.nvss_sources=self._filter_catalogue(self.raw_nvss_sources, boundary_value=boundary_value)
+            return self.nvss_sources
+        else:
+            self.raw_sumss_sources=df_result
+            self.logger.info("{} sources obtained.".format(catalogue))
+            self.logger.info("Filtering {} sources to only those within the image area...".format(catalogue))
+            self.sumss_sources=self._filter_catalogue(self.raw_sumss_sources, boundary_value=boundary_value)
+            return self.sumss_sources
+        
+    # def get_nvss_catalogue(self, boundary_value="nan"):
+    #     cat_ids={"NVSS":"VIII/65/nvss"}
+    #     if not self.wcs:
+    #         self.load_wcs()
+    #     if not self.header:
+    #         self.load_header()
+    #     if not self.centre:
+    #         self.load_position_dimensions()
+    #     if np.abs(self.size_x-self.size_y) > max([self.size_x,self.size_y])*0.05:
+    #         self.logger.warning("Non square image detected! Will pad the Vizier search area by 1.2.")
+    #         pad=1.2
+    #     else:
+    #         pad=1.0
+    #     # if not self.data:
+    #     #     self.load_data()
+    #     v = Vizier(columns=["_r", "_RAJ2000","_DEJ2000", "**"])
+    #     v.ROW_LIMIT=-1
+    #     self.logger.info("Querying NVSS using Vizier...")
+    #     nvss_result=v.query_region(self.centre, radius=self.radius*pad, catalog="NVSS")
+    #     nvss_result=nvss_result[cat_ids["NVSS"]].to_pandas()
+    #     self.raw_nvss_sources=nvss_result
+    #     self.logger.info("NVSS sources obtained.")
+    #     self.logger.info("Filtering NVSS sources to only those within the image area...")
+    #     self.nvss_sources=self._filter_sumss_catalogue(self.raw_nvss_sources, boundary_value=boundary_value)
+    #     return self.sumss_sources
         
         
-    def _filter_sumss_catalogue(self, tofilter, boundary_value="nan"):
+    def _filter_catalogue(self, tofilter, boundary_value="nan"):
         self.logger.info("{} sources before filtering.".format(len(tofilter.index)))
         #First gather all the coordinates of the SUMSS sources in to an array
         world_coords=[]
@@ -321,8 +355,13 @@ class askapimage(object):
         self.nvss_sources.to_csv(name, sep=",", index=False)
         self.logger.info("Wrote NVSS sources to {}.".format(name))
         
-    def inject_db(self, datestamp=datetime.datetime.utcnow(), user="unknown", description="", db_engine="postgresql", 
-            db_username="postgres", db_host="localhost", db_port="5432", db_database="postgres"):
+    def inject_db(self, basecat="sumss", datestamp=datetime.datetime.utcnow(), user="unknown", description="", db_engine="postgresql", 
+            db_username="postgres", db_host="localhost", db_port="5432", db_database="postgres", transients_noaskapmatchtocatalog_total=0,
+            transients_noaskapmatchtocatalog_candidates=0,
+            transients_nocatalogmatchtoaskap_total=0,
+            transients_nocatalogmatchtoaskap_candidates=0,
+            transients_largeratio_total=0,
+            transients_goodmatches_total=0):
         image_id=1
         engine = sqlalchemy.create_engine('{}://{}@{}:{}/{}'.format(db_engine, db_username, db_host, db_port, db_database))
         result = engine.execute("SELECT id FROM images_image")
@@ -331,8 +370,13 @@ class askapimage(object):
         except:
             image_id=1
         #Better to control the order
-        plots_columns=["flux_ratio_image_view", "position_offset", "source_counts", "flux_ratios", "flux_ratios_from_centre", "askap_overlay", "sumss_overlay"]
-        plots_values=["media/{}/{}".format(image_id, self.plots[i]) for i in plots_columns]
+        plots_columns=["flux_ratio_image_view", "position_offset", "source_counts", "flux_ratios", "flux_ratios_from_centre", "askap_overlay", "sumss_overlay", "nvss_overlay"]
+        plots_values=[]
+        for i in plots_columns:
+            if "N/A" in self.plots[i]:
+                plots_values.append("N/A")
+            else:
+                plots_values.append("media/{}/{}".format(image_id, self.plots[i]))
         self.logger.info("Image run assigned id {}".format(image_id))
         # conn = psycopg2.connect("host=localhost dbname=RACS user=aste7152 port=5434")
         if self.original_name is not None:
@@ -340,21 +384,37 @@ class askapimage(object):
         else:
             thisimagename=self.imagename
         tempdf=pd.DataFrame([[image_id, thisimagename, description, self.centre.ra.degree, 
-            self.centre.dec.degree, datestamp, self.image]+plots_values+[user,self.total_askap_sources, self.total_sumss_sources, self.rms]], columns=["image_id", "name", "description", 
-                "ra", "dec", "runtime", "url"]+plots_columns+["runby", "number_askap_sources", "number_sumss_sources", "rms"])
+            self.centre.dec.degree, datestamp, self.image]+plots_values+[user,self.total_askap_sources, self.total_sumss_sources, self.rms, self.total_nvss_sources,
+            transients_noaskapmatchtocatalog_total,
+            transients_noaskapmatchtocatalog_candidates,
+            transients_nocatalogmatchtoaskap_total,
+            transients_nocatalogmatchtoaskap_candidates,
+            transients_largeratio_total,
+            transients_goodmatches_total, self.matched_to]], columns=["image_id", "name", "description", 
+                "ra", "dec", "runtime", "url"]+plots_columns+["runby", "number_askap_sources", "number_sumss_sources", "rms", "number_nvss_sources"]+["transients_noaskapmatchtocatalog_total",
+            "transients_noaskapmatchtocatalog_candidates",
+            "transients_nocatalogmatchtoaskap_total",
+            "transients_nocatalogmatchtoaskap_candidates",
+            "transients_largeratio_total",
+            "transients_goodmatches_total",
+            "matched_to"])
         tempdf.to_sql("images_image", engine, if_exists="append", index=False)
         return image_id
         
-    def inject_processing_db(self, image_id, output, askap_cat_file, sumss_source_cat, askap_ext_thresh, sumss_ext_thresh, max_separation, aegean_sigmas, db_engine="postgresql", 
+    def inject_processing_db(self, image_id, output, askap_cat_file, sumss_source_cat, nvss_source_cat, askap_ext_thresh, sumss_ext_thresh, nvss_ext_thresh, max_separation, aegean_sigmas, db_engine="postgresql", 
             db_username="postgres", db_host="localhost", db_port="5432", db_database="postgres"):
         engine = sqlalchemy.create_engine('{}://{}@{}:{}/{}'.format(db_engine, db_username, db_host, db_port, db_database))
-        settings_columns=["image_id", "output_dir", "askap_csv", "sumss_csv", "askap_ext_thresh", "sumss_ext_thresh", "max_separation", "aegean_det_sigma", "aegean_fill_sigma"]
-        settings_data=[image_id, output, askap_cat_file, sumss_source_cat, askap_ext_thresh, sumss_ext_thresh, max_separation]+aegean_sigmas
+        if sumss_source_cat == None:
+            sumss_source_cat="N/A"
+        if nvss_source_cat == None:
+            nvss_source_cat="N/A"
+        settings_columns=["image_id", "output_dir", "askap_csv", "sumss_csv", "nvss_csv", "askap_ext_thresh", "sumss_ext_thresh", "nvss_ext_thresh", "max_separation", "aegean_det_sigma", "aegean_fill_sigma"]
+        settings_data=[image_id, output, askap_cat_file, sumss_source_cat, nvss_source_cat, askap_ext_thresh, sumss_ext_thresh, nvss_ext_thresh, max_separation]+aegean_sigmas
         tempdf=pd.DataFrame([settings_data], columns=settings_columns)
         tempdf.to_sql("images_processingsettings", engine, if_exists="append", index=False)
         
-    def create_overlay_plot(self, overlay_cat, overlay_cat_label="sources", overlay_cat_2=None, overlay_cat_label_2=None, sumss=False):
-        thename=plots.image_sources_overlay(self.image, self.imagename, overlay_cat, overlay_cat_label=overlay_cat_label, overlay_cat_2=overlay_cat_2, overlay_cat_label_2=overlay_cat_label_2, sumss=sumss)
+    def create_overlay_plot(self, overlay_cat, overlay_cat_label="sources", overlay_cat_2=None, overlay_cat_label_2=None, sumss=False, nvss=False):
+        thename=plots.image_sources_overlay(self.image, self.imagename, overlay_cat, overlay_cat_label=overlay_cat_label, overlay_cat_2=overlay_cat_2, overlay_cat_label_2=overlay_cat_label_2, sumss=sumss, nvss=nvss)
         return thename
         
     def _Median_clip(self, arr, sigma=3, max_iter=3, ftol=0.01, xtol=0.05, full_output=False, axis=None):
@@ -430,12 +490,15 @@ class askapimage(object):
         self.logger.info("{0} estimate rms: {1} Jy".format(self.imagename,std))
         fln.close()
         self.rms = std
+        return std
         
     def weight_crop(self, weight_image, weight_value):
         with fits.open(weight_image) as weight:
-            weight_max=np.max(weight[0].data)
+            weight_data = np.nan_to_num(weight[0].data)
+            
+            weight_max=np.max(weight_data)
        
-            mask=np.where(weight[0].data > weight_max * weight_value, False, True)
+            mask=np.where(weight_data > weight_max * weight_value, False, True)
 
         with fits.open(self.image) as fitsimage:
             fitsdata=fitsimage[0].data
@@ -451,7 +514,7 @@ class askapimage(object):
         
         return os.path.abspath(weight_cropped_output)
         
-    def convolve2sumss(self):
+    def convolve2sumss(self, nvss=False):
         
         convolve_outname = self.imagename.replace(".fits", ".convolve2sumss_casa.fits")
         script="""#!/usr/bin/env python
@@ -466,13 +529,17 @@ def calc_sumss_beam(dec):
 
 def convolve_img(fitsfile):
     dec = {0}
-    sumss_beam=calc_sumss_beam(float(dec))
+    nvss = {2}
+    if nvss:
+        sumss_beam = 45
+    else:
+        sumss_beam=calc_sumss_beam(float(dec))
     outname=fitsfile.replace(".fits", ".convolve2sumss_casa.image")
     imsmooth(imagename=fitsfile, major="{{}}arcsec".format(sumss_beam), minor="45arcsec", pa="0deg", outfile=outname, targetres=True)
     exportfits(imagename=outname, fitsimage=outname.replace(".image", ".fits"))
     
 
-convolve_img("{1}")""".format(self.centre.dec.deg, self.image)
+convolve_img("{1}")""".format(self.centre.dec.deg, self.image, nvss)
 
         with open("convolve2casa.py", "w") as f:
             f.write(script)

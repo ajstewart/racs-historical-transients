@@ -28,13 +28,20 @@ class ImageTable(tables.Table):
     ra = RAColumn(attrs={"td":{"style":"white-space:nowrap;"}}, verbose_name= 'RA' )
     dec = DecColumn(attrs={"td":{"style":"white-space:nowrap;"}}, verbose_name= 'Dec')
     # rms = RMSColumn(verbose_name="RMS (mJy)")
+    matched_to = tables.Column(verbose_name= 'Matched To')
     number_askap_sources = tables.Column(verbose_name= '# ASKAP Sources')
     number_sumss_sources = tables.Column(verbose_name= '# SUMSS Sources')
+    number_nvss_sources = tables.Column(verbose_name= '# NVSS Sources')
+    transients_noaskapmatchtocatalog_total = tables.Column(verbose_name= '# No ASKAP match to Catalog')
+    transients_nocatalogmatchtoaskap_total = tables.Column(verbose_name= '# No Catalog match to ASKAP')
+    transients_largeratio_total = tables.Column(verbose_name= '# Large Ratio')
+    transients_goodmatches_total = tables.Column(verbose_name= '# Good Matches')
     runby = tables.Column(verbose_name= 'Run By')
     class Meta:
         model = Image
         template_name = 'django_tables2/bootstrap4.html'
-        fields = ("image_id", "name", "description", "ra", "dec", "number_askap_sources", "number_sumss_sources", "runtime", "runby" )
+        fields = ("image_id", "name", "description", "ra", "dec", "matched_to", "number_askap_sources", "number_sumss_sources", "number_nvss_sources", "transients_noaskapmatchtocatalog_total",
+            "transients_nocatalogmatchtoaskap_total", "transients_largeratio_total", "transients_goodmatches_total", "runtime", "runby" )
         attrs = {"th":{"bgcolor":"#EBEDEF"},}
         
         
@@ -42,10 +49,12 @@ class SumssNoMatchListTable(tables.Table):
     export_formats = ['csv',]
     match_id = tables.Column(verbose_name= 'ID')
     image_id = tables.LinkColumn('image_detail', args=[A('image_id'),], orderable=True, verbose_name= 'Img. ID')
-    sumss_name = tables.LinkColumn('crossmatch_detail', args=[A('image_id'), "noaskapmatchtosumss", A('match_id')], orderable=True, verbose_name= 'SUMSS Name')
+    master_name = tables.LinkColumn('crossmatch_detail', args=[A('image_id'), "noaskapmatchtocatalog", A('match_id')], orderable=True, verbose_name= 'Source Name')
     ra = RAColumn(attrs={"td":{"style":"white-space:nowrap;"}}, verbose_name= 'RA' )
     dec = DecColumn(attrs={"td":{"style":"white-space:nowrap;"}}, verbose_name= 'Dec')
-    sumss_snr = tables.Column(verbose_name= 'SUMSS SNR')
+    cat_snr = tables.Column(verbose_name= 'Catalog SNR')
+    scaled_cat_snr = tables.Column(verbose_name= 'Scaled ASKAP SNR')
+    survey = tables.Column(verbose_name= 'Ref Survey')
     pipelinetag = tables.Column(verbose_name= 'Pipeline Tag')
     usertag = tables.Column(verbose_name= 'User Tag')
     userreason = tables.Column(verbose_name= 'User Reason')
@@ -53,16 +62,17 @@ class SumssNoMatchListTable(tables.Table):
     class Meta:
         model = Sumssnomatch
         template_name = 'django_tables2/bootstrap4.html'
-        fields = ("match_id", "image_id", "sumss_name", "ra", "dec", "sumss_snr","pipelinetag", "usertag", "userreason", "checkedby")
+        fields = ("match_id", "image_id", "master_name", "ra", "dec", "cat_snr", "scaled_cat_snr", "survey", "pipelinetag", "usertag", "userreason", "checkedby")
         attrs = {"th":{"bgcolor":"#EBEDEF"}}
     
 class LargeRatioListTable(tables.Table):
     match_id = tables.Column(verbose_name= 'ID')
-    sumss_name = tables.LinkColumn('crossmatch_detail', args=[A('image_id'), "largeratio", A('match_id')], orderable=True, verbose_name= 'SUMSS Name')
+    master_name = tables.LinkColumn('crossmatch_detail', args=[A('image_id'), "largeratio", A('match_id')], orderable=True, verbose_name= 'Source Name')
     ra = RAColumn(attrs={"td":{"style":"white-space:nowrap;"}}, verbose_name= 'RA' )
     dec = DecColumn(attrs={"td":{"style":"white-space:nowrap;"}}, verbose_name= 'Dec')
-    sumss_snr = tables.Column(verbose_name= 'SUMSS SNR')
-    askap_sumss_ratio = tables.Column(verbose_name= 'ASKAP / SUMSS')
+    cat_snr = tables.Column(verbose_name= 'Catalog SNR')
+    askap_cat_ratio = tables.Column(verbose_name= 'ASKAP / Catalog')
+    survey = tables.Column(verbose_name= 'Ref Survey')
     pipelinetag = tables.Column(verbose_name= 'Pipeline Tag')
     usertag = tables.Column(verbose_name= 'User Tag')
     userreason = tables.Column(verbose_name= 'User Reason')
@@ -70,15 +80,17 @@ class LargeRatioListTable(tables.Table):
     class Meta:
         model = Largeratio
         template_name = 'django_tables2/bootstrap4.html'
-        fields = ("match_id", "sumss_name", "ra", "dec", "sumss_snr", "askap_sumss_ratio", "pipelinetag", "usertag", "userreason", "checkedby")
+        fields = ("match_id", "master_name", "ra", "dec", "cat_snr", "askap_cat_ratio", "survey", "pipelinetag", "usertag", "userreason", "checkedby")
         attrs = {"th":{"bgcolor":"#EBEDEF"}}   
         
 class GoodMatchListTable(tables.Table):
     match_id = tables.Column(verbose_name= 'ID')
-    sumss_name = tables.LinkColumn('crossmatch_detail', args=[A('image_id'), "goodmatch", A('match_id')], orderable=True, verbose_name= 'SUMSS Name')
+    master_name = tables.LinkColumn('crossmatch_detail', args=[A('image_id'), "goodmatch", A('match_id')], orderable=True, verbose_name= 'Source Name')
     ra = RAColumn(attrs={"td":{"style":"white-space:nowrap;"}}, verbose_name= 'RA' )
     dec = DecColumn(attrs={"td":{"style":"white-space:nowrap;"}}, verbose_name= 'Dec')
+    survey = tables.Column(verbose_name= 'Survey')
     sumss_snr = tables.Column(verbose_name= 'SUMSS SNR')
+    nvss_snr = tables.Column(verbose_name= 'NVSS SNR')
     pipelinetag = tables.Column(verbose_name= 'Pipeline Tag')
     usertag = tables.Column(verbose_name= 'User Tag')
     userreason = tables.Column(verbose_name= 'User Reason')
@@ -86,15 +98,17 @@ class GoodMatchListTable(tables.Table):
     class Meta:
         model = Goodmatch
         template_name = 'django_tables2/bootstrap4.html'
-        fields = ("match_id", "sumss_name", "ra", "dec", "sumss_snr", "pipelinetag", "usertag", "userreason", "checkedby")
+        fields = ("match_id", "master_name", "ra", "dec", "survey", "sumss_snr", "nvss_snr", "pipelinetag", "usertag", "userreason", "checkedby")
         attrs = {"th":{"bgcolor":"#EBEDEF"}}   
         
 class AskapNotSeenListTable(tables.Table):
     match_id = tables.Column(verbose_name= 'ID')
-    askap_name = tables.LinkColumn('crossmatch_detail', args=[A('image_id'), "nosumssmatchtoaskap", A('match_id')], orderable=True, verbose_name= 'ASKAP Name')
+    askap_name = tables.LinkColumn('crossmatch_detail', args=[A('image_id'), "nocatalogmatchtoaskap", A('match_id')], orderable=True, verbose_name= 'ASKAP Name')
     ra = RAColumn(attrs={"td":{"style":"white-space:nowrap;"}}, verbose_name= 'RA' )
     dec = DecColumn(attrs={"td":{"style":"white-space:nowrap;"}}, verbose_name= 'Dec')
-    sumss_snr = tables.Column(verbose_name= 'SUMSS SNR')
+    askap_snr = tables.Column(verbose_name= 'Local ASKAP SNR')
+    scaled_cat_snr = tables.Column(verbose_name= 'Scaled Catalog SNR')
+    survey = tables.Column(verbose_name= 'Ref Survey')
     pipelinetag = tables.Column(verbose_name= 'Pipeline Tag')
     usertag = tables.Column(verbose_name= 'User Tag')
     userreason = tables.Column(verbose_name= 'User Reason')
@@ -102,7 +116,7 @@ class AskapNotSeenListTable(tables.Table):
     class Meta:
         model = Askapnotseen
         template_name = 'django_tables2/bootstrap4.html'
-        fields = ("match_id", "askap_name", "ra", "dec", "sumss_snr", "pipelinetag", "usertag", "userreason", "checkedby")
+        fields = ("match_id", "askap_name", "ra", "dec", "askap_snr", "scaled_cat_snr", "survey", "pipelinetag", "usertag", "userreason", "checkedby")
         attrs = {"th":{"bgcolor":"#EBEDEF"}}   
     
     

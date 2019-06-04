@@ -16,7 +16,7 @@
         <a href="{% url 'search' %}" class="btn btn-info mx-auto">New Search</a>
     </div>
     <div class="col text-right">
-        <a href="{% querystring '_export'='csv' %}" class="btn btn-success mx-auto">Download as CSV</a>
+        <a href="{% querystring '_export'='csv' %}" class="btn btn-success mx-auto">CSV</a>
     </div>
     </div>
     </div>
@@ -24,5 +24,7 @@
     <h3 class="text-center logo my-4">
       Results of search for <font color="blue">'{{ transient_type }}'</font> with tag <font color="blue">'{{ user_tag }}'</font> by <font color="blue">'{{ user }}'</font> 
     </h3>
+    {% endblock %}
+{% block table %}
 {% render_table table %}
 {% endblock %}

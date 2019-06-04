@@ -15,9 +15,9 @@
 <li class="breadcrumb-item"><a href="{% url 'image_detail' image.pk %}">{{ image.name }}</a></li>
 <li class="breadcrumb-item"><a href="{% url type_url image.pk %}">{{ title }}</a></li>
 {% if title == "No SUMSS Match to ASKAP" %}
-<li class="breadcrumb-item active">{{ crossmatch_source.askap_name }}</li>
+<li class="breadcrumb-item active">{{ crossmatch_source.master_name }}</li>
 {% else %}
-<li class="breadcrumb-item active">{{ crossmatch_source.sumss_name }}</li>
+<li class="breadcrumb-item active">{{ crossmatch_source.master_name }}</li>
 {% endif %}
 {% endblock %}
 
@@ -26,6 +26,7 @@
    <div class="row">
        <div class="col text-left">
            <a href="{{ simbad_query }}" class="btn btn-info mx-auto" target="_blank">SIMBAD</a>
+           <a href="{{ ned_query }}" class="btn btn-info mx-auto" target="_blank">NED</a>
           </div>
      <div class="col text-center">
          {% if crossmatch_source.match_id > min_id %}
@@ -106,9 +107,9 @@
         {% if user.is_authenticated %}
        <a href="{% url 'crossmatch_commit' pk=image.pk querytype=type cross_id=crossmatch_source.match_id %}?usertag=ignore&userreason=is%20match" class="btn btn-success mx-auto btn-sm">There is a match</a>
        <a href="{% url 'crossmatch_commit' pk=image.pk querytype=type cross_id=crossmatch_source.match_id %}?usertag=ignore&userreason=non-detection" class="btn btn-success mx-auto btn-sm">Non-detection</a>
-       <a href="{% url 'crossmatch_commit' pk=image.pk querytype=type cross_id=crossmatch_source.match_id %}?usertag=ignore&userreason=sumss%20extended" class="btn btn-success mx-auto btn-sm">SUMSS Extended/Diffuse</a>
+       <a href="{% url 'crossmatch_commit' pk=image.pk querytype=type cross_id=crossmatch_source.match_id %}?usertag=ignore&userreason=extended" class="btn btn-success mx-auto btn-sm">Extended/Diffuse</a>
        <a href="{% url 'crossmatch_commit' pk=image.pk querytype=type cross_id=crossmatch_source.match_id %}?usertag=ignore&userreason=bright%20source" class="btn btn-success mx-auto btn-sm">Close to bright source</a>
-       <a href="{% url 'crossmatch_commit' pk=image.pk querytype=type cross_id=crossmatch_source.match_id %}?usertag=ignore&userreason=askap%20double" class="btn btn-success mx-auto btn-sm">ASKAP double</a>
+       <a href="{% url 'crossmatch_commit' pk=image.pk querytype=type cross_id=crossmatch_source.match_id %}?usertag=ignore&userreason=double" class="btn btn-success mx-auto btn-sm">Double source</a>
        <a href="{% url 'crossmatch_commit' pk=image.pk querytype=type cross_id=crossmatch_source.match_id %}?usertag=help&userreason=not%20sure" class="btn btn-warning mx-auto btn-sm">Not sure</a><br><br>
        <a href="{% url 'crossmatch_commit' pk=image.pk querytype=type cross_id=crossmatch_source.match_id %}?usertag=investigate&userreason=sumss%20non-detection" class="btn btn-danger mx-auto btn-sm">SUMSS Non-detection</a>
        <a href="{% url 'crossmatch_commit' pk=image.pk querytype=type cross_id=crossmatch_source.match_id %}?usertag=investigate&userreason=askap%20non-detection" class="btn btn-danger mx-auto btn-sm">ASKAP Non-detection</a>
@@ -120,9 +121,9 @@
        {% else %}
        <button type="button" class="btn btn-success mx-auto btn-sm" disabled>There is a match</button>
        <button type="button" class="btn btn-success mx-auto btn-sm" disabled>Non-detection</button>
-       <button type="button" class="btn btn-success mx-auto btn-sm" disabled>SUMSS Extended/Diffuse</button>
+       <button type="button" class="btn btn-success mx-auto btn-sm" disabled>Extended/Diffuse</button>
        <button type="button" class="btn btn-success mx-auto btn-sm" disabled>Close to bright source</button>
-       <button type="button" class="btn btn-success mx-auto btn-sm" disabled>ASKAP double</button>
+       <button type="button" class="btn btn-success mx-auto btn-sm" disabled>Double</button>
        <button type="button" class="btn btn-warning mx-auto btn-sm" disabled>Not sure</button><br><br>
        <button type="button" class="btn btn-danger mx-auto btn-sm" disabled>SUMSS Non-detection</button>
        <button type="button" class="btn btn-danger mx-auto btn-sm" disabled>ASKAP Non-detection</button>
@@ -163,11 +164,14 @@
  <h5 class="card-header bg-info mb-3 text-white">Crossmatch Details</h5>
   <div class="card-body">
     <!-- <h5 class="card-title">{{ image.name}} details</h5> -->
-    <p class="card-text"><b>Right Ascension:</b> {{crossmatch_source.ra|deg_to_hms}}<br>
+    <p class="card-text"><b>Catalog used:</b> {{crossmatch_source.survey}}<br>
+    <b>Right Ascension:</b> {{crossmatch_source.ra|deg_to_hms}}<br>
     <b>Declination:</b> {{crossmatch_source.dec|deg_to_dms}}<br>
     <b>ASKAP Int Flux:</b> {{crossmatch_source.askap_iflux|jy_to_mjy}} +/- {{crossmatch_source.askap_iflux_e|jy_to_mjy}} mJy<br>
-    <b>SUMSS Int Flux:</b> {{crossmatch_source.sumss_iflux}} +/- {{crossmatch_source.sumss_iflux_e}} mJy<br>
-    <b>SUMSS SNR:</b> {{crossmatch_source.sumss_snr}}</p>
+    <b>Catalog Int Flux:</b> {{crossmatch_source.sumss_iflux}} +/- {{crossmatch_source.sumss_iflux_e}} mJy<br>
+    <b>Catalog SNR:</b> {{crossmatch_source.cat_snr}}<br>
+    <b>Scaled ASKAP to Catalog Flux:</b> {{crossmatch_source.askap_scale_flux}} Jy<br>
+    <b>Scaled Catalog to ASKAP SNR:</b> {{crossmatch_source.scaled_cat_snr}}</p>
   </div>
 </div>
 
@@ -208,8 +212,16 @@
             var sumss = aladin2.createImageSurvey('SUMSS', 'SUMSS', 'http://alasky.u-strasbg.fr/SUMSS', 'equatorial', 6, {imgFormat: 'png'});
             var nvss = aladin2.createImageSurvey('NVSS', 'NVSS', 'http://alasky.u-strasbg.fr/NVSS/intensity/', 'equatorial', 5, {imgFormat: 'jpg'});
             var tgss = aladin2.createImageSurvey('TGSS', 'TGSS', 'http://tgssadr.strw.leidenuniv.nl/hips', 'equatorial', 7, {imgFormat: 'png'});
+            var skymapU = aladin2.createImageSurvey('skymapper-U', 'skymapper-U', "http://alasky.u-strasbg.fr/Skymapper/skymapper_U", 'equatorial', 9, {imgFormat: 'png'});
+            var skymapV = aladin2.createImageSurvey('skymapper-V', 'skymapper-V', "http://alasky.u-strasbg.fr/Skymapper/skymapper_V", 'equatorial', 9, {imgFormat: 'png'});
+            var skymapG = aladin2.createImageSurvey('skymapper-G', 'skymapper-G', "http://alasky.u-strasbg.fr/Skymapper/skymapper_G", 'equatorial', 9, {imgFormat: 'png'});
+            var skymapR = aladin2.createImageSurvey('skymapper-R', 'skymapper-R', "http://alasky.u-strasbg.fr/Skymapper/skymapper_R", 'equatorial', 9, {imgFormat: 'png'});
+            var skymapI = aladin2.createImageSurvey('skymapper-I', 'skymapper-I', "http://alasky.u-strasbg.fr/Skymapper/skymapper_I", 'equatorial', 9, {imgFormat: 'png'});
+            var skymapZ = aladin2.createImageSurvey('skymapper-Z', 'skymapper-Z', "http://alasky.u-strasbg.fr/Skymapper/skymapper_Z", 'equatorial', 9, {imgFormat: 'png'});
+            var skymap_color = aladin2.createImageSurvey('skymapper-color', 'skymapper-color', "http://skymapper.anu.edu.au/CDS_P_skymapper-color", 'equatorial', 9, {imgFormat: 'png'});
             // gleam.getColorMap().update("grayscale")
-            aladin2.setImageSurvey(gleam);
+            aladin2.setImageSurvey(nvss);
+            aladin2.getBaseImageLayer().getColorMap().reverse();
             // aladin2.getBaseImageLayer().getColorMap().update('grayscale').reverse();
             </script>
             <!-- </div> -->
@@ -217,7 +229,7 @@
             </div>
             </div>
             <center>
-            <i>Base catalogue shows SUMSS, NVSS also available.</i>
+            <i>Default catalogs: Left: SUMSS, Right: NVSS. Other catalogs available from the menu.</i>
         </center>
         </div>
     </div>
