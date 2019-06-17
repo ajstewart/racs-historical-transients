@@ -1,6 +1,8 @@
 {% extends 'base.html' %}
 {% load static %}
 {% load units %}
+{% load render_table from django_tables2 %}
+{% load querystring from django_tables2 %}
 
 {% block morehead %}
     <!-- required for error bars -->
@@ -14,11 +16,11 @@
 <li class="breadcrumb-item"><a href="{% url 'home' %}">Images</a></li>
 <li class="breadcrumb-item"><a href="{% url 'image_detail' image.pk %}">{{ image.name }}</a></li>
 <li class="breadcrumb-item"><a href="{% url type_url image.pk %}">{{ title }}</a></li>
-{% if title == "No SUMSS Match to ASKAP" %}
+<!-- {% if title == "No Catalog Match to ASKAP" %} -->
+<!-- <li class="breadcrumb-item active">{{ crossmatch_source.askap_name }}</li> -->
+<!-- {% else %} -->
 <li class="breadcrumb-item active">{{ crossmatch_source.master_name }}</li>
-{% else %}
-<li class="breadcrumb-item active">{{ crossmatch_source.master_name }}</li>
-{% endif %}
+<!-- {% endif %} -->
 {% endblock %}
 
  {% block content %}   
@@ -29,19 +31,19 @@
            <a href="{{ ned_query }}" class="btn btn-info mx-auto" target="_blank">NED</a>
           </div>
      <div class="col text-center">
-         {% if crossmatch_source.match_id > min_id %}
-      <a href="{% url 'crossmatch_detail' pk=image.pk querytype=type cross_id=crossmatch_source.match_id|add:"-1" %}" class="btn btn-primary mx-auto">Previous Source</a>
+         {% if crossmatch_source.id > min_id %}
+      <a href="{% url 'crossmatch_detail' pk=image.pk querytype=type cross_id=crossmatch_source.id|add:"-1" %}" class="btn btn-primary mx-auto">Previous Source</a>
       {% else %}
       <a href="{% url type_url image.pk %}" class="btn btn-secondary mx-auto">Back to List Page</a>
           {% endif %}
-          {% if crossmatch_source.match_id < max_id %}
-          <a href="{% url 'crossmatch_detail' pk=image.pk querytype=type cross_id=crossmatch_source.match_id|add:"1" %}" class="btn btn-primary mx-auto">Next Source</a>
+          {% if crossmatch_source.id < max_id %}
+          <a href="{% url 'crossmatch_detail' pk=image.pk querytype=type cross_id=crossmatch_source.id|add:"1" %}" class="btn btn-primary mx-auto">Next Source</a>
           {% else %}
           <a href="{% url type_url image.pk %}" class="btn btn-secondary mx-auto">Back to List Page</a>
            {% endif %}
      </div>
      <div class="col text-right">
-     {{ crossmatch_source.match_id|subtract:min_id|add:1 }} / {{ total }}
+     {{ crossmatch_source.id|subtract:min_id|add:1 }} / {{ total }}
  </div>
    </div>
  </div>
@@ -99,42 +101,48 @@
  </div>
  {% endif %}
 
- <div class="card mb-3 mx-auto">
-  <h5 class="card-header bg-info mb-1 text-white">User Tag Assign Options</h5>
-   <div class="card-body">
-       <center>Pipeline Tag: <b>{{ crossmatch_source.pipelinetag }}</b></center><p></p>
+ <!-- <div class="card mb-3 mx-auto"> -->
+  <!-- <h5 class="card-header bg-info mb-1 text-white">User Tag Assign Options</h5> -->
+   <!-- <div class="card-body"> -->
+       <div class="container">
+       <h5><center>Pipeline Tag: <b>{{ crossmatch_source.pipelinetag }}</b>. <small>Set a user tag using the buttons below.</small></center></h5><p></p>
        <div class="col text-center">
         {% if user.is_authenticated %}
-       <a href="{% url 'crossmatch_commit' pk=image.pk querytype=type cross_id=crossmatch_source.match_id %}?usertag=ignore&userreason=is%20match" class="btn btn-success mx-auto btn-sm">There is a match</a>
-       <a href="{% url 'crossmatch_commit' pk=image.pk querytype=type cross_id=crossmatch_source.match_id %}?usertag=ignore&userreason=non-detection" class="btn btn-success mx-auto btn-sm">Non-detection</a>
-       <a href="{% url 'crossmatch_commit' pk=image.pk querytype=type cross_id=crossmatch_source.match_id %}?usertag=ignore&userreason=extended" class="btn btn-success mx-auto btn-sm">Extended/Diffuse</a>
-       <a href="{% url 'crossmatch_commit' pk=image.pk querytype=type cross_id=crossmatch_source.match_id %}?usertag=ignore&userreason=bright%20source" class="btn btn-success mx-auto btn-sm">Close to bright source</a>
-       <a href="{% url 'crossmatch_commit' pk=image.pk querytype=type cross_id=crossmatch_source.match_id %}?usertag=ignore&userreason=double" class="btn btn-success mx-auto btn-sm">Double source</a>
-       <a href="{% url 'crossmatch_commit' pk=image.pk querytype=type cross_id=crossmatch_source.match_id %}?usertag=help&userreason=not%20sure" class="btn btn-warning mx-auto btn-sm">Not sure</a><br><br>
-       <a href="{% url 'crossmatch_commit' pk=image.pk querytype=type cross_id=crossmatch_source.match_id %}?usertag=investigate&userreason=sumss%20non-detection" class="btn btn-danger mx-auto btn-sm">SUMSS Non-detection</a>
-       <a href="{% url 'crossmatch_commit' pk=image.pk querytype=type cross_id=crossmatch_source.match_id %}?usertag=investigate&userreason=askap%20non-detection" class="btn btn-danger mx-auto btn-sm">ASKAP Non-detection</a>
-       <a href="{% url 'crossmatch_commit' pk=image.pk querytype=type cross_id=crossmatch_source.match_id %}?usertag=problem&userreason=edge%20of%20field" class="btn btn-secondary mx-auto btn-sm">Edge of Field</a>
-       <a href="{% url 'crossmatch_commit' pk=image.pk querytype=type cross_id=crossmatch_source.match_id %}?usertag=problem&userreason=out%20of%20range" class="btn btn-secondary mx-auto btn-sm">Out of Range</a>
-       <a href="{% url 'crossmatch_commit' pk=image.pk querytype=type cross_id=crossmatch_source.match_id %}?usertag=problem&userreason=sumss%20artefact" class="btn btn-secondary mx-auto btn-sm">SUMSS artefact</a>
-       <a href="{% url 'crossmatch_commit' pk=image.pk querytype=type cross_id=crossmatch_source.match_id %}?usertag=problem&userreason=askap%20artefact" class="btn btn-secondary mx-auto btn-sm">ASKAP artefact</a>
-	          <a href="{% url 'crossmatch_commit' pk=image.pk querytype=type cross_id=crossmatch_source.match_id %}?usertag=problem&userreason=src.%20ext.%20error" class="btn btn-secondary mx-auto btn-sm">Source extraction errors</a>
+       Safe to Ignore: 
+       <a href="{% url 'crossmatch_commit' pk=image.pk querytype=type cross_id=crossmatch_source.id %}?usertag=ignore&userreason=is%20match" class="btn btn-success mx-auto btn-sm">There is a match</a>
+       <a href="{% url 'crossmatch_commit' pk=image.pk querytype=type cross_id=crossmatch_source.id %}?usertag=ignore&userreason=non-detection" class="btn btn-success mx-auto btn-sm">Non-detection</a>
+       <a href="{% url 'crossmatch_commit' pk=image.pk querytype=type cross_id=crossmatch_source.id %}?usertag=ignore&userreason=extended" class="btn btn-success mx-auto btn-sm">Extended/Diffuse</a>
+       <a href="{% url 'crossmatch_commit' pk=image.pk querytype=type cross_id=crossmatch_source.id %}?usertag=ignore&userreason=bright%20source" class="btn btn-success mx-auto btn-sm">Close to bright source</a>
+       <a href="{% url 'crossmatch_commit' pk=image.pk querytype=type cross_id=crossmatch_source.id %}?usertag=ignore&userreason=double" class="btn btn-success mx-auto btn-sm">Double source</a><p></p>
+Report Technical Issue: <a href="{% url 'crossmatch_commit' pk=image.pk querytype=type cross_id=crossmatch_source.id %}?usertag=problem&userreason=edge%20of%20field" class="btn btn-secondary mx-auto btn-sm">Edge of Field</a>
+       <a href="{% url 'crossmatch_commit' pk=image.pk querytype=type cross_id=crossmatch_source.id %}?usertag=problem&userreason=out%20of%20range" class="btn btn-secondary mx-auto btn-sm">Out of Range</a>
+       <a href="{% url 'crossmatch_commit' pk=image.pk querytype=type cross_id=crossmatch_source.id %}?usertag=problem&userreason=catalogue%20artefact" class="btn btn-secondary mx-auto btn-sm">Catalogue artefact</a>
+       <a href="{% url 'crossmatch_commit' pk=image.pk querytype=type cross_id=crossmatch_source.id %}?usertag=problem&userreason=askap%20artefact" class="btn btn-secondary mx-auto btn-sm">ASKAP artefact</a>
+	          <a href="{% url 'crossmatch_commit' pk=image.pk querytype=type cross_id=crossmatch_source.id %}?usertag=problem&userreason=src.%20ext.%20error" class="btn btn-secondary mx-auto btn-sm">Source extraction errors</a><p></p>   
+Investigate: <a href="{% url 'crossmatch_commit' pk=image.pk querytype=type cross_id=crossmatch_source.id %}?usertag=investigate&userreason=large%20ratio" class="btn btn-danger mx-auto btn-sm">Large Ratio</a>
+       <a href="{% url 'crossmatch_commit' pk=image.pk querytype=type cross_id=crossmatch_source.id %}?usertag=investigate&userreason=catalogue%20non-detection" class="btn btn-danger mx-auto btn-sm">Catalogue Non-detection</a>
+       <a href="{% url 'crossmatch_commit' pk=image.pk querytype=type cross_id=crossmatch_source.id %}?usertag=investigate&userreason=askap%20non-detection" class="btn btn-danger mx-auto btn-sm">ASKAP Non-detection</a>
+       <a href="{% url 'crossmatch_commit' pk=image.pk querytype=type cross_id=crossmatch_source.id %}?usertag=help&userreason=not%20sure" class="btn btn-warning mx-auto btn-sm">Not sure</a>
+       
        {% else %}
+      <button type="button" class="btn btn-warning mx-auto btn-sm" disabled>Not sure</button>
        <button type="button" class="btn btn-success mx-auto btn-sm" disabled>There is a match</button>
        <button type="button" class="btn btn-success mx-auto btn-sm" disabled>Non-detection</button>
        <button type="button" class="btn btn-success mx-auto btn-sm" disabled>Extended/Diffuse</button>
        <button type="button" class="btn btn-success mx-auto btn-sm" disabled>Close to bright source</button>
        <button type="button" class="btn btn-success mx-auto btn-sm" disabled>Double</button>
-       <button type="button" class="btn btn-warning mx-auto btn-sm" disabled>Not sure</button><br><br>
-       <button type="button" class="btn btn-danger mx-auto btn-sm" disabled>SUMSS Non-detection</button>
+      <button type="button" class="btn btn-danger mx-auto btn-sm" disabled>Large Ratio</button><br><br>
+       <button type="button" class="btn btn-danger mx-auto btn-sm" disabled>Catalogue Non-detection</button>
        <button type="button" class="btn btn-danger mx-auto btn-sm" disabled>ASKAP Non-detection</button>
        <button type="button" class="btn btn-secondary mx-auto btn-sm" disabled>Edge of Field</button>
        <button type="button" class="btn btn-secondary mx-auto btn-sm" disabled>Out of Range</button>
-       <button type="button" class="btn btn-secondary mx-auto btn-sm" disabled>SUMSS artefact</button>
+       <button type="button" class="btn btn-secondary mx-auto btn-sm" disabled>Catalogue artefact</button>
        <button type="button" class="btn btn-secondary mx-auto btn-sm" disabled>ASKAP artefact</button>
        {% endif %}
    </div>
    </div>
- </div>
+   <p></p>
+ <!-- </div> -->
  
  
  <div class="card mb-0 mx-auto">
@@ -146,15 +154,36 @@
    </div>
  </div>
 
+<p></p>
+<div class="container">
+    <div class="row">
+        <div class="col text-center">
+       {% render_table table %} 
+    </div>
+    </div>
+</div>
+
+{% if type != "goodmatch" %}
+<div class="container">
+    <div class="row">
+        <div class="col text-center">
+            <h5>Nearest Good Match Sources</h5>
+       {% render_table nearest_sources_table %} 
+    </div>
+    </div>
+</div>
+{% endif %}
+
 <div class="card mb-3 mx-auto">
  <h5 class="card-header bg-info mb-3 text-white">Key</h5>
   <div class="card-body">
     <!-- <h5 class="card-title">{{ image.name}} details</h5> -->
     <p class="card-text">
-        <font color="red"> Red circles </font> are SUMSS catalogue sources.<p></p>
+        <font color="red"> Red circles </font> are base catalog sources (SUMSS or NVSS).<p></p>
+        <font color="#F5B406"> Gold circles </font> are secondary catalog sources (SUMSS or NVSS).<p></p>
         <font color="blue"> Blue circles </font> are ASKAP extracted sources.<p></p>
         <font color="#11BA1C"> Green circles </font> are ASKAP extracted sources from the non-convolved image (when available).<p></p>
-        <font color="#47DEE0"> Large light blue circle </font> signifies the SUMSS source that has been matched.<p></p>
+        <font color="#47DEE0"> Large light blue circle </font> signifies the catalog source that has been matched.<p></p>
         <font color="orange"> Large orange circle </font> signifies the ASKAP source that has been matched (dashed circle means it is the nearest ASKAP source).
     </p>
   </div>
@@ -167,11 +196,11 @@
     <p class="card-text"><b>Catalog used:</b> {{crossmatch_source.survey}}<br>
     <b>Right Ascension:</b> {{crossmatch_source.ra|deg_to_hms}}<br>
     <b>Declination:</b> {{crossmatch_source.dec|deg_to_dms}}<br>
-    <b>ASKAP Int Flux:</b> {{crossmatch_source.askap_iflux|jy_to_mjy}} +/- {{crossmatch_source.askap_iflux_e|jy_to_mjy}} mJy<br>
+    <!-- <b>ASKAP Int Flux:</b> {{crossmatch_source.askap_iflux|jy_to_mjy}} +/- {{crossmatch_source.askap_iflux_e|jy_to_mjy}} mJy<br>
     <b>Catalog Int Flux:</b> {{crossmatch_source.sumss_iflux}} +/- {{crossmatch_source.sumss_iflux_e}} mJy<br>
     <b>Catalog SNR:</b> {{crossmatch_source.cat_snr}}<br>
     <b>Scaled ASKAP to Catalog Flux:</b> {{crossmatch_source.askap_scale_flux}} Jy<br>
-    <b>Scaled Catalog to ASKAP SNR:</b> {{crossmatch_source.scaled_cat_snr}}</p>
+    <b>Scaled Catalog to ASKAP SNR:</b> {{crossmatch_source.scaled_cat_snr}}</p> -->
   </div>
 </div>
 

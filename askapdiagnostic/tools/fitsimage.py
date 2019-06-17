@@ -16,6 +16,7 @@ import psycopg2
 from askapdiagnostic.plotting import plots
 from askapdiagnostic.tools import utils
 import bdsf
+import uuid
 
 class askapimage(object):
     """docstring for fitsimage"""
@@ -73,10 +74,13 @@ class askapimage(object):
     def load_fits_header(self):
         with fits.open(self.image) as hdul:
             self.header = hdul[0].header
-        try:
+        if "RESTFRQ" in self.header:
             self.freq = self.header["RESTFRQ"]
             self.logger.info("Frequency = {} MHz".format(self.freq/1.e6))
-        except:
+        elif ("CTYPE3" in self.header) and (self.header["CTYPE3"]=="FREQ"):
+            self.freq = self.header["CRVAL3"]
+            self.logger.info("Frequency = {} MHz".format(self.freq/1.e6))
+        else:
             self.logger.warning("Frequency of image couldn't be determined.")
             self.freq=None
         try:
@@ -361,44 +365,45 @@ class askapimage(object):
             transients_nocatalogmatchtoaskap_total=0,
             transients_nocatalogmatchtoaskap_candidates=0,
             transients_largeratio_total=0,
+            transients_largeratio_candidates=0,
             transients_goodmatches_total=0):
-        image_id=1
+        # image_id=1
+        unique_tag = str(uuid.uuid4())
         engine = sqlalchemy.create_engine('{}://{}@{}:{}/{}'.format(db_engine, db_username, db_host, db_port, db_database))
-        result = engine.execute("SELECT id FROM images_image")
-        try:
-            image_id+=int(result.fetchall()[-1][0])
-        except:
-            image_id=1
         #Better to control the order
-        plots_columns=["flux_ratio_image_view", "position_offset", "source_counts", "flux_ratios", "flux_ratios_from_centre", "askap_overlay", "sumss_overlay", "nvss_overlay"]
-        plots_values=[]
-        for i in plots_columns:
-            if "N/A" in self.plots[i]:
-                plots_values.append("N/A")
-            else:
-                plots_values.append("media/{}/{}".format(image_id, self.plots[i]))
-        self.logger.info("Image run assigned id {}".format(image_id))
+        
         # conn = psycopg2.connect("host=localhost dbname=RACS user=aste7152 port=5434")
         if self.original_name is not None:
             thisimagename=self.original_name
         else:
             thisimagename=self.imagename
-        tempdf=pd.DataFrame([[image_id, thisimagename, description, self.centre.ra.degree, 
-            self.centre.dec.degree, datestamp, self.image]+plots_values+[user,self.total_askap_sources, self.total_sumss_sources, self.rms, self.total_nvss_sources,
+        tempdf=pd.DataFrame([[unique_tag, thisimagename, description, self.centre.ra.degree, 
+            self.centre.dec.degree, datestamp, self.image]+[user,self.total_askap_sources, self.total_sumss_sources, self.rms, self.total_nvss_sources,
             transients_noaskapmatchtocatalog_total,
             transients_noaskapmatchtocatalog_candidates,
             transients_nocatalogmatchtoaskap_total,
             transients_nocatalogmatchtoaskap_candidates,
             transients_largeratio_total,
-            transients_goodmatches_total, self.matched_to]], columns=["image_id", "name", "description", 
-                "ra", "dec", "runtime", "url"]+plots_columns+["runby", "number_askap_sources", "number_sumss_sources", "rms", "number_nvss_sources"]+["transients_noaskapmatchtocatalog_total",
+            transients_largeratio_candidates,
+            transients_goodmatches_total, self.matched_to]], columns=["unique_tag", "name", "description", 
+                "ra", "dec", "runtime", "url"]+["runby", "number_askap_sources", "number_sumss_sources", "rms", "number_nvss_sources"]+["transients_noaskapmatchtocatalog_total",
             "transients_noaskapmatchtocatalog_candidates",
             "transients_nocatalogmatchtoaskap_total",
             "transients_nocatalogmatchtoaskap_candidates",
             "transients_largeratio_total",
+            "transients_largeratio_candidates",
             "transients_goodmatches_total",
             "matched_to"])
         tempdf.to_sql("images_image", engine, if_exists="append", index=False)
+        
+        #get the id
+        result = engine.execute("SELECT id FROM images_image WHERE unique_tag='{}'".format(unique_tag))
+        # try:
+        image_id=int(result.fetchall()[0][0])
+        # except:
+            # image_id=1
+        self.logger.info("Image run assigned id {}".format(image_id))
+        
         return image_id
         
     def inject_processing_db(self, image_id, output, askap_cat_file, sumss_source_cat, nvss_source_cat, askap_ext_thresh, sumss_ext_thresh, nvss_ext_thresh, max_separation, aegean_sigmas, db_engine="postgresql", 
@@ -408,8 +413,16 @@ class askapimage(object):
             sumss_source_cat="N/A"
         if nvss_source_cat == None:
             nvss_source_cat="N/A"
-        settings_columns=["image_id", "output_dir", "askap_csv", "sumss_csv", "nvss_csv", "askap_ext_thresh", "sumss_ext_thresh", "nvss_ext_thresh", "max_separation", "aegean_det_sigma", "aegean_fill_sigma"]
-        settings_data=[image_id, output, askap_cat_file, sumss_source_cat, nvss_source_cat, askap_ext_thresh, sumss_ext_thresh, nvss_ext_thresh, max_separation]+aegean_sigmas
+        plots_columns=["flux_ratio_image_view", "position_offset", "source_counts", "flux_ratios", "flux_ratios_from_centre", "askap_overlay", "sumss_overlay", "nvss_overlay"]
+        plots_values=[]
+        for i in plots_columns:
+            if "N/A" in self.plots[i]:
+                plots_values.append("N/A")
+            else:
+                plots_values.append("media/{}/{}".format(image_id, self.plots[i]))
+        settings_columns=["image_id", "output_dir", "askap_csv", "sumss_csv", "nvss_csv", "askap_ext_thresh", 
+            "sumss_ext_thresh", "nvss_ext_thresh", "max_separation", "aegean_det_sigma", "aegean_fill_sigma"]+plots_columns
+        settings_data=[image_id, output, askap_cat_file, sumss_source_cat, nvss_source_cat, askap_ext_thresh, sumss_ext_thresh, nvss_ext_thresh, max_separation]+aegean_sigmas+plots_values
         tempdf=pd.DataFrame([settings_data], columns=settings_columns)
         tempdf.to_sql("images_processingsettings", engine, if_exists="append", index=False)
         
@@ -491,6 +504,25 @@ class askapimage(object):
         fln.close()
         self.rms = std
         return std
+        
+    def get_local_rms_clipping(self, ra, dec, max_iter=10, sigma=4, num_pixels=50):
+        pixels=self.wcs_world2pix(ra, dec, 1)
+        y,x = pixels
+        self.logger.debug("x:{} y:{}".format(x,y))
+        y = int(y)
+        x = int(x)
+        #Search 50 pixels around, see if in nan is in there
+        row_idx = np.array([range(x-num_pixels, x+num_pixels+1)])
+        col_idx = np.array([range(y-num_pixels, y+num_pixels+1)])
+        data_selection=img_data[0,0,row_idx[:, None], col_idx]
+        data_selection = np.nan_to_num(data_selection)
+        angle=self.header['crval1']
+        bscale=self.header['bscale']
+        data_selection=data_selection.squeeze()
+        data_selection=data_selection*bscale
+        med, std, mask = self._Median_clip(data_selection, full_output=True, ftol=0.0, max_iter=max_iter, sigma=sigma)
+        return std
+        
         
     def weight_crop(self, weight_image, weight_value):
         with fits.open(weight_image) as weight:

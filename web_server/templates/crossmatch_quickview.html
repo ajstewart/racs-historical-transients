@@ -12,7 +12,7 @@
 <div class="container">
 <div class="row">
     <div class="col text-center">
-<a href="{% url html image.pk %}" class="btn btn-primary mx-auto">Back to {{ title }} ({{ image.transients_noaskapmatchtocatalog_candidates }})</a>
+<a href="{% url html image.pk %}" class="btn btn-primary mx-auto">Back to {{ title }}</a>
 </div>
 </div>
 <p></p>
@@ -29,7 +29,7 @@ There are <b>{{ total }}</b> flagged sources listed below.
 <div class="col text-center">
 {% for e in crossmatch_sources %}
 <b>{{ e.pipelinetag }} </b> {{ e.master_name }} ({{ e.survey }})
-     <a href="{% url 'crossmatch_detail' image.pk querytype e.match_id %}" >
+     <a href="{% url 'crossmatch_detail' image.pk querytype e.id %}" >
      <img src="{% static e.ploturl %}" class="mx-auto d-block" width="95%" height="95%"/></a>
 {% endfor %}
 </div>

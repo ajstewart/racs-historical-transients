@@ -162,9 +162,11 @@ def main():
         "convolve":False,
         "convolved_image":"None",
         "convolved_non_conv_askap_csv":None,
+        "convolved_non_conv_askap_islands_csv":None,
         "sourcefinder":"aegean",
-        "frequency":864e6,
+        "frequency":99,
         "askap_csv":None,
+        "askap_islands_csv":None,
         "sumss_csv":None,
         "nvss_csv":None,
         "askap_csv_format":"aegean",
@@ -226,10 +228,13 @@ def main():
     parser.add_argument("--convolved-image", type=str, help="Define a convolved image that has already been produced.")
     parser.add_argument("--convolved-non-conv-askap-csv", type=str, help="Define the unconvolved catalogue to use when using convolved mode, \
         otherwise it will be generated automatically (if aegaen or pybdsf)")
+    parser.add_argument("--convolved-non-conv-askap-islands-csv", type=str, help="Define the unconvolved island catalogue to use when using convolved mode, \
+        otherwise it will be generated automatically (if aegaen or pybdsf)")
     parser.add_argument("--sourcefinder", type=str, choices=["aegean", "pybdsf", "selavy"], help="Select which sourcefinder to use")
     parser.add_argument("--frequency", type=str2float, help="Provide the frequency of the image in Hz. Use if 'RESTFRQ' is not in the header")
     # parser.add_argument("--fetch-sumss", type=str2bool, help="Fetch the SUMSS catalogue for the image area from Vizier.")
-    parser.add_argument("--askap-csv", type=str, help="Manually define a aegean csv file containing the extracted sources to use for the ASKAP image.")
+    parser.add_argument("--askap-csv", type=str, help="Manually define a aegean format csv file containing the extracted sources to use for the ASKAP image.")
+    parser.add_argument("--askap-islands-csv", type=str, help="Manually define a csv file containing the extracted islands to use for the ASKAP image.")
     parser.add_argument("--sumss-csv", type=str, help="Manually provide the SUMSS catalog csv.")
     parser.add_argument("--nvss-csv", type=str, help="Manually provide the NVSS catalog csv.")
     parser.add_argument("--askap-csv-format", type=str, choices=["aegean"], help="Define which source finder provided the ASKAP catalog (currently only supports aegean).")
@@ -320,6 +325,16 @@ def main():
         else:
             non_convolved_src_cat=None
             conv_source_find=True
+            
+        if args.convolved_non_conv_askap_islands_csv != None:
+            convolved_non_conv_askap_islands_csv=os.path.abspath(args.convolved_non_conv_askap_islands_csv)
+            if not utils.checkfile(convolved_non_conv_askap_islands_csv):
+                exit(logger)
+            else:
+                non_convolved_isl_cat=convolved_non_conv_askap_islands_csv
+        else:
+            non_convolved_isl_cat=None
+            
     else:
         conv_source_find = False
     
@@ -438,6 +453,14 @@ def main():
                 if not utils.is_tool("selavy"):
                     logger.error("selavy cannot be found in the current path!. Please rectify and try again.")
                     exit(logger)
+       
+        if args.askap_islands_csv != None:
+            askap_cat_islands_file = os.path.abspath(args.askap_islands_csv)
+            if not utils.checkfile(askap_cat_islands_file):
+                exit(logger)
+        else:
+            logger.warning("No ASKAP island catalog provided - will not perform island transient checks")
+            askap_cat_islands_file = None
             
         if sumss:
             if args.sumss_csv != None:
@@ -489,7 +512,7 @@ def main():
             theimg.get_rms_clipping()
             
         if args.convolve:
-            logger.info("Will covolve image to SUMSS resolution")
+            logger.info("Will convolve image to {} resolution".format(basecat.upper()))
             if not args.weight_crop:
                 original_theimg = theimg
                 non_convolved = theimg.image
@@ -528,7 +551,16 @@ def main():
                     exit(logger)
             else:
                 logger.info("Using already supplied convolved image: {}.".format(convolved_image))
-                
+            
+            non_conv_askap_cat.find_matching_catalog_image(sumss_mosaic_dir=args.sumss_mosaic_dir, nvss_mosaic_dir=args.nvss_mosaic_dir, sumss=sumss, nvss=nvss, dualmode=dualmode)   
+            non_conv_askap_cat.add_telescope_beam_columns("manual", manual_bmaj=theimg.bmaj*3600., manual_bmin=theimg.bmin*3600.)
+            
+            #Load up the islands if provided - only need to load this, no other processing needed.
+            if non_convolved_isl_cat != None:
+                non_convolved_isl_cat_df = pd.read_csv(non_convolved_isl_cat)
+            else:
+                non_convolved_isl_cat_df = pd.DataFrame([])
+            
             theimg = askapimage(convolved_image, readinfo=True)
             theimg.original_name = original_theimg.imagename
             theimg.non_convolved = non_convolved
@@ -541,6 +573,7 @@ def main():
         
         else:
             non_conv_askap_cat = None
+            non_convolved_isl_cat_df = None
         
         #Perform source finding if needed
         if source_find:
@@ -559,17 +592,33 @@ def main():
         #Load the askap catalog into a new catalog object (but load it first to filter good sources)
         askap_catalog=pd.read_csv(askap_cat_file, delimiter=",", engine="python")
         aegean_total = len(askap_catalog.index)
-        logger.info("Total number of sources found by Aegean: {}".format(aegean_total))
+        logger.info("Total number of ASKAP sources: {}".format(aegean_total))
         if not args.use_all_fits:
             askap_catalog=askap_catalog[askap_catalog["flags"]==0].reset_index(drop=True)
             aegean_good_fits=len(askap_catalog.index)
-            logger.info("Total number of good fit sources found by Aegean: {} ({} sources removed).".format(aegean_good_fits, aegean_total - aegean_good_fits))
+            logger.info("Total number of good fit ASKAP sources found: {} ({} sources removed).".format(aegean_good_fits, aegean_total - aegean_good_fits))
         theimg.total_askap_sources = len(askap_catalog.index)
         askap_catalog=Catalog(askap_catalog, "askap", "{}".format(theimg.imagename.replace(".fits", "_askap")), ra_col="ra", dec_col="dec", flux_col="int_flux", frequency=theimg.freq, add_name_col=True)
         askap_catalog._add_askap_sn()
         askap_catalog.add_distance_from_pos(theimg.centre)
+        askap_catalog.add_single_val_col("rms", theimg.rms)
+        askap_catalog.add_telescope_beam_columns("manual", manual_bmaj=theimg.bmaj*3600., manual_bmin=theimg.bmin*3600.)
+        #Below we also add the same columns to the convolved askap catalog, while the wrong way round this is to keep consistency with the postage stamps later.
+        if args.convolve:
+            askap_catalog.add_single_val_col("rms_preconv", original_theimg.rms)
+            non_conv_askap_cat.add_single_val_col("rms", theimg.rms)
+            non_conv_askap_cat.add_single_val_col("rms_preconv", original_theimg.rms)
+            askap_catalog._merge_askap_non_convolved_catalogue(non_conv_askap_cat, sumss=sumss, nvss=nvss)
+                
+        #Load the askap convolved island file if available
+        if askap_cat_islands_file != None:
+            askap_cat_islands_df = pd.read_csv(askap_cat_islands_file)
+        else:
+            askap_cat_islands_df = pd.DataFrame([])
         
-        #Add CAT S/N for ASKAP sources
+        #Find the respective catalog images for the askap sources
+        #This will put results in 'catalog_Mosaic', 'catalog_Mosaic_path', 'catalog_Mosaic_rms'
+        askap_catalog.find_matching_catalog_image(sumss_mosaic_dir=args.sumss_mosaic_dir, nvss_mosaic_dir=args.nvss_mosaic_dir, sumss=sumss, nvss=nvss, dualmode=dualmode)
 
         # askap_touse._add_askap_sn()
             
@@ -612,10 +661,11 @@ def main():
             sumss_catalog=Catalog(sumss_cat_df, "sumss", "{}".format(theimg.imagename.replace(".fits", "_sumss")), frequency=843.0e6, add_name_col=True)
             theimg.total_sumss_sources = len(sumss_cat_df.index)
             sumss_catalog.add_telescope_beam_columns("sumss")
+            sumss_catalog._add_sumss_mosaic_info(args.sumss_mosaic_dir)
             sumss_catalog.calculate_scaled_flux("askap", frequency=askap_catalog.frequency, flux_col="St")
             sumss_catalog.add_manual_sn(base_image_rms, "sumss_askap_snr", flux_col="sumss_scaled_to_askap", flux_scaling=1.e-3)
-            sumss_catalog.add_sumss_sn(flux_col="St", dec_col="_DEJ2000", flux_scaling=1.e-3)
-            askap_catalog.add_sumss_sn(flux_col="askap_scaled_to_sumss")
+            sumss_catalog.add_sumss_sn(flux_col="St", dec_col="_DEJ2000", flux_scaling=1.e-3, use_image_rms=True)
+            askap_catalog.add_sumss_sn(flux_col="askap_scaled_to_sumss", use_image_rms=True)
         else:
             #Define empty ones for diagnostic plots
             sumss_catalog=[]
@@ -627,10 +677,11 @@ def main():
             nvss_catalog=Catalog(nvss_cat_df, "nvss", "{}".format(theimg.imagename.replace(".fits", "_nvss")), flux_col="S1.4", frequency=1.4e9, add_name_col=True)
             theimg.total_nvss_sources = len(nvss_cat_df.index)
             nvss_catalog.add_telescope_beam_columns("nvss")
+            nvss_catalog._find_nvss_mosaic_info(args.nvss_mosaic_dir)
             nvss_catalog.calculate_scaled_flux("askap", frequency=askap_catalog.frequency, flux_col="S1.4")
             nvss_catalog.add_manual_sn(base_image_rms, "nvss_askap_snr", flux_col="nvss_scaled_to_askap", flux_scaling=1.e-3)
-            nvss_catalog.add_nvss_sn()
-            askap_catalog.add_nvss_sn(flux_col="askap_scaled_to_nvss", flux_scaling=1.e3)
+            nvss_catalog.add_nvss_sn(flux_scaling=1.e-3, use_image_rms=True)
+            askap_catalog.add_nvss_sn(flux_col="askap_scaled_to_nvss", use_image_rms=True)
         else:
             #Define empty ones for diagnostic plots
             nvss_catalog=[]
@@ -644,6 +695,7 @@ def main():
             if nvss:
                 noext_nvss_catalog=Catalog(nvss_catalog.remove_extended(threshold=args.nvss_ext_thresh,nvss_psf=True),
                      "nvss", "{}".format(theimg.imagename.replace(".fits", "_nvss_noext")), flux_col="S1.4", frequency=1.4e9)
+                logger.info("NVSS No Ext Cat: {}".format(len(noext_nvss_catalog.df.index)))
             noext_askap_catalog=Catalog(askap_catalog.remove_extended(threshold=args.askap_ext_thresh,ellipse_a="a", ellipse_b="b", 
                  beam_a=theimg.bmaj*3600., beam_b=theimg.bmin*3600.),
                  "askap", "{}".format(theimg.imagename.replace(".fits", "_askap_noext")),ra_col="ra", dec_col="dec", flux_col="int_flux", frequency=theimg.freq)
@@ -790,8 +842,8 @@ def main():
             # other_dec_col = "nvss__DEJ2000"
             tag="nvss"
             
-        diag_crossmatch.calculate_ratio("master_scaled_iflux", "master_catflux", "askap_{}_int_flux_ratio".format(tag), col2_scaling=1.e-3, dualmode=dualmode, basecat=basecat)
-        diag_crossmatch.calculate_ratio("master_catflux", "master_scaled_iflux", "{}_askap_int_flux_ratio".format(tag), col1_scaling=1.e-3, dualmode=dualmode, basecat=basecat)
+        diag_crossmatch.calculate_ratio("master_scaled_askap_iflux", "master_catflux", "askap_{}_int_flux_ratio".format(tag), col2_scaling=1.e-3, dualmode=dualmode, basecat=basecat)
+        diag_crossmatch.calculate_ratio("master_catflux", "master_scaled_askap_iflux", "{}_askap_int_flux_ratio".format(tag), col1_scaling=1.e-3, dualmode=dualmode, basecat=basecat)
         diag_crossmatch.calculate_diff("askap_ra", "master_ra", "askap_{}_ra_offset".format(tag), dualmode=dualmode, basecat=basecat)
         diag_crossmatch.calculate_diff("askap_dec", "master_dec", "askap_{}_dec_offset".format(tag), dualmode=dualmode, basecat=basecat)
         
@@ -838,7 +890,7 @@ def main():
         #         title=plot_titles["source_counts"], base_filename=theimg.imagename.replace(".fits", ""))
         # else:
         theimg.plots["source_counts"]=plots.source_counts(askap_catalog.df, diag_crossmatch.crossmatch_df, args.diagnostic_max_separation, 
-            sumss_df=sumss_catalog.df, nvss_df=nvss_catalog.df, title=plot_titles["source_counts"], base_filename=theimg.imagename.replace(".fits", ""), basecat=basecat, dualmode=dualmode)
+            sumss_cat=sumss_catalog, nvss_cat=nvss_catalog, title=plot_titles["source_counts"], base_filename=theimg.imagename.replace(".fits", ""), basecat=basecat, dualmode=dualmode)
         theimg.plots["flux_ratios_from_centre"]=plots.flux_ratios_distance_from_centre(plotting_df, args.diagnostic_max_separation, 
             title=plot_titles["flux_ratios_from_centre"], base_filename=theimg.imagename.replace(".fits", ""), basecat=basecat, ratio_col="askap_{}_int_flux_ratio".format(tag), dualmode=dualmode)
         theimg.plots["flux_ratios"]=plots.flux_ratios_askap_flux(plotting_df, args.diagnostic_max_separation, 
@@ -886,9 +938,9 @@ def main():
                 else:
                     preconv_crossmatch_transient=nvss_askap_preconv_crossmatch_transient
                     
-            #Also need to calculated all the ratios
-            preconv_crossmatch_transient.calculate_ratio("master_scaled_iflux", "master_catflux", "askap_cat_int_flux_ratio".format(tag), col2_scaling=1.e-3, dualmode=dualmode, basecat=basecat)
-            preconv_crossmatch_transient.calculate_ratio("master_catflux", "master_scaled_iflux", "cat_askap_int_flux_ratio".format(tag), col1_scaling=1.e-3, dualmode=dualmode, basecat=basecat)
+            #Also need to calculate all the ratios
+            preconv_crossmatch_transient.calculate_ratio("master_scaled_askap_iflux", "master_catflux", "askap_cat_int_flux_ratio".format(tag), col2_scaling=1.e-3, dualmode=dualmode, basecat=basecat)
+            preconv_crossmatch_transient.calculate_ratio("master_catflux", "master_scaled_askap_iflux", "cat_askap_int_flux_ratio".format(tag), col1_scaling=1.e-3, dualmode=dualmode, basecat=basecat)
             preconv_crossmatch_transient.calculate_diff("askap_ra", "master_ra", "askap_{}_ra_offset".format(tag), dualmode=dualmode, basecat=basecat)
             preconv_crossmatch_transient.calculate_diff("askap_dec", "master_dec", "askap_{}_dec_offset".format(tag), dualmode=dualmode, basecat=basecat)
         else:
@@ -897,8 +949,8 @@ def main():
         
         crossmatch_name=theimg.imagename.replace(".fits", "_{}_askap_crossmatch_transient.csv".format(tag))
         logger.info("Calculating flux ratios and separations of crossmatches.")
-        transient_crossmatch.calculate_ratio("master_scaled_iflux", "master_catflux", "askap_cat_int_flux_ratio".format(tag), col2_scaling=1.e-3, dualmode=dualmode, basecat=basecat)
-        transient_crossmatch.calculate_ratio("master_catflux", "master_scaled_iflux", "cat_askap_int_flux_ratio".format(tag), col1_scaling=1.e-3, dualmode=dualmode, basecat=basecat)
+        transient_crossmatch.calculate_ratio("master_scaled_askap_iflux", "master_catflux", "askap_cat_int_flux_ratio".format(tag), col2_scaling=1.e-3, dualmode=dualmode, basecat=basecat)
+        transient_crossmatch.calculate_ratio("master_catflux", "master_scaled_askap_iflux", "cat_askap_int_flux_ratio".format(tag), col1_scaling=1.e-3, dualmode=dualmode, basecat=basecat)
         transient_crossmatch.calculate_diff("askap_ra", "master_ra", "askap_{}_ra_offset".format(tag), dualmode=dualmode, basecat=basecat)
         transient_crossmatch.calculate_diff("askap_dec", "master_dec", "askap_{}_dec_offset".format(tag), dualmode=dualmode, basecat=basecat)
         
@@ -907,9 +959,18 @@ def main():
         
         
         if args.transients:
+            #Need to check if convolving and pass empty values if convolving is not used.
+            if args.convolve:
+                preconv_askap_img_wcs=original_theimg.wcs
+                preconv_askap_img_data=original_theimg.data
+                preconv_askap_img_header=original_theimg.header
+            else:
+                preconv_askap_img_wcs="None"
+                preconv_askap_img_data=[]
             transient_crossmatch.transient_search(max_separation=args.transient_max_separation, askap_snr_thresh=askap_snr_thresh, large_flux_thresh=large_flux_ratio_thresh,
                 pre_conv_crossmatch=preconv_crossmatch_transient, image_beam_maj=theimg.bmaj*3600., image_beam_min=theimg.bmin*3600., dualmode=dualmode, sumss=sumss, nvss=nvss,
-                askap_img_wcs=theimg.wcs, askap_img_data=theimg.data)
+                askap_img_wcs=theimg.wcs, askap_img_header=theimg.header, askap_img_data=theimg.data, preconv_askap_img_wcs=preconv_askap_img_wcs, preconv_askap_img_header=preconv_askap_img_header,
+                preconv_askap_img_data=preconv_askap_img_data,askap_cat_islands_df=askap_cat_islands_df, non_convolved_isl_cat_df=non_convolved_isl_cat_df)
             os.makedirs("transients/no-match")
             os.makedirs("transients/large-ratio")
             os.makedirs("transients/askap-notseen")
@@ -920,7 +981,7 @@ def main():
         
         if args.postage_stamps:
             logger.info("Starting postage stamp production.")
-            transient_crossmatch.produce_postage_stamps(args.sumss_mosaic_dir, args.nvss_mosaic_dir, postage_options, nprocs=1, max_separation=args.transient_max_separation, convolve=args.convolve, 
+            transient_crossmatch.produce_postage_stamps(postage_options, nprocs=1, max_separation=args.transient_max_separation, convolve=args.convolve, 
                 pre_convolve_image=theimg.non_convolved, preconolve_catalog=non_conv_askap_cat, dualmode=dualmode, basecat=basecat, transients=args.transients)
             os.makedirs("postage-stamps/good")
             os.makedirs("postage-stamps/bad")
@@ -953,6 +1014,7 @@ def main():
             transients_nocatalogmatchtoaskap_total=transient_crossmatch.transients_nocatalogmatchtoaskap_total
             transients_nocatalogmatchtoaskap_candidates=transient_crossmatch.transients_nocatalogmatchtoaskap_candidates
             transients_largeratio_total=transient_crossmatch.transients_largeratio_total
+            transients_largeratio_candidates=transient_crossmatch.transients_largeratio_candidates
             transients_goodmatches_total=transient_crossmatch.transients_goodmatches_total
         else:
             transients_noaskapmatchtocatalog_total=0
@@ -960,6 +1022,7 @@ def main():
             transients_nocatalogmatchtoaskap_total=0
             transients_nocatalogmatchtoaskap_candidates=0
             transients_largeratio_total=0
+            transients_largeratio_candidates=0
             transients_goodmatches_total=0
         image_id=theimg.inject_db(basecat=basecat, datestamp=launchtime, user=username, description=args.db_tag, db_engine=args.db_engine, db_username=args.db_username, db_host=args.db_host, 
             db_port=args.db_port, db_database=args.db_database, transients_noaskapmatchtocatalog_total=transients_noaskapmatchtocatalog_total,
@@ -967,6 +1030,7 @@ def main():
             transients_nocatalogmatchtoaskap_total=transients_nocatalogmatchtoaskap_total,
             transients_nocatalogmatchtoaskap_candidates=transients_nocatalogmatchtoaskap_candidates,
             transients_largeratio_total=transients_largeratio_total,
+            transients_largeratio_candidates=transients_largeratio_candidates,
             transients_goodmatches_total=transients_goodmatches_total)
         theimg.inject_processing_db(image_id, full_output, askap_cat_file, sumss_source_cat, nvss_source_cat, args.askap_ext_thresh, 
             args.sumss_ext_thresh, args.nvss_ext_thresh, args.transient_max_separation, sf_sigmas, db_engine=args.db_engine, db_username=args.db_username, db_host=args.db_host, 
@@ -999,18 +1063,3 @@ def main():
     subprocess.call(["cp", logname+".log", output])
     subprocess.call(["rm", logname+".log"])
         
-        
-        
-        
-        
-        
-        
-
-    
-    
-        
-        
-    
-    
-    
-    

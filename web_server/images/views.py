@@ -11,7 +11,7 @@ from django_tables2.export.export import TableExport
 from django.http import HttpResponse
 
 from .models import Image, Sumssnomatch, Largeratio, Askapnotseen, Goodmatch, Processingsettings, Query
-from .tables import ImageTable, SumssNoMatchListTable, LargeRatioListTable, GoodMatchListTable, AskapNotSeenListTable
+from .tables import ImageTable, SumssNoMatchListTable, LargeRatioListTable, GoodMatchListTable, AskapNotSeenListTable, CrossmatchDetailFluxTable, NearestSourceDetailFluxTable
 from .forms import TagForm
 
 def home(request):
@@ -26,7 +26,7 @@ def image_detail(request, pk):
     return render(request, 'image_detail.html', {'image':image, "processing_options":processing_options})
     
 def sumssnomatch(request,pk):
-    sumssnomatch_sources = Sumssnomatch.objects.all().filter(image_id=pk).filter(pipelinetag="Candidate").order_by("match_id")
+    sumssnomatch_sources = Sumssnomatch.objects.all().filter(image_id=pk).filter(pipelinetag="Candidate").order_by("id")
     image = Image.objects.get(pk=pk)
     table = SumssNoMatchListTable(sumssnomatch_sources)
     RequestConfig(request, paginate={'per_page': 100}).configure(table)
@@ -38,7 +38,7 @@ def sumssnomatch(request,pk):
     return render(request, 'sumss_nomatch.html', {'sumssnomatch_sources':sumssnomatch_sources, 'image':image, "table":table, "querytype":"noaskapmatchtocatalog"})
     
 def largeratio(request,pk):
-    largeratio_sources = Largeratio.objects.all().filter(image_id=pk).order_by("match_id")
+    largeratio_sources = Largeratio.objects.all().filter(image_id=pk).filter(pipelinetag__contains="Match ").order_by("id")
     image = Image.objects.get(pk=pk)
     table = LargeRatioListTable(largeratio_sources)
     RequestConfig(request, paginate={'per_page': 100}).configure(table)
@@ -47,10 +47,10 @@ def largeratio(request,pk):
     if TableExport.is_valid_format(export_format):
         exporter = TableExport(export_format, table)
         return exporter.response('largeratio_image{}.{}'.format(pk, export_format))
-    return render(request, 'large_ratio.html', {'largeratio_sources':largeratio_sources, 'image':image, "table":table})
+    return render(request, 'large_ratio.html', {'largeratio_sources':largeratio_sources, 'image':image, "table":table, "querytype":"largeratio"})
     
 def askapnotseen(request,pk):
-    askapnotseen_sources = Askapnotseen.objects.all().filter(image_id=pk).filter(pipelinetag="Candidate").order_by("match_id")
+    askapnotseen_sources = Askapnotseen.objects.all().filter(image_id=pk).filter(pipelinetag="Candidate").order_by("id")
     image = Image.objects.get(pk=pk)
     table = AskapNotSeenListTable(askapnotseen_sources)
     RequestConfig(request, paginate={'per_page': 100}).configure(table)
@@ -63,7 +63,7 @@ def askapnotseen(request,pk):
     
 def goodmatch(request,pk):
     # goodmatch_sources = Goodmatch.objects.all()
-    goodmatch_sources = Goodmatch.objects.all().filter(image_id=pk).order_by("match_id")
+    goodmatch_sources = Goodmatch.objects.all().filter(image_id=pk).order_by("id")
     image = Image.objects.get(pk=pk)
     table = GoodMatchListTable(goodmatch_sources)
     RequestConfig(request, paginate={'per_page': 100}).configure(table)
@@ -93,21 +93,21 @@ def query_queries(request):
     
 def search_results(request, transient_type, user_tag, user):
     if transient_type == "sumssnomatch":
-        sumssnomatch_sources = Sumssnomatch.objects.all().filter(usertag=user_tag).order_by("match_id")
+        sumssnomatch_sources = Sumssnomatch.objects.all().filter(usertag=user_tag).order_by("id")
         if user != "all":
             sumssnomatch_sources = sumssnomatch_sources.filter(checkedby=user)
         table = SumssNoMatchListTable(sumssnomatch_sources)
         RequestConfig(request, paginate={'per_page': 100}).configure(table)
         friendly_type = "No ASKAP Match to Catalog"
     elif transient_type == "askapnotseen":
-        askapnotseen_sources = Askapnotseen.objects.all().filter(usertag=user_tag).order_by("match_id")
+        askapnotseen_sources = Askapnotseen.objects.all().filter(usertag=user_tag).order_by("id")
         if user != "all":
             askapnotseen_sources = askapnotseen_sources.filter(checkedby=user)
         table = AskapNotSeenListTable(askapnotseen_sources)
         RequestConfig(request, paginate={'per_page': 100}).configure(table)
         friendly_type = "No Catalog Match to ASKAP"
     else:
-        largeratio_sources = Largeratio.objects.all().filter(usertag=user_tag).order_by("match_id")
+        largeratio_sources = Largeratio.objects.all().filter(usertag=user_tag).order_by("id")
         if user != "all":
             largeratio_sources = largeratio_sources.filter(checkedby=user)
         table = LargeRatioListTable(largeratio_sources)
@@ -142,19 +142,31 @@ def crossmatch_detail(request,pk,querytype,cross_id):
                         "goodmatch":"goodmatch"}
     allsources = object_from_query[querytype].objects.all().filter(image_id=pk)
     if querytype == "nocatalogmatchtoaskap" or querytype == "noaskapmatchtocatalog":
-        allsources = allsources.filter(pipelinetag="Candidate")
-    min_id = min(list(allsources.values_list('match_id', flat=True)))
-    max_id = max(list(allsources.values_list('match_id', flat=True)))
+        thesources = allsources.filter(pipelinetag="Candidate")
+    elif querytype == "largeratio":
+        thesources = allsources.filter(pipelinetag__contains="Match ")
+    min_id = min(list(allsources.values_list('id', flat=True)))
+    max_id = max(list(allsources.values_list('id', flat=True)))
     total=max_id-min_id+1
-    crossmatch_source = object_from_query[querytype].objects.get(image_id=pk, match_id=cross_id)
+    crossmatch_source = object_from_query[querytype].objects.get(image_id=pk, id=cross_id)
+    table = CrossmatchDetailFluxTable(allsources.filter(id=cross_id))
     image = Image.objects.get(pk=pk)
+    if querytype != "goodmatch":
+        #Also as large ratio we can fetch the nearest sources table
+        nearest_sources = crossmatch_source.nearest_sources
+        nearest_sources = nearest_sources.split(",")
+        print nearest_sources
+        nearest_sources = Goodmatch.objects.all().filter(image_id=pk, master_name__in=nearest_sources)
+        nearest_sources_table = NearestSourceDetailFluxTable(nearest_sources)
+    else:
+        nearest_sources_table = ""
     title_to_use = title[querytype]
     url_to_use = html[querytype]
     simbad_query="http://simbad.u-strasbg.fr/simbad/sim-coo?CooEpoch=2000&Coord={}d{}d&Radius.unit=arcmin&CooEqui=2000&CooFrame=FK5&Radius=10".format(crossmatch_source.ra, crossmatch_source.dec)
     ned_query="https://ned.ipac.caltech.edu/conesearch?search_type=Near%20Position%20Search&coordinates={}d%20{}d&radius=2.0&in_csys=Equatorial&in_equinox=J2000.0&out_csys=Equatorial&out_equinox=J2000.0&hconst=67.8&omegam=0.308&omegav=0.692&wmap=4&corr_z=1".format(crossmatch_source.ra, crossmatch_source.dec)
     return render(request, 'crossmatch_detail.html', {'crossmatch_source':crossmatch_source, 'image':image, 'type':querytype, 
                                                         'title':title_to_use, 'type_url':url_to_use, 'max_id':max_id, 'min_id':min_id, 'total':total, "saved":False, "updated":False, "conflict":False,
-                                                    'simbad_query':simbad_query, 'ned_query':ned_query},)
+                                                    'simbad_query':simbad_query, 'ned_query':ned_query, 'table':table, 'nearest_sources_table':nearest_sources_table},)
                                                         
 def crossmatch_commit(request,pk,querytype,cross_id):
     user = request.user
@@ -175,10 +187,14 @@ def crossmatch_commit(request,pk,querytype,cross_id):
                         "nocatalogmatchtoaskap":"nocatalogmatchtoaskap",
                         "goodmatch":"goodmatch"}
     allsources = object_from_query[querytype].objects.all().filter(image_id=pk)
-    min_id = min(list(allsources.values_list('match_id', flat=True)))
-    max_id = max(list(allsources.values_list('match_id', flat=True)))
+    if querytype == "nocatalogmatchtoaskap" or querytype == "noaskapmatchtocatalog":
+        thesources = allsources.filter(pipelinetag="Candidate")
+    elif querytype == "largeratio":
+        thesources = allsources.filter(pipelinetag__contains="Match ")
+    min_id = min(list(allsources.values_list('id', flat=True)))
+    max_id = max(list(allsources.values_list('id', flat=True)))
     total=max_id-min_id+1
-    crossmatch_source = object_from_query[querytype].objects.get(image_id=pk, match_id=cross_id)
+    crossmatch_source = object_from_query[querytype].objects.get(image_id=pk, id=cross_id)
     if crossmatch_source.checkedby.lower()=="n/a":
         crossmatch_source.checkedby=username
         crossmatch_source.usertag=usertag
@@ -211,11 +227,21 @@ def crossmatch_commit(request,pk,querytype,cross_id):
     image = Image.objects.get(pk=pk)
     title_to_use = title[querytype]
     url_to_use = html[querytype]
+    table = CrossmatchDetailFluxTable(allsources.filter(id=cross_id))
+    if querytype != "goodmatch":
+        #Also as large ratio we can fetch the nearest sources table
+        nearest_sources = crossmatch_source.nearest_sources
+        nearest_sources = nearest_sources.split(",")
+        print nearest_sources
+        nearest_sources = Goodmatch.objects.all().filter(image_id=pk, master_name__in=nearest_sources)
+        nearest_sources_table = NearestSourceDetailFluxTable(nearest_sources)
+    else:
+        nearest_sources_table = ""
     simbad_query="http://simbad.u-strasbg.fr/simbad/sim-coo?CooEpoch=2000&Coord={}d{}d&Radius.unit=arcmin&CooEqui=2000&CooFrame=FK5&Radius=10".format(crossmatch_source.ra, crossmatch_source.dec)
     ned_query="https://ned.ipac.caltech.edu/conesearch?search_type=Near%20Position%20Search&coordinates={}d%20%2B{}d&radius=2.0&in_csys=Equatorial&in_equinox=J2000.0&out_csys=Equatorial&out_equinox=J2000.0&hconst=67.8&omegam=0.308&omegav=0.692&wmap=4&corr_z=1".format(crossmatch_source.ra, crossmatch_source.dec)
     return render(request, 'crossmatch_detail.html', {'crossmatch_source':crossmatch_source, 'image':image, 'type':querytype, 
                                                         'title':title_to_use, 'type_url':url_to_use, 'max_id':max_id, 'min_id':min_id, 
-                                                        'total':total, "saved":saved, "updated":updated, "conflict":conflict, 'simbad_query':simbad_query, 'ned_query':ned_query},)
+                                                        'total':total, "saved":saved, "updated":updated, "conflict":conflict, 'simbad_query':simbad_query, 'ned_query':ned_query, 'table':table, 'nearest_sources_table':nearest_sources_table},)
 
 
 def crossmatch_quickview(request,pk,querytype):
@@ -231,9 +257,12 @@ def crossmatch_quickview(request,pk,querytype):
                         "largeratio":"largeratio",
                         "nocatalogmatchtoaskap":"nocatalogmatchtoaskap",
                         "goodmatch":"goodmatch"}
-    allsources = object_from_query[querytype].objects.all().filter(image_id=pk).exclude(pipelinetag="Candidate")
+    if querytype=="largeratio":
+        allsources = object_from_query[querytype].objects.all().filter(image_id=pk).exclude(pipelinetag__contains="Match ")
+    else:
+        allsources = object_from_query[querytype].objects.all().filter(image_id=pk).exclude(pipelinetag="Candidate")
     image = Image.objects.get(pk=pk)
     title_to_use = title[querytype]
-    total = len(list(allsources.values_list('match_id', flat=True)))
+    total = len(list(allsources.values_list('id', flat=True)))
     return render(request, 'crossmatch_quickview.html', {"crossmatch_sources":allsources,"image":image, "querytype":querytype, "title":title_to_use, "total":total, "html":html[querytype]})
     

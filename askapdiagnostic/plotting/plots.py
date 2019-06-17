@@ -103,16 +103,16 @@ def position_offset(df, title="Position offset plot", save=True, base_filename="
     return filename
     
     
-def source_counts(askap_df, crossmatch_df, max_sep, sumss_df=[], nvss_df=[], title="Source counts plot", save=True, base_filename="image", basecat="sumss", dualmode=False):
+def source_counts(askap_df, crossmatch_df, max_sep, sumss_cat=[], nvss_cat=[], title="Source counts plot", save=True, base_filename="image", basecat="sumss", dualmode=False):
     fig = plt.figure(figsize=(10, 8))
     ax = fig.add_subplot(111)
     ax.grid(zorder=1)
     if dualmode or basecat=="sumss":
-        num_sumss_sources=len(sumss_df.index)
+        num_sumss_sources=len(sumss_cat.df.index)
     else:
         num_sumss_sources=0
     if dualmode or basecat=="nvss":
-        num_nvss_sources=len(nvss_df.index)
+        num_nvss_sources=len(nvss_cat.df.index)
     else:
         num_nvss_sources=0
     total_askap_sources = len(askap_df.index)
@@ -129,7 +129,7 @@ def source_counts(askap_df, crossmatch_df, max_sep, sumss_df=[], nvss_df=[], tit
         
         
     if dualmode or basecat=="nvss":
-        askap_in_nvss = askap_df[askap_df["dec"]<=-30.0].reset_index(drop=True)
+        askap_in_nvss = askap_df[askap_df["dec"]>=-30.0].reset_index(drop=True)
         # askap_below_50 = askap_df[askap_df["dec"]<=-50.0].reset_index(drop=True)
         askap_seen_in_nvss = askap_in_nvss[askap_in_nvss["nvss_snr"]>=5.0].reset_index(drop=True)
         num_askap_seen_in_nvss = len(askap_seen_in_nvss.index)

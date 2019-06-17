@@ -15,7 +15,7 @@
       <div class="container">
         <div class="row">
           <div class="col-md-auto text-left">
-      <a href="{% url 'crossmatch_quickview' pk=image.pk querytype=querytype %}" class="btn btn-danger mx-auto">Sources Flagged by Pipeline ({{ image.transients_noaskapmatchtocatalog_total|subtract:image.transients_noaskapmatchtocatalog_candidates }})</a>
+      <a href="{% url 'crossmatch_quickview' pk=image.pk querytype=querytype %}" class="btn btn-danger mx-auto">Flagged by Pipeline ({{ image.transients_noaskapmatchtocatalog_total|subtract:image.transients_noaskapmatchtocatalog_candidates }})</a>
       <a href="{% url 'nocatalogmatchtoaskap' image.pk %}" class="btn btn-info mx-auto">No Catalog Match to ASKAP ({{ image.transients_nocatalogmatchtoaskap_total }})</a>
       <a href="{% url 'largeratio' image.pk %}" class="btn btn-info mx-auto">Large Flux Ratio ({{ image.transients_largeratio_total }})</a>
       <a href="{% url 'goodmatch' image.pk %}" class="btn btn-info mx-auto">Good Matches ({{ image.transients_goodmatches_total }})</a>

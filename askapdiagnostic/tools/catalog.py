@@ -4,6 +4,9 @@ import logging
 import astropy.units as u
 from astropy.coordinates import SkyCoord
 import numpy as np
+import pkg_resources
+import pandas as pd
+import os
 
 class Catalog(object):
     """docstring for survey"""
@@ -32,7 +35,7 @@ class Catalog(object):
         self.df["name"]=self._crossmatch_catalog.to_string('hmsdms')
         self.df["name"]=self.df["name"].str.replace(" ", "_")
         
-    def add_telescope_beam_columns(self, mode, manual=False, manual_bmaj=45.0, manual_bmin=45.0):
+    def add_telescope_beam_columns(self, mode, manual_bmaj=45.0, manual_bmin=45.0):
         allowed_modes=["sumss", "nvss", "manual"]
         if mode not in allowed_modes:
             self.logger.error("Telescope beam mode not recongised.")
@@ -112,11 +115,39 @@ class Catalog(object):
                 
         self.logger.info("Wrote annotation file {}.".format(name))
         
-    def add_sumss_sn(self, flux_col="int_flux", dec_col="dec", flux_scaling=1.):
-        self.df["sumss_snr"]=(flux_scaling*self.df[flux_col])/self.df[dec_col].apply(self._sumss_rms)
+    def add_sumss_sn(self, flux_col="int_flux", dec_col="dec", flux_scaling=1., use_image_rms=False):
+        if use_image_rms:
+            if self.survey_name.lower()=="sumss":
+                self.df["sumss_snr"]=(flux_scaling*self.df[flux_col])/self.df["Mosaic_rms"]
+            else:
+                #Dealing with an ASKAP catalog, some may have been matched to NVSS images
+                snrs=[]
+                for i,row in self.df.iterrows():
+                    if row["catalog_Mosaic"].startswith("J"):
+                        snrs.append((flux_scaling*row[flux_col])/row["catalog_Mosaic_rms"])
+                    else:
+                        self.logger.warning("{} was matched to a non-SUMSS image, falling back to Dec based RMS.".format(row["name"]))
+                        snrs.append((flux_scaling*row[flux_col])/self._sumss_rms(row[dec_col]))
+                self.df["sumss_snr"]=snrs
+        else:
+            self.df["sumss_snr"]=(flux_scaling*self.df[flux_col])/self.df[dec_col].apply(self._sumss_rms)
         
-    def add_nvss_sn(self, flux_col="S1.4", dec_col="_DEJ2000", flux_scaling=1.):
-        self.df["nvss_snr"]=(flux_scaling*self.df[flux_col])/0.5
+    def add_nvss_sn(self, flux_col="S1.4", dec_col="_DEJ2000", flux_scaling=1., use_image_rms=False):
+        if use_image_rms:
+            if self.survey_name.lower()=="nvss":
+                self.df["nvss_snr"]=(flux_scaling*self.df[flux_col])/self.df["Mosaic_rms"]
+            else:
+                #Dealing with an ASKAP catalog, some may have been matched to SUMSS image
+                snrs=[]
+                for i,row in self.df.iterrows():
+                    if row["catalog_Mosaic"].startswith("J"):
+                        self.logger.warning("{} was matched to a non-NVSS image, falling back to standard RMS.".format(row["name"]))
+                        snrs.append((flux_scaling*row[flux_col])/0.0005)
+                    else:
+                        snrs.append((flux_scaling*row[flux_col])/row["catalog_Mosaic_rms"])
+                self.df["nvss_snr"]=snrs
+        else:
+            self.df["nvss_snr"]=(flux_scaling*self.df[flux_col])/0.0005
         
     def _add_askap_sn(self):
         try:
@@ -155,6 +186,157 @@ class Catalog(object):
         
         self.df["{}_scaled_to_{}".format(self.survey_name, label)]=self._scale_flux(this_freq, self.frequency, flux_col, si=si)
         self.logger.info("Fluxes scaled to {} catalogue frequency ({} MHz)".format(label, this_freq/1.e6))
+        
+    def _add_sumss_mosaic_info(self, sumss_mosaic_dir):
+        if self.survey_name.lower()!="sumss":
+            self.logger.error("Catalog is not defined as a SUMSS catalog. Cannot add SUMSS mosaic directory information.")
+            return
+        try:
+            self.logger.info("Loading SUMSS image data.")
+            sumss_mosaic_data=pd.read_csv(pkg_resources.resource_filename(__name__, "../data/sumss_images_info.csv"))
+            sumss_centres = SkyCoord(ra=sumss_mosaic_data["center-ra"].values*u.deg, dec=sumss_mosaic_data["center-dec"].values*u.deg)
+        except:
+            self.logger.error("SUMSS mosaic data cannot be found!")
+        full_paths = [os.path.join(sumss_mosaic_dir, i+".FITS") for i in self.df["Mosaic"].tolist()]
+        rms_values = [sumss_mosaic_data[sumss_mosaic_data["image"]==i+".FITS"].iloc[0]["rms"] for i in self.df["Mosaic"].tolist()]
+        self.logger.debug("RMS values {}".format(rms_values))
+        self.logger.info("Adding SUMSS mosaic full path information.")
+        self.df["Mosaic_path"]= full_paths
+        self.logger.info("Adding SUMSS mosaic rms information.")
+        self.df["Mosaic_rms"]= rms_values
+        
+    def _find_nvss_mosaic_info(self, nvss_mosaic_dir):
+        if self.survey_name.lower()!="nvss":
+            self.logger.error("Catalog is not defined as a NVSS catalog. Cannot add NVSS mosaic directory information.")
+            return
+        try:
+            self.logger.info("Loading NVSS image data.")
+            nvss_mosaic_data=pd.read_csv(pkg_resources.resource_filename(__name__, "../data/nvss_images_info.csv"))
+            nvss_centres = SkyCoord(ra=nvss_mosaic_data["center-ra"].values*u.deg, dec=nvss_mosaic_data["center-dec"].values*u.deg)
+        except:
+            self.logger.error("NVSS mosaic data cannot be found!")
+        images = []
+        images_full_path = []
+        images_rms = []
+        for i,row in self.df.iterrows():
+            image,rms=self._find_matching_image(row[self.ra_col], row[self.dec_col], nvss_centres, nvss_mosaic_data, rms=True)
+            images.append(image)
+            images_full_path.append(os.path.join(nvss_mosaic_dir, image))
+            images_rms.append(rms)
+        self.logger.info("Adding NVSS mosaic information.")
+        self.df["Mosaic"] = images
+        self.df["Mosaic_path"] = images_full_path
+        self.df["Mosaic_rms"] = images_rms
+            
+    
+    def _find_matching_image(self,ra, dec, centres, images_data, rms=False):
+        target=SkyCoord(ra=ra*u.deg, dec=dec*u.deg)
+        seps = target.separation(centres)
+        min_index = np.argmin(seps.deg)
+        # print d2d_sumss.deg[min_index]
+        # print min_index
+        image = images_data.iloc[min_index]["image"]
+        rms = images_data.iloc[min_index]["rms"]
+        # print image
+        # print askap_target.to_string('hmsdms')
+        if rms:
+            return image, rms
+        else:
+            return image
+        
+    
+    def find_matching_catalog_image(self, sumss_mosaic_dir="", nvss_mosaic_dir="", sumss=True, nvss=False, dualmode=False):
+        if sumss:
+            try:
+                self.logger.info("Loading SUMSS image data.")
+                sumss_mosaic_data=pd.read_csv(pkg_resources.resource_filename(__name__, "../data/sumss_images_info.csv"))
+                sumss_centres = SkyCoord(ra=sumss_mosaic_data["center-ra"].values*u.deg, dec=sumss_mosaic_data["center-dec"].values*u.deg)
+                if not dualmode:
+                    centers_to_use = sumss_centres
+                    mosaic_data_to_use = sumss_mosaic_data
+                    path_dir = sumss_mosaic_dir
+            except:
+                self.logger.error("SUMSS mosaic data cannot be found!")
+                return
+    
+        if nvss:
+                try:
+                    self.logger.info("Loading NVSS image data.")
+                    nvss_mosaic_data=pd.read_csv(pkg_resources.resource_filename(__name__, "../data/nvss_images_info.csv"))
+                    nvss_centres = SkyCoord(ra=nvss_mosaic_data["center-ra"].values*u.deg, dec=nvss_mosaic_data["center-dec"].values*u.deg)
+                    if not dualmode:
+                        centers_to_use = nvss_centres
+                        mosaic_data_to_use = nvss_mosaic_data
+                        path_dir = nvss_mosaic_dir
+                except:
+                    sel.flogger.error("NVSS mosaic data cannot be found!")
+                    
+        images = []
+        images_full_path = []
+        images_rms = []
+        survey = []
+        
+        for i,row in self.df.iterrows():
+            if dualmode:
+                if row[self.dec_col]<=-30:
+                    centers_to_use = sumss_centres
+                    mosaic_data_to_use = sumss_mosaic_data
+                    path_dir = sumss_mosaic_dir
+                    survey.append("sumss")
+                else:
+                    centers_to_use = nvss_centres
+                    mosaic_data_to_use = nvss_mosaic_data
+                    path_dir = nvss_mosaic_dir
+                    survey.append("nvss")
+            else:
+                if nvss:
+                    centers_to_use = nvss_centres
+                    mosaic_data_to_use = nvss_mosaic_data
+                    path_dir = nvss_mosaic_dir
+                    survey.append("nvss")
+                elif sumss:
+                    centers_to_use = sumss_centres
+                    mosaic_data_to_use = sumss_mosaic_data
+                    path_dir = sumss_mosaic_dir
+                    survey.append("sumss")
+                    
+                    
+            image,rms = self._find_matching_image(row[self.ra_col], row[self.dec_col], centers_to_use, mosaic_data_to_use, rms=True)
+            self.logger.debug("{} matched to catalog mosaic {}.".format(row["name"], image))
+            images.append(image)
+            images_full_path.append(os.path.join(path_dir, image))
+            images_rms.append(rms)
+           
+        self.df["catalog_Mosaic"] = images
+        self.df["catalog_Mosaic_path"] = images_full_path
+        self.df["catalog_Mosaic_rms"] = images_rms
+        self.df["survey_used"] = survey
+        
+
+    def _merge_askap_non_convolved_catalogue(self, non_conv_cat, sumss=False, nvss=False):
+        """
+        This is only to be used with an ASKAP catalogue and is a quick fix to get a match between each convolved ASKAP source, and it's equivalent
+        in the non-convolved catalogue.
+        Essentially a crossmatch 'lite'.
+        """
+        idx, d2d, d3d = self._crossmatch_catalog.match_to_catalog_sky(non_conv_cat._crossmatch_catalog)
+        matches = non_conv_cat.df.loc[idx].reset_index(drop=True)
+        #going to copy over RA, Dec, iflux, iflux_err, a, b and pa
+        cols_to_copy = ["name", non_conv_cat.ra_col, non_conv_cat.dec_col, "int_flux", "err_int_flux", "a", "b", "pa"]
+        if sumss:
+            cols_to_copy+=["askap_scaled_to_sumss"]
+        if nvss:
+            cols_to_copy+=["askap_scaled_to_nvss"]
+        matches = matches.filter(cols_to_copy, axis=1)
+        newnames={}
+        for i in cols_to_copy:
+            newnames[i] = "non_conv_{}".format(i)
+        matches=matches.rename(str, columns=newnames)
+        # matches["non_conv_name"] = matches['non_conv_name'].astype(basestring)
+        matches.index=range(len(matches.index))
+        self.df=self.df.merge(matches, left_index=True, right_index=True, how="left")
+        self.df["non_conv_d2d"]=d2d.arcsec
+        self.logger.info("Non-convolved cross-matches added to ASKAP catalog.")
     
 
 

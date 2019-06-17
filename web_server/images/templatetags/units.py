@@ -22,7 +22,7 @@ def deg_to_hms(deg):
     seconds = SECONDS_IN_DAY * rad / RADIANS_IN_CIRCLE
     hours, seconds = divmod(seconds, SECONDS_IN_HOUR)
     minutes, seconds = divmod(seconds, SECONDS_IN_MINUTE)
-    return "{:02.0f}h {:02.0f}' {:02.2f}''".format(hours, minutes, seconds)
+    return "{:02.0f}:{:02.0f}:{:02.2f}".format(hours, minutes, seconds)
 
 @register.filter
 def deg_to_dms(deg):
@@ -35,7 +35,7 @@ def deg_to_dms(deg):
     seconds = math.degrees(rad) * ASEC_IN_DEGREE
     degrees, seconds = divmod(seconds, ASEC_IN_DEGREE)
     minutes, seconds = divmod(seconds, ASEC_IN_AMIN)
-    return "{}{:02.0f}d {:02.0f}m {:02.2f}s".format(sign, degrees, minutes, seconds)
+    return "{}{:02.0f}:{:02.0f}:{:02.2f}".format(sign, degrees, minutes, seconds)
     
 @register.filter
 def jy_to_mjy(flux):
