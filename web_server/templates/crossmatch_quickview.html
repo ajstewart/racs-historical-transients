@@ -1,0 +1,38 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load units %}
+
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{% url 'home' %}">Images</a></li>
+<li class="breadcrumb-item"><a href="{% url 'image_detail' image.pk %}">{{ image.name }}</a></li>
+<li class="breadcrumb-item active ">Flagged {{ title }}</li>
+{% endblock %}
+
+{% block content %}
+<div class="container">
+<div class="row">
+    <div class="col text-center">
+<a href="{% url html image.pk %}" class="btn btn-primary mx-auto">Back to {{ title }}</a>
+</div>
+</div>
+<p></p>
+<div class="card mb-3 mx-auto">
+ <h5 class="card-header bg-info mb-3 text-white">Flagged {{ title }} Sources for Image {{ image.pk }}</h5>
+  <div class="card-body">
+    <!-- <h5 class="card-title">{{ image.name}} details</h5> -->
+    <p class="card-text">Click on an image to go to the crossmatch detail page.
+<p></p>
+There are <b>{{ total }}</b> flagged sources listed below.
+<p></p>
+</div>
+</div>
+<div class="col text-center">
+{% for e in crossmatch_sources %}
+<b>{{ e.pipelinetag }} </b> {{ e.master_name }} ({{ e.survey }})
+     <a href="{% url 'crossmatch_detail' image.pk querytype e.id %}" >
+     <img src="{% static e.ploturl %}" class="mx-auto d-block" width="95%" height="95%"/></a>
+{% endfor %}
+</div>
+</div>
+
+{% endblock %}
