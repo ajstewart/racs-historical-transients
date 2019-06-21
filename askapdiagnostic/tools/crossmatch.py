@@ -466,7 +466,7 @@ class crossmatch(object):
         # - Obtain a list of ASKAP sources that have been matched well.
         # - Go through ASKAP sources - if not in list check SUMSS S/N.
         # - If S/N means it should be seen, it is a candidate (order by S/N).
-        # - Fetch watch SUMSS image the ASKAP source should be in.
+        # - Fetch which SUMSS image the ASKAP source should be in.
         # - Extract SUMSS peak (?) flux at that position +/- 1 pixel.
         self.logger.info("Finding non-matched ASKAP sources that should have been seen...")
         matched_askap_sources=matches["askap_name"].tolist()

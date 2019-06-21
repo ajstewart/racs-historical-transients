@@ -1,6 +1,8 @@
 # askap-image-diagnostic
 A module to perform diagnostic analysis on ASKAP images using the SUMSS catalogue. Creates a crossmatch catalogue for SUMSS -> ASKAP sources and also produces diagnostic plots. Also includes the ability to create postage stamps of each crossmatch and to search for transients from either catalogue.
 
+**Warning** A new version is being worked on that will make transient searching much more defined. While this version works in the current state it's recommended to wait for v0.8.
+
 ## Installation
 I recommend to install the module to a new python environment using, for example, conda or virtualenv.
 
@@ -67,8 +69,10 @@ usage: processASKAPimage.py [-h] [-c FILE] [--output-tag OUTPUT_TAG]
                             [--convolve CONVOLVE]
                             [--convolved-image CONVOLVED_IMAGE]
                             [--convolved-non-conv-askap-csv CONVOLVED_NON_CONV_ASKAP_CSV]
+                            [--convolved-non-conv-askap-islands-csv CONVOLVED_NON_CONV_ASKAP_ISLANDS_CSV]
                             [--sourcefinder {aegean,pybdsf,selavy}]
                             [--frequency FREQUENCY] [--askap-csv ASKAP_CSV]
+                            [--askap-islands-csv ASKAP_ISLANDS_CSV]
                             [--sumss-csv SUMSS_CSV] [--nvss-csv NVSS_CSV]
                             [--askap-csv-format {aegean}]
                             [--remove-extended REMOVE_EXTENDED]
@@ -81,14 +85,14 @@ usage: processASKAPimage.py [-h] [-c FILE] [--output-tag OUTPUT_TAG]
                             [--diagnostic-max-separation DIAGNOSTIC_MAX_SEPARATION]
                             [--transient-max-separation TRANSIENT_MAX_SEPARATION]
                             [--postage-stamps POSTAGE_STAMPS]
-                            [--postage-stamp-selection {all,good,bad,transients}]
+                            [--postage-stamp-selection {all,transients}]
                             [--sumss-mosaic-dir SUMSS_MOSAIC_DIR]
                             [--nvss-mosaic-dir NVSS_MOSAIC_DIR]
                             [--aegean-settings-config AEGEAN_SETTINGS_CONFIG]
                             [--pybdsf-settings-config PYBDSF_SETTINGS_CONFIG]
                             [--selavy-settings-config SELAVY_SETTINGS_CONFIG]
                             [--transients TRANSIENTS]
-                            [--transients-askap-sumss-snr-thresh TRANSIENTS_ASKAP_SUMSS_SNR_THRESH]
+                            [--transients-askap-snr-thresh TRANSIENTS_ASKAP_SNR_THRESH]
                             [--transients-large-flux-ratio-thresh TRANSIENTS_LARGE_FLUX_RATIO_THRESH]
                             [--db-engine DB_ENGINE]
                             [--db-username DB_USERNAME] [--db-host DB_HOST]
@@ -122,20 +126,27 @@ optional arguments:
                         crossmatching. (default: False)
   --convolved-image CONVOLVED_IMAGE
                         Define a convolved image that has already been
-                        produced. (default: convolved.fits)
+                        produced. (default: None)
   --convolved-non-conv-askap-csv CONVOLVED_NON_CONV_ASKAP_CSV
                         Define the unconvolved catalogue to use when using
                         convolved mode, otherwise it will be generated
+                        automatically (if aegaen or pybdsf) (default: None)
+  --convolved-non-conv-askap-islands-csv CONVOLVED_NON_CONV_ASKAP_ISLANDS_CSV
+                        Define the unconvolved island catalogue to use when
+                        using convolved mode, otherwise it will be generated
                         automatically (if aegaen or pybdsf) (default: None)
   --sourcefinder {aegean,pybdsf,selavy}
                         Select which sourcefinder to use (default: aegean)
   --frequency FREQUENCY
                         Provide the frequency of the image in Hz. Use if
-                        'RESTFRQ' is not in the header (default: 864000000.0)
+                        'RESTFRQ' is not in the header (default: 99)
   --askap-csv ASKAP_CSV
-                        Manually define a aegean csv file containing the
-                        extracted sources to use for the ASKAP image.
+                        Manually define a aegean format csv file containing
+                        the extracted sources to use for the ASKAP image.
                         (default: None)
+  --askap-islands-csv ASKAP_ISLANDS_CSV
+                        Manually define a csv file containing the extracted
+                        islands to use for the ASKAP image. (default: None)
   --sumss-csv SUMSS_CSV
                         Manually provide the SUMSS catalog csv. (default:
                         None)
@@ -184,9 +195,8 @@ optional arguments:
   --postage-stamps POSTAGE_STAMPS
                         Produce postage stamp plots of the cross matched
                         sources within the max separation. (default: False)
-  --postage-stamp-selection {all,good,bad,transients}
-                        Select which postage stamps to create. (default:
-                        ['all'])
+  --postage-stamp-selection {all,transients}
+                        Select which postage stamps to create. (default: all)
   --sumss-mosaic-dir SUMSS_MOSAIC_DIR
                         Directory containing the SUMSS survey mosaic image
                         files. (default: None)
@@ -209,7 +219,7 @@ optional arguments:
                         Perform a transient search analysis using the
                         crossmatch data. Requires '--max-separation' to be
                         defined. (default: False)
-  --transients-askap-sumss-snr-thresh TRANSIENTS_ASKAP_SUMSS_SNR_THRESH
+  --transients-askap-snr-thresh TRANSIENTS_ASKAP_SNR_THRESH
                         Define the threshold for which ASKAP sources are
                         considered to not have a SUMSS match baseed upon the
                         estimated SUMSS SNR if the source was placed in the
@@ -233,7 +243,7 @@ optional arguments:
                         Copy the image directory directly to the static media
                         directory of the website. (default: none)
 
-````
+```
 
 These options can be entered using a ConfigParser configuration file:
 
@@ -252,6 +262,7 @@ weight_crop_image=../path/to/weight_cropped_image.fits
 convolve=True
 convolved_image=../path/to/convolved_image.fits
 convolved_non_conv_askap_csv=../path/to/preconvolved_catalog.csv_
+convolved_non_conv_askap_islands_csv=/path/to/preconvolved_islands_catalog.csv_
 sourcefinder=aegean
 # aegean_settings_config=None
 # pybdsf_settings_config=None
@@ -260,6 +271,7 @@ boundary_value=nan
 
 [CATALOGUES]
 askap_csv=/path/to/askap_catalog.csv
+askap_islands_csv=/path/to/askap_islands_catalog.csv
 # sumss_csv=None
 # nvss_csv=None
 askap_csv_format=aegean
@@ -274,7 +286,7 @@ sumss_ext_thresh=1.5
 nvss_ext_thresh=1.2
 use_all_fits=False
 postage_stamps=True
-# postage_stamp_selection=[all,]
+# postage_stamp_selection=all
 sumss_mosaic_dir=/directory/where/sumss/mosaics/are/kept
 nvss_mosaic_dir=/directory/where/sumss/mosaics/are/kept
 
