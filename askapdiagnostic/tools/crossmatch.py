@@ -16,6 +16,7 @@ import psycopg2
 import pkg_resources
 import numpy as np
 import pandas as pd
+import subprocess
 
 class crossmatch(object):
     """docstring for crossmatch"""
@@ -233,8 +234,8 @@ class crossmatch(object):
         return matched_sources
     
     def transient_search(self, max_separation=15.0, askap_snr_thresh=5.0, large_flux_thresh=3.0, pre_conv_crossmatch=None, image_beam_maj=45., image_beam_min=45., 
-        dualmode=False, sumss=False, nvss=False, askap_img_wcs="None", askap_img_header={}, askap_img_data=[], preconv_askap_img_wcs="None", preconv_askap_img_header={},
-        preconv_askap_img_data=[], askap_cat_islands_df=[], non_convolved_isl_cat_df=[]):
+        image_beam_pa=0.0, dualmode=False, sumss=False, nvss=False, askap_img_wcs="None", askap_img_header={}, askap_img_data=[], preconv_askap_img_wcs="None", preconv_askap_img_header={},
+        preconv_askap_img_data=[], askap_cat_islands_df=[], non_convolved_isl_cat_df=[], askap_image="None", preconv_askap_image="None"):
         # Stage 1 - Define SUMSS sources with no match to ASKAP.
         # Stage 2 - Find those that have large flux ratios.
         # Stage 3 - Find ASKAP sources above the SUMSS threshold that have not been matched.
@@ -244,6 +245,7 @@ class crossmatch(object):
         # First sort out the matched and non-matched
         # Does not care about dual mode or not.
         no_matches=self.crossmatch_df[self.crossmatch_df["d2d"]>max_separation].reset_index(drop=True)
+        
         matches=self.crossmatch_df[self.crossmatch_df["d2d"]<=max_separation].reset_index(drop=True)
         #Check for duplicate matches
         dupmask=matches.duplicated(subset="askap_name")
@@ -277,12 +279,26 @@ class crossmatch(object):
             preconv_df=pre_conv_crossmatch.crossmatch_df
             #Get the master_names of sources that have an askap match > max_sep
             no_matches_names = no_matches["master_name"].tolist()
+            #We need to check if the new preconvolved match is not a direct match to a convolved source that is already matched.
+            already_matched_askap_preconv_name = matches["askap_non_conv_name"]
             #Select only these sources from the preconv catalog
             preconv_df_no_matches = preconv_df[preconv_df["master_name"].isin(no_matches_names)].reset_index(drop=True)
-            #Get which ones of these are within the acceptable max separation
-            preconv_df_have_match = preconv_df_no_matches[preconv_df_no_matches["d2d"]<max_separation].reset_index(drop=True)
+            #Get which ones of these are within the acceptable max separation and not already matched
+            preconv_df_have_match = preconv_df_no_matches[(preconv_df_no_matches["d2d"]<max_separation) & (~preconv_df_no_matches["askap_name"].isin(already_matched_askap_preconv_name))].reset_index(drop=True)
             #If there are some then we need to replace the info in the good matches with the non-convolved data
             if len(preconv_df_have_match.index)>0:
+                #We need to force measure these sources in the ASKAP convolved image
+                aegean_to_extract_df = preconv_df_have_match.filter(["master_name", "master_ra", "master_dec", "master_catflux"])
+                aegean_to_extract_df.columns=["name", "ra", "dec", "peak_flux"]
+                aegean_to_extract_df["peak_flux"]=aegean_to_extract_df["peak_flux"]*1.e-3
+                #force the source size to be that of the ASKAP beam (in this case same as the catalogue)
+                aegean_to_extract_df["a"]=askap_image.bmaj*3600.
+                aegean_to_extract_df["b"]=askap_image.bmin*3600.
+                aegean_to_extract_df["pa"]=askap_image.bpa
+                aegean_results = self.force_extract_aegean(aegean_to_extract_df, askap_image.image)
+                # preconv_df_have_match.join(aegean_to_extract_df, rsuffix="aegean_convolved")
+                preconv_df_have_match = self._merge_forced_aegean(preconv_df_have_match, aegean_results, tag="aegean_convolved")
+                
                 self.logger.info("{} no match sources have a match in the pre-convolved image.".format(len(preconv_df_have_match.index)))
                 preconv_matches_names = preconv_df_have_match["master_name"].tolist()
                 #Now need to update the crossmatched ASKAP values to that of the non-convolved catalog
@@ -305,7 +321,8 @@ class crossmatch(object):
                 self.logger.info("No further matches found in the convolved image.")
         else:
             using_pre_conv = False
-                   
+        matches = matches.reset_index(drop=True)
+        no_matches = no_matches.reset_index(drop=True)          
         self.goodmatches_df_trans=matches
         self.badmatches_df_trans=no_matches        
         # Stage 1
@@ -324,11 +341,33 @@ class crossmatch(object):
     
         no_matches["postage_stamp"]=no_match_postage_stamps
         
+        #Force extract fluxes using Aegean from the ASKAP image
+        aegean_to_extract_df = no_matches.filter(["master_name", "master_ra", "master_dec", "master_catflux"])
+        aegean_to_extract_df.columns=["name", "ra", "dec", "peak_flux"]
+        aegean_to_extract_df["peak_flux"]=aegean_to_extract_df["peak_flux"]*1.e-3
+        #force the source size to be that of the ASKAP beam (in this case same as the catalogue)
+        aegean_to_extract_df["a"]=image_beam_maj
+        aegean_to_extract_df["b"]=image_beam_min
+        aegean_to_extract_df["pa"]=image_beam_pa
+        
+        aegean_results = self.force_extract_aegean(aegean_to_extract_df, askap_image.image)
+        no_matches = self._merge_forced_aegean(no_matches, aegean_results, tag="aegean_convolved")
+        # no_matches.join(aegean_results, rsuffix="aegean")
+        
+        if pre_conv_crossmatch != None:
+            aegean_to_extract_df["a"]=preconv_askap_image.bmaj*3600.
+            aegean_to_extract_df["b"]=preconv_askap_image.bmin*3600.
+            aegean_to_extract_df["pa"]=preconv_askap_image.bpa
+            preconv_aegean_results = self.force_extract_aegean(aegean_to_extract_df, preconv_askap_image.image)
+            no_matches= self._merge_forced_aegean(no_matches, preconv_aegean_results, tag="aegean_preconvolved")
+            # no_matches.join(aegean_results, rsuffix="aegean_preconv")
+        
+        no_matches.to_csv("testing_no_matches.csv")
         #measure the peak flux at the position in the ASKAP image(s)
-        no_matches=self.measure_askap_image_peak_fluxes(no_matches, askap_img_wcs, askap_img_data, using_pre_conv, preconv_askap_img_wcs, preconv_askap_img_data)
+        # no_matches=self.measure_askap_image_peak_fluxes(no_matches, askap_img_wcs, askap_img_data, using_pre_conv, preconv_askap_img_wcs, preconv_askap_img_data)
         #also measure local rms
-        no_matches=self.measure_askap_image_local_rms(no_matches, askap_img_wcs, askap_img_header, askap_img_data, using_pre_conv, preconv_askap_img_wcs, preconv_askap_img_header, preconv_askap_img_data)
-        matches=self.measure_askap_image_local_rms(matches, askap_img_wcs, askap_img_header, askap_img_data, using_pre_conv, preconv_askap_img_wcs, preconv_askap_img_header, preconv_askap_img_data)
+        # no_matches=self.measure_askap_image_local_rms(no_matches, askap_img_wcs, askap_img_header, askap_img_data, using_pre_conv, preconv_askap_img_wcs, preconv_askap_img_header, preconv_askap_img_data)
+        # matches=self.measure_askap_image_local_rms(matches, askap_img_wcs, askap_img_header, askap_img_data, using_pre_conv, preconv_askap_img_wcs, preconv_askap_img_header, preconv_askap_img_data)
         
         #Now check the sources to assign guesstimate type
         #First check bright source proximity
@@ -370,12 +409,12 @@ class crossmatch(object):
                 pipeline_tags.append("Large island source")
             
             #check for possible really bright extended
-            elif row["measured_askap_peak_flux"]/row["askap_rms"] > 50.:
+            elif row["aegean_convolved_int_flux"]/row["askap_rms"] > 50.:
                 pipeline_tags.append("Likely bright extended structure")
             
             #Check if the source would actually be seen in the local rms
             #Due to the excessive RMS in the convolved case, we use non-convovled if available
-            elif row["master_scaled_catalog_iflux"]*1.e-3/row[local_noise_col] < 5.0:
+            elif row["master_scaled_catalog_iflux"]*1.e-3/row["aegean_convolved_local_rms"] < 5.0:
                 pipeline_tags.append("Local RMS too high")
                 
             elif row["survey_used"]=="sumss":
@@ -487,6 +526,7 @@ class crossmatch(object):
                     snrs.append(row["nvss_snr"])
                 else:
                     mask.append(False)
+        original_cols = not_matched_askap_sources.columns
         not_matched_askap_sources["survey"]=["sumss" if d < -30 else "nvss" for d in not_matched_askap_sources["dec"].tolist()]
         # not_matched_askap_sources_should_see=not_matched_askap_sources_should_seeap_sources[not_matched_askap_sources["sumss_snr"]>=askap_snr_thresh].reset_index(drop=True)
         not_matched_askap_sources_should_see=not_matched_askap_sources[mask].reset_index(drop=True)
@@ -495,10 +535,47 @@ class crossmatch(object):
         askapnotseen_postage_stamps=["transient_askapnotseen_ASKAP_{}_sidebyside.jpg".format(val) for i,val in not_matched_askap_sources_should_see["name"].iteritems()]
         not_matched_askap_sources_should_see["postage_stamp"]=askapnotseen_postage_stamps
         
+        #Measure fluxes using aegean
+        
+        #For this we want to source find on every unique catalog image required
+        
+        unique_mosaics = not_matched_askap_sources_should_see["catalog_Mosaic_path"].unique()
+        for i,mos in enumerate(unique_mosaics):
+            self.logger.info("Source finding from mosaic {} ({}/{})".format(mos.split("/")[-1], i+1, len(unique_mosaics)))
+            mosaic = askapimage(mos)
+            mosaic.load_fits_header()
+            if not mosaic._beam_loaded:
+                mosaic.calculate_sumss_beam()
+                mosaic.bmaj=mosaic.img_sumss_bmaj
+                mosaic.bmin=mosaic.img_sumss_bmin
+                mosaic.bpa=0.0
+                
+            aegean_to_extract_df = not_matched_askap_sources_should_see[not_matched_askap_sources_should_see["catalog_Mosaic_path"]==mos]
+            aegean_to_extract_df = aegean_to_extract_df.filter(["ra", "dec", "peak_flux"])
+            #force the source size to be that of the ASKAP beam (in this case same as the catalogue)
+            aegean_to_extract_df["a"]=mosaic.bmaj*3600.
+            aegean_to_extract_df["b"]=mosaic.bmin*3600.
+            aegean_to_extract_df["pa"]=mosaic.bpa
+            aegean_results = self.force_extract_aegean(aegean_to_extract_df, mos)
+            not_matched_askap_sources_should_see_subset = self._merge_forced_aegean(not_matched_askap_sources_should_see[not_matched_askap_sources_should_see["catalog_Mosaic_path"]==mos], 
+                aegean_results, tag="aegean_catalog", ra_col="ra", dec_col="dec")
+            if i == 0:
+                new_not_matched_askap_sources_should_see=not_matched_askap_sources_should_see.copy()
+                for c in not_matched_askap_sources_should_see_subset.columns:
+                    if c not in not_matched_askap_sources_should_see.columns:
+                        new_not_matched_askap_sources_should_see[c]=np.nan
+                new_not_matched_askap_sources_should_see.update(not_matched_askap_sources_should_see_subset)
+            else:
+                new_not_matched_askap_sources_should_see.update(not_matched_askap_sources_should_see_subset)
+                
+        if len(not_matched_askap_sources_should_see.index)>0:
+            tojoin = new_not_matched_askap_sources_should_see.filter([c for c in new_not_matched_askap_sources_should_see.columns if c not in not_matched_askap_sources_should_see.columns])
+            not_matched_askap_sources_should_see = not_matched_askap_sources_should_see.join(tojoin)
+        
         #Meaure fluxes in catalog image
-        not_matched_askap_sources_should_see = self.measure_catalog_image_peak_fluxes(not_matched_askap_sources_should_see)
-        not_matched_askap_sources_should_see=self.measure_askap_image_local_rms(not_matched_askap_sources_should_see, askap_img_wcs, askap_img_header, askap_img_data, using_pre_conv, 
-            preconv_askap_img_wcs, preconv_askap_img_header, preconv_askap_img_data, askap_only=True)
+        # not_matched_askap_sources_should_see = self.measure_catalog_image_peak_fluxes(not_matched_askap_sources_should_see)
+        # not_matched_askap_sources_should_see=self.measure_askap_image_local_rms(not_matched_askap_sources_should_see, askap_img_wcs, askap_img_header, askap_img_data, using_pre_conv,
+        #     preconv_askap_img_wcs, preconv_askap_img_header, preconv_askap_img_data, askap_only=True)
         
         #Perform checks for these 'transients'
         #1. Doubles
@@ -536,6 +613,8 @@ class crossmatch(object):
         
         
         self.transients_not_matched_askap_should_see_df=not_matched_askap_sources_should_see
+        new_cols = ["askap_{}".format(i) if i in original_cols else i for i in self.transients_not_matched_askap_should_see_df.columns]
+        self.transients_not_matched_askap_should_see_df.columns=new_cols
         not_matched_askap_sources_should_see.to_csv("transients_askap_sources_no_match_should_be_seen.csv", index=False)
         self.logger.info("Written 'transients_askap_sources_no_match_should_be_seen.csv'.")
         
@@ -548,6 +627,115 @@ class crossmatch(object):
         self.transients_largeratio_candidates=len(self.transients_large_ratios_df[self.transients_large_ratios_df["pipelinetag"].str.contains("Match ")])
         self.transients_goodmatches_total=len(self.goodmatches_df_trans.index)
         
+        #Create overall transient table - merge goodmatches, bad matches and askap should be seen
+        
+        self.goodmatches_df_trans["type"]="good"
+        self.transients_no_matches_df["type"]="noaskapmatch"
+        self.transients_not_matched_askap_should_see_df["type"]="nocatalogmatch"
+        self.transients_master_df = self.goodmatches_df_trans.append(self.transients_no_matches_df).reset_index(drop=True)
+        self.transients_master_df = self.transients_master_df.append(self.transients_not_matched_askap_should_see_df).reset_index(drop=True)
+        
+        #Now go through and sort the master table
+        self.sort_master_transient_table()
+        
+        self.transients_master_df.to_csv("transients_master.csv")
+        
+    
+    def sort_master_transient_table(self):
+        self.logger.info("Processing transient table...")
+        #Generate the master ratio column along with the error
+        #1. for good types, we just take askap scaled and SUMSS int + errors.
+        #1b. but for matches only to non-convolved we need to scale measured flux and error
+        #2. For noaskapmatch take SUMSS and scaled measured ASKAP
+        #3. For nocatalogmatch take scaled ASKAP and SUMSS measured data
+        self.transients_master_df["master_ratio"]=0.0
+        self.transients_master_df["master_ratio_err"]=0.0
+        self.transients_master_df["aegean_scaled_int_flux"]=0.0
+        self.transients_master_df["aegean_scaled_int_flux_err"]=0.0
+        askap_freq = self.comp_catalog.frequency
+        self.transients_master_df["aegean_convolved_int_flux_scaled"]=self.transients_master_df["aegean_convolved_int_flux"].apply(self._calculate_scaled_flux, args=(askap_freq, 843.e6))
+        self.transients_master_df["aegean_convolved_err_int_flux_scaled"]=self.transients_master_df["aegean_convolved_err_int_flux"].apply(self._calculate_scaled_flux, args=(askap_freq, 843.e6))
+        self.transients_master_df["aegean_convolved_local_rms_scaled"]=self.transients_master_df["aegean_convolved_local_rms"].apply(self._calculate_scaled_flux, args=(askap_freq, 843.e6))
+        self.transients_master_df["aegean_catalog_int_flux_scaled"]=self.transients_master_df["aegean_catalog_int_flux"].apply(self._calculate_scaled_flux, args=(843.e6, askap_freq))
+        self.transients_master_df["aegean_catalog_err_int_flux_scaled"]=self.transients_master_df["aegean_catalog_err_int_flux"].apply(self._calculate_scaled_flux, args=(843.e6, askap_freq))
+        self.transients_master_df["aegean_catalog_local_rms_scaled"]=self.transients_master_df["aegean_catalog_local_rms"].apply(self._calculate_scaled_flux, args=(843.e6, askap_freq))
+        
+        for i,row in self.transients_master_df.iterrows():
+            if row["type"] == "good":
+                if not pd.isna(row["aegean_convolved_int_flux_scaled"]):
+                    if row["aegean_convolved_int_flux_scaled"] < 0.0 or row["aegean_convolved_int_flux_scaled"] < 3.*row["aegean_convolved_local_rms_scaled"]:
+                        flux_to_use = 3.* row["aegean_convolved_local_rms_scaled"]
+                        err_to_use = row["aegean_convolved_local_rms_scaled"]
+                    else:
+                        flux_to_use = row["aegean_convolved_int_flux_scaled"]
+                        err_to_use = row["aegean_convolved_err_int_flux_scaled"]
+                    other_flux_to_use = row["sumss_St"]*1.e-3
+                    other_error_to_use = row["sumss_e_St"]*1.e-3
+                               
+                else:
+                    flux_to_use = row["askap_askap_scaled_to_sumss"]
+                    err_to_use = row["askap_askap_scaled_to_sumss_err"]
+                    other_flux_to_use = row["sumss_St"]*1.e-3
+                    other_error_to_use = row["sumss_e_St"]*1.e-3
+                        
+            elif row["type"] == "noaskapmatch":
+                if row["aegean_convolved_int_flux_scaled"] < 0.0 or row["aegean_convolved_int_flux_scaled"] < 3.*row["aegean_convolved_local_rms_scaled"]:
+                    flux_to_use = 3.* row["aegean_convolved_local_rms_scaled"]
+                    err_to_use = row["aegean_convolved_local_rms_scaled"]
+                else:
+                    flux_to_use = row["aegean_convolved_int_flux_scaled"]
+                    err_to_use = row["aegean_convolved_err_int_flux_scaled"]
+                    
+                other_flux_to_use = row["sumss_St"]*1.e-3
+                other_error_to_use = row["sumss_e_St"]*1.e-3
+            
+            elif row["type"] == "nocatalogmatch":
+                if row["aegean_catalog_int_flux_scaled"] <= 0.0 or row["aegean_catalog_int_flux_scaled"] < 3.*row["aegean_catalog_local_rms_scaled"]:
+                    flux_to_use = 3.* row["aegean_catalog_local_rms_scaled"]
+                    err_to_use = row["aegean_catalog_local_rms_scaled"]
+                    if flux_to_use ==  0.0:
+                        if row["askap_dec"]<=-50:
+                            flux_to_use = 3.*(6./5.)*1.e-3
+                            err_to_use = (6./5.)*1.e-3
+                            
+                        else:
+                            flux_to_use = 3.*(10./5.)*1.e-3
+                            err_to_use = (10./5.)*1.e-3
+                else:
+                    flux_to_use = row["aegean_catalog_int_flux_scaled"]
+                    err_to_use = row["aegean_catalog_err_int_flux_scaled"]
+                
+                other_flux_to_use = row["askap_askap_scaled_to_sumss"]
+                other_error_to_use = row["askap_askap_scaled_to_sumss_err"]
+            
+            self.logger.debug("type: {}, flux_to_use: {}, err_to_use: {}".format(row["type"], flux_to_use, err_to_use))
+            self.logger.debug("type: {}, other_flux_to_use: {}, other_error_to_use: {}".format(row["type"], other_flux_to_use, other_error_to_use))
+            
+            if flux_to_use > other_flux_to_use:
+                ratio=flux_to_use/other_flux_to_use
+                ratio_error = self._calculate_ratio_error(ratio, flux_to_use, err_to_use,
+                    other_flux_to_use, other_error_to_use)
+            else:
+                ratio=other_flux_to_use/flux_to_use
+                ratio_error = self._calculate_ratio_error(ratio, other_flux_to_use, other_error_to_use,
+                    flux_to_use, err_to_use)
+            
+            self.logger.debug("ratio: {}, error: {}".format(ratio, ratio_error))
+         
+            self.transients_master_df.at[i, "master_ratio"] = ratio
+            self.transients_master_df.at[i, "master_ratio_err"] = ratio_error
+            
+        self.logger.info("Transient ratios calculated")
+    
+    def _calculate_ratio_error(self, ratio, x, dx, y, dy):
+        return np.abs(ratio) * np.sqrt( ((dx/x)*(dx/x)) + ((dy/y)*(dy/y)))
+    
+    def _calculate_scaled_flux(self, flux, from_freq, to_freq, si=-0.8):
+        if flux!=np.nan:
+            return ((to_freq/from_freq)**(si))*flux
+        else:
+            return np.nan
+         
     def _check_for_edge_case(self, ra, dec, img_wcs, img_data, num_pixels=50):
         #Works with ASKAP Image for now
         pixels=img_wcs.wcs_world2pix(ra, dec, 1)
@@ -725,6 +913,87 @@ class crossmatch(object):
         no_matches["measured_catalog_peak_flux"]=peak_fluxes
         
         return no_matches
+    
+    # def force_extract_pyse(self, df, image):
+    #     #Step 1 - create pyse file
+    #     num_of_sources = len(df.index)
+    #     pyse_coords_file = "pyse_coordinates_to_measure_{}.json".format(image)
+    #     with open(pyse_coords_file, "w") as f:
+    #         f.write("[\n")
+    #         for i,row in sources.iterrows():
+    #             if i+1 == num_of_sources:
+    #                 f.write("[{},{}]\n".format(row["RA"], row["Dec"]))
+    #             else:
+    #                 f.write("[{},{}],\n".format(row["RA"], row["Dec"]))
+    #         f.write("]")
+    #
+    #     #Step 2 Run Pyse
+    #
+    #     command="pyse --force-beam --fixed-posns-file {} --csv --regions {} --ffbox 2.0".format(pyse_coords_file, image)
+    #     subprocess.call(command, shell=True)
+    #
+    #     #Step 3 read output
+    #     outputfile=image.replace(".fits", ".csv")
+    #     results = pd.read_csv(outputfile, sep=", ")
+    #     #Step 4 join to dataframe (they are in the same order)
+    #     df.join(results, rsuffix="pyse")
+    #     return df
+    
+    def force_extract_aegean(self, df, image):
+        #Step 1 - create aegean file
+        num_of_sources = len(df.index)
+        aegean_coords_file = "aegean_coordinates_to_measure_{}.csv".format(image.split("/")[-1].replace(".fits", ""))
+        aegean_output_file = aegean_coords_file.replace(".csv", "_results.csv")
+        
+        #aegean needs ra, dec, int_flux, a, b, pa
+        df.to_csv(aegean_coords_file, index=False)
+            
+        #Step 2 Run Aegean
+            
+        command="aegean --cores 1 --priorized 1 --input {} --floodclip -1 --table {} {} --ratio 1".format(aegean_coords_file, aegean_output_file, image)
+        subprocess.call(command, shell=True)
+        
+        #Step 3 read output
+        #aegean adds a '_comp' to the output name for components
+        aegean_output_file = aegean_output_file.replace(".csv", "_comp.csv")
+        results = pd.read_csv(aegean_output_file)
+        
+        return results
+        
+    def _merge_forced_aegean(self, df, aegean_results, tag="aegean", ra_col="master_ra", dec_col="master_dec"):
+        #AEGEAN SEEMS TO RANDOMISE THE ORDER THAT THE SOURCES ARE ENTERED INTO THE RESULTS FILE (PROBABLY THREADING)
+        #Need to crossmatch the results
+        aegean_results.columns=["{}_{}".format(tag, i) for i in aegean_results.columns]
+        #If all sources are found then we can merge
+        if len(aegean_results.index) == len(df.index):
+            self.logger.info("All sources found in Aegean extraction, performing direct merge.")
+            missing = False
+        else:
+            diff=len(df.index)-len(aegean_results.index)
+            self.logger.warning("Not all sources found by aegean! {} are missing.".format(diff))
+            missing = True
+        df_match_catalog = SkyCoord(ra=df[ra_col].tolist()*u.degree, dec=df[dec_col].tolist()*u.degree)
+        aegean_match_catalog = SkyCoord(ra=aegean_results["{}_ra".format(tag)].tolist()*u.degree, dec=aegean_results["{}_dec".format(tag)].tolist()*u.degree)
+        idx, d2d, d3d = df_match_catalog.match_to_catalog_sky(aegean_match_catalog)
+        if missing:
+            indexes_missing=[df.index[i] for i,val in enumerate(d2d) if val.arcsec > 1.0]
+            for i in indexes_missing:
+                temp = pd.Series([np.nan for j in aegean_results.columns], index=aegean_results.columns)
+                temp.name = aegean_results.index[-1]+1
+                aegean_results.append(temp)
+        else:
+            indexes_missing = []
+        #generate a dict to form the new index:
+        indexes_map={}
+        for i,val in enumerate(idx):
+            if df.index[i] not in indexes_missing:
+                indexes_map[val]=df.index[i]
+        new_index = [indexes_map[i] for i in sorted(indexes_map)] + indexes_missing
+        aegean_results.index=new_index
+        newdf = df.join(aegean_results)
+
+        return newdf
+                          
     
     def inject_transients_db(self, image_id, db_engine="postgresql", 
             db_username="postgres", db_host="localhost", db_port="5432", db_database="postgres", dualmode=False, basecat="sumss"):

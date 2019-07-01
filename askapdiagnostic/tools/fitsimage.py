@@ -88,8 +88,10 @@ class askapimage(object):
             self.bmin = float(self.header["BMIN"])
             self.bpa = float(self.header["BPA"])
             self.logger.info("Beam = {:.2f}\" x {:.2f}\" ({:.2f} deg)".format(self.bmaj*3600., self.bmin*3600., self.bpa))
+            self._beam_loaded = True
         except:
             self.logger.warning("Beam information could not be determined.")
+            self._beam_loaded = False
          
     def load_all(self):
         self.load_fits_header()

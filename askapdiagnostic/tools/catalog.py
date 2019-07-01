@@ -7,6 +7,7 @@ import numpy as np
 import pkg_resources
 import pandas as pd
 import os
+from askapdiagnostic.tools.fitsimage import askapimage
 
 class Catalog(object):
     """docstring for survey"""
@@ -95,6 +96,15 @@ class Catalog(object):
             self.askap_ext_cat=self.df[(self.df[ellipse_a] > threshold*beam_a) | (self.df[ellipse_b] > threshold*beam_b)].reset_index(drop=True)
             return self.askap_no_ext_cat
             
+    def askap_remove_out_of_sumss_bounds(self, max_dec):
+        #add two SUMSS beam width as a buffer
+        max_dec+=2.*(45./3600.)
+        self.logger.info("Removing ASKAP sources beyond the SUMSS border.")
+        before = len(self.df.index)
+        self.df = self.df[self.df[self.dec_col] < max_dec].reset_index=True
+        after = len(self.df.index)
+        self.logger("{} sources removed leaving {}.".format(before-after, after))
+        
     def add_distance_from_pos(self, position, label="centre"):
         self.df["distance_from_{}".format(label)]=position.separation(self._crossmatch_catalog).deg
      
@@ -174,7 +184,7 @@ class Catalog(object):
                 return
             else:
                 this_freq=frequencies[to_catalog]
-                label=to_catalog
+                # label=to_catalog
         else:
             this_freq=frequency
             label=label
@@ -229,13 +239,66 @@ class Catalog(object):
         self.df["Mosaic_rms"] = images_rms
             
     
-    def _find_matching_image(self,ra, dec, centres, images_data, rms=False):
+    def _image_check(self, ra, dec, image, sumss_mosaic_dir="", nvss_mosaic_dir=""):
+        if image.startswith("J"):
+            full_image = os.path.join(sumss_mosaic_dir, image)
+            sumss=True
+        elif image.startswith("C"):
+            full_image = os.path.join(nvss_mosaic_dir, image)
+            sumss=False
+        else:
+            self.logger.error("Cannot perform image check as image type unrecongised.")
+            return True
+            
+        fits_image=askapimage(full_image)
+        fits_image.load_wcs()
+        fits_image.load_fits_data()
+        naned=self._check_for_nan_image(ra, dec, fits_image.wcs, fits_image.data, sumss=sumss)
+        
+        #Switch this around to make it more logical - True return = check passed.
+        if naned:
+            return False
+        else:
+            return True
+   
+    def _find_matching_image(self,ra, dec, centres, images_data, rms=False, check=False, attempts=3, sumss_mosaic_dir="", nvss_mosaic_dir=""):
         target=SkyCoord(ra=ra*u.deg, dec=dec*u.deg)
         seps = target.separation(centres)
         min_index = np.argmin(seps.deg)
         # print d2d_sumss.deg[min_index]
         # print min_index
+        # find the next index if needed
+        sorted_seps = sorted(seps.deg)
+        backup_indexes = [list(seps.deg).index(i) for i in sorted_seps[1:attempts]]
         image = images_data.iloc[min_index]["image"]
+        if check:
+            check_result = self._image_check(ra, dec, image, sumss_mosaic_dir=sumss_mosaic_dir, nvss_mosaic_dir=nvss_mosaic_dir)
+                # print image
+                # print askap_target.to_string('hmsdms')    
+            
+            if not check_result:
+                self.logger.warning("Coordinates out of range for closest image (Coord: {} Image: {}).".format(target.to_string("hmsdms"), image))
+                if attempts>1:
+                    self.logger.warning("Will try for {} more attempts to find an image.".format(attempts-1))
+                    found=False
+                    for i in backup_indexes:
+                        this_image = images_data.iloc[i]["image"]
+                        check_result = self._image_check(ra, dec, this_image, sumss_mosaic_dir=sumss_mosaic_dir, nvss_mosaic_dir=nvss_mosaic_dir)
+                        if check_result:
+                            self.logger.info("Match found!")
+                            image = this_image
+                            self.logger.info("New image: {}".format(image))
+                            min_index = i
+                            found=True
+                            break
+                        else:
+                            continue
+                    if not found:
+                        self.logger.error("No other suitable image was found.")
+                        self.logger.error("No more attempts to be made. Image for {} will be out of range".format(target.to_string('hmsdms')))
+                else:
+                    self.error("No more attempts to be made. Image for {} will be out of range".format(target.to_string('hmsdms')))
+                    
         rms = images_data.iloc[min_index]["rms"]
         # print image
         # print askap_target.to_string('hmsdms')
@@ -244,6 +307,31 @@ class Catalog(object):
         else:
             return image
         
+    
+    def _check_for_nan_image(self, ra, dec, img_wcs, img_data, num_pixels=10, sumss=False):
+        #Works with ASKAP Image for now
+        pixels=img_wcs.wcs_world2pix(ra, dec, 1)
+        y,x = pixels
+        y = int(y)
+        x = int(x)
+        if y < 0 or x < 0:
+            self.logger.error("Pixels out of range - returning nan.")
+            return True
+        self.logger.debug("RA: {}, Dec:{}".format(ra,dec))
+        self.logger.debug("Pixels: {}, {}".format(y,x))
+        #Search 10 pixels around, see if in nan is in there
+        row_idx = np.array([range(x-num_pixels, x+num_pixels+1)])
+        col_idx = np.array([range(y-num_pixels, y+num_pixels+1)])
+        try:
+            if sumss:
+                data_selection=img_data[row_idx[:, None], col_idx]
+            else:
+                data_selection=img_data[0,0,row_idx[:, None], col_idx]
+        except:
+            self.logger.error("Measuring failed - returning nan.")
+            data_selection=[np.nan]
+        self.logger.debug(data_selection)
+        return np.isnan(data_selection).any()
     
     def find_matching_catalog_image(self, sumss_mosaic_dir="", nvss_mosaic_dir="", sumss=True, nvss=False, dualmode=False):
         if sumss:
@@ -301,7 +389,8 @@ class Catalog(object):
                     survey.append("sumss")
                     
                     
-            image,rms = self._find_matching_image(row[self.ra_col], row[self.dec_col], centers_to_use, mosaic_data_to_use, rms=True)
+            image,rms = self._find_matching_image(row[self.ra_col], row[self.dec_col], centers_to_use, mosaic_data_to_use, rms=True, check=True, sumss_mosaic_dir=sumss_mosaic_dir,
+                nvss_mosaic_dir=nvss_mosaic_dir)
             self.logger.debug("{} matched to catalog mosaic {}.".format(row["name"], image))
             images.append(image)
             images_full_path.append(os.path.join(path_dir, image))

@@ -24,7 +24,7 @@ def flux_ratio_image_view(df, title="Flux ratio plot", save=True, base_filename=
     ax = fig.add_subplot(111)
     #check for 360 deg boundary
     ra_values=df["askap_ra"].values[mask]
-    print ra_values
+    # print ra_values
     if np.min(ra_values) < 1 and np.max(ra_values) > 359:
         new_ra_values = []
         for ra in ra_values:
