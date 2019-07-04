@@ -34,6 +34,7 @@ urlpatterns = [
     url(r'^image/(?P<pk>\d+)/largeratio/$', views.largeratio, name='largeratio'),
     url(r'^image/(?P<pk>\d+)/nocatalogmatchtoaskap/$', views.askapnotseen, name='nocatalogmatchtoaskap'),
     url(r'^image/(?P<pk>\d+)/goodmatch/$', views.goodmatch, name='goodmatch'),
+    url(r'^image/(?P<pk>\d+)/transients/$', views.transients, name='transients'),
     url(r'^image/(?P<pk>\d+)/(?P<querytype>[\w\-]+)/quickview/$', views.crossmatch_quickview, name='crossmatch_quickview'),
     url(r'^image/(?P<pk>\d+)/(?P<querytype>[\w\-]+)/(?P<cross_id>\d+)/$', views.crossmatch_detail, name='crossmatch_detail'),
     url(r'^image/(?P<pk>\d+)/(?P<querytype>[\w\-]+)/(?P<cross_id>\d+)/confirm/$', views.crossmatch_commit, name='crossmatch_commit'),

@@ -24,9 +24,10 @@ class Image(models.Model):
     transients_noaskapmatchtocatalog_candidates=models.IntegerField(default=0)
     transients_nocatalogmatchtoaskap_total=models.IntegerField(default=0)
     transients_nocatalogmatchtoaskap_candidates=models.IntegerField(default=0)
-    transients_largeratio_total=models.IntegerField(default=0)
-    transients_largeratio_candidates=models.IntegerField(default=0)
+    # transients_largeratio_total=models.IntegerField(default=0)
+    # transients_largeratio_candidates=models.IntegerField(default=0)
     transients_goodmatches_total=models.IntegerField(default=0)
+    transients_master_total=models.IntegerField(default=0)
     
     def __str__(self):
         return self.name
@@ -260,7 +261,50 @@ class Goodmatch(models.Model):
     
     def __str__(self):
         return self.sumss_name  
+
+class Transients(models.Model):
+    image_id = models.IntegerField()
+    # match_id = models.IntegerField()
+    master_name = models.CharField(max_length=50, unique=False, default="askap source")
+    askap_name = models.CharField(max_length=50, unique=False, default="catalog source")
+    catalog_name = models.CharField(max_length=50, unique=False, default="catalog source")
+    ra = models.DecimalField(max_digits=10, decimal_places=7)
+    dec = models.DecimalField(max_digits=10, decimal_places=7)
+    catalog_iflux = models.DecimalField(max_digits=20, decimal_places=12, default=0)
+    catalog_iflux_e = models.DecimalField(max_digits=20, decimal_places=12, default=0)
+    catalog_rms = models.DecimalField(max_digits=20, decimal_places=12, default=0)
+    # catalog_local_rms = models.DecimalField(max_digits=20, decimal_places=12, default=0)
+    catalog_mosaic = models.CharField(max_length=50, unique=False, default="catalog mosaic")
+    askap_iflux = models.DecimalField(max_digits=20, decimal_places=12, default=0)
+    askap_iflux_e = models.DecimalField(max_digits=20, decimal_places=12, default=0)
+    askap_scale_flux = models.DecimalField(max_digits=20, decimal_places=12, default=0)
+    askap_scale_flux_e = models.DecimalField(max_digits=20, decimal_places=12, default=0)
+    askap_non_conv_flux = models.DecimalField(max_digits=20, decimal_places=12, default=0)
+    askap_non_conv_flux_e = models.DecimalField(max_digits=20, decimal_places=12, default=0)
+    askap_non_conv_scaled_flux = models.DecimalField(max_digits=20, decimal_places=12, default=0)
+    askap_non_conv_scaled_flux_e = models.DecimalField(max_digits=20, decimal_places=12, default=0)
+    askap_non_conv_d2d = models.DecimalField(max_digits=20, decimal_places=12, default=0)
+    askap_rms = models.DecimalField(max_digits=20, decimal_places=12, default=0)
+    askap_rms_2 = models.DecimalField(max_digits=20, decimal_places=12, default=0)
+    d2d_askap_centre = models.DecimalField(max_digits=20, decimal_places=12, default=0)
+    ratio = models.DecimalField(max_digits=20, decimal_places=12, default=0)
+    ratio_e = models.DecimalField(max_digits=20, decimal_places=12, default=0)
+    ratio_catalog_flux = models.DecimalField(max_digits=20, decimal_places=12, default=0)
+    ratio_catalog_flux_err = models.DecimalField(max_digits=20, decimal_places=12, default=0)
+    ratio_askap_flux = models.DecimalField(max_digits=20, decimal_places=12, default=0)
+    ratio_askap_flux_err = models.DecimalField(max_digits=20, decimal_places=12, default=0)
+    ploturl = models.CharField(max_length=200, unique=False, default="plot")
+    pipelinetag = models.CharField(max_length=50, unique=False, default="N/A")
+    usertag = models.CharField(max_length=30, unique=False, default="N/A")
+    userreason = models.CharField(max_length=30, unique=False, default="N/A")
+    checkedby = models.CharField(max_length=20, unique=False, default="N/A")
+    survey = models.CharField(max_length=10, unique=False, default="N/A")
+    nearest_sources = models.CharField(max_length=250, unique=False, default="")
+    transient_type = models.CharField(max_length=50, unique=False, default="")
         
+    def __str__(self):
+        return self.sumss_name
+       
 class Query(models.Model):
     transient_type = models.CharField(max_length=50)
     user_tag = models.CharField(max_length=50)

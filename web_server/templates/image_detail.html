@@ -14,10 +14,10 @@
   <div class="card-body">
     <!-- <h5 class="card-title">{{ image.name}} details</h5> -->
     <p class="card-text">
-        <a href="{% url 'noaskapmatchtocatalog' image.pk %}" class="btn btn-primary">No ASKAP Match to Catalog ({{ image.transients_noaskapmatchtocatalog_total }})</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+        <!-- <a href="{% url 'noaskapmatchtocatalog' image.pk %}" class="btn btn-primary">No ASKAP Match to Catalog ({{ image.transients_noaskapmatchtocatalog_total }})</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
         <a href="{% url 'nocatalogmatchtoaskap' image.pk %}" class="btn btn-primary mx-auto">No Catalog Match to ASKAP ({{ image.transients_nocatalogmatchtoaskap_total }})</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-        <a href="{% url 'largeratio' image.pk %}" class="btn btn-primary mx-auto">Large Flux Ratio ({{ image.transients_largeratio_total }})</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-        <a href="{% url 'goodmatch' image.pk %}" class="btn btn-primary mx-auto">Good Matches ({{ image.transients_goodmatches_total }})</a></p>
+        <a href="{% url 'largeratio' image.pk %}" class="btn btn-primary mx-auto">Large Flux Ratio ({{ image.transients_largeratio_total }})</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; -->
+        <a href="{% url 'transients' image.pk %}" class="btn btn-primary mx-auto">Transients Ratio Analysis ({{ image.transients_master_total }})</a></p>
   </div>
 </div>
 

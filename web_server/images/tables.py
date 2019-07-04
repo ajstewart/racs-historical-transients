@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 import django_tables2 as tables
-from .models import Image, Sumssnomatch, Largeratio, Goodmatch, Askapnotseen
+from .models import Image, Sumssnomatch, Largeratio, Goodmatch, Askapnotseen, Transients
 from django_tables2.utils import A
 from templatetags import units
 
@@ -19,11 +19,11 @@ class DecColumn(tables.Column):
         
 class RMSColumn(tables.Column):
     def render(self, value):
-        return "{:.3f}".format(units.jy_to_mjy(value))
+        return "{:.2f}".format(units.jy_to_mjy(value))
         
 class FloatColumn(tables.Column):
     def render(self, value):
-        return "{:.3f}".format(value)
+        return "{:.2f}".format(value)
         
 class CapitalColumn(tables.Column):
     def render(self, value):
@@ -146,12 +146,13 @@ class CrossmatchDetailFluxTable(tables.Table):
     master_name = tables.Column(verbose_name = 'Name')
     askap_iflux = RMSColumn(verbose_name= 'ASKAP Int. Flux (mJy)')
     askap_scale_flux = RMSColumn(verbose_name= 'Scaled ASKAP Int. Flux (mJy)')
-    measured_askap_local_rms = RMSColumn(verbose_name= 'Local RMS (mJy)')
-    measured_askap_local_rms_2 = RMSColumn(verbose_name= 'Non-convolved local RMS (mJy)')
-    catalog_iflux = FloatColumn(verbose_name= 'Cat. Int. Flux (mJy)')
-    catalog_scale_flux = FloatColumn(verbose_name= 'Scaled Cat. Int. Flux (mJy)')
-    askap_cat_ratio = FloatColumn(verbose_name= 'ASKAP / Cat Int. Flux Ratio')
+    # measured_askap_local_rms = RMSColumn(verbose_name= 'Local RMS (mJy)')
+    # measured_askap_local_rms_2 = RMSColumn(verbose_name= 'Non-convolved local RMS (mJy)')
+    catalog_iflux = RMSColumn(verbose_name= 'Cat. Int. Flux (mJy)')
+    # catalog_scale_flux = FloatColumn(verbose_name= 'Scaled Cat. Int. Flux (mJy)')
+    ratio = FloatColumn(verbose_name= 'Int. Flux Ratio')
     askap_non_conv_flux = RMSColumn(verbose_name= 'Non-convolved Int. Flux (mJy)')
+    d2d_askap_centre = FloatColumn(verbose_name = "Distance from ASKAP Centre (deg)")
     # askap_non_conv_scaled_flux = RMSColumn(verbose_name= 'Scaled Non-convolved Int. Flux (mJy)')
     # askap_non_conv_d2d = FloatColumn(verbose_name= 'Distance to ASKAP Convolved Source (arcsec)')
     survey = CapitalColumn(verbose_name= 'Survey Used')
@@ -159,25 +160,48 @@ class CrossmatchDetailFluxTable(tables.Table):
     class Meta:
         model = Sumssnomatch
         template_name = 'django_tables2/bootstrap4.html'
-        fields = ("id","master_name", "askap_iflux", "askap_scale_flux", "measured_askap_local_rms", "measured_askap_local_rms_2", "catalog_iflux", "catalog_scale_flux", 
-        "askap_cat_ratio", "askap_non_conv_flux", "survey")
+        fields = ("id","master_name", "askap_iflux", "askap_scale_flux", "catalog_iflux", 
+        "ratio", "askap_non_conv_flux", "d2d_askap_centre", "survey")
         attrs = {"th":{"bgcolor":"#EBEDEF"}}   
         
         
 class NearestSourceDetailFluxTable(tables.Table):
     id = tables.Column(verbose_name= 'ID')
-    master_name = tables.LinkColumn('crossmatch_detail', args=[A('image_id'), "goodmatch", A('id')], orderable=True, verbose_name= 'Name')
+    master_name = tables.LinkColumn('crossmatch_detail', args=[A('image_id'), "transients", A('id')], orderable=True, verbose_name= 'Name')
     askap_iflux = RMSColumn(verbose_name= 'ASKAP Int. Flux (mJy)')
     askap_scale_flux = RMSColumn(verbose_name= 'Scaled ASKAP Int. Flux (mJy)')
-    catalog_iflux = FloatColumn(verbose_name= 'Cat. Int. Flux (mJy)')
-    catalog_scale_flux = FloatColumn(verbose_name= 'Scaled Cat. Int. Flux (mJy)')
-    askap_cat_ratio = FloatColumn(verbose_name= 'ASKAP / Cat Int. Flux Ratio')
+    catalog_iflux = RMSColumn(verbose_name= 'Cat. Int. Flux (mJy)')
+    ratio = FloatColumn(verbose_name= 'ASKAP / Cat Int. Flux Ratio')
     survey = CapitalColumn(verbose_name= 'Survey Used')
 
     class Meta:
         model = Sumssnomatch
         template_name = 'django_tables2/bootstrap4.html'
-        fields = ("id","master_name", "askap_iflux", "askap_scale_flux", "catalog_iflux", "catalog_scale_flux", "askap_cat_ratio", "survey")
+        fields = ("id","master_name", "askap_iflux", "askap_scale_flux", "catalog_iflux", "ratio", "survey")
+        attrs = {"th":{"bgcolor":"#EBEDEF"}}  
+        
+        
+class TransientTable(tables.Table):
+    id = tables.Column(verbose_name= 'ID')
+    image_id = tables.LinkColumn('image_detail', args=[A('image_id'),], orderable=True, verbose_name= 'Img. ID')
+    master_name = tables.LinkColumn('crossmatch_detail', args=[A('image_id'), "transients", A('id')], orderable=True, verbose_name= 'Name')
+    ra = RAColumn(attrs={"td":{"style":"white-space:nowrap;"}}, verbose_name= 'RA' )
+    dec = DecColumn(attrs={"td":{"style":"white-space:nowrap;"}}, verbose_name= 'Dec')
+    ratio = FloatColumn(verbose_name='Freq. Scaled Ratio')
+    askap_iflux = RMSColumn(verbose_name= 'ASKAP Int. Flux (mJy)')
+    # askap_snr = tables.Column(verbose_name= 'Local ASKAP SNR')
+    catalog_iflux = RMSColumn(verbose_name= 'Cat. Int. Flux (mJy)')
+    # scaled_askap_snr = tables.Column(verbose_name= 'Scaled Catalog SNR')
+    survey = CapitalColumn(verbose_name= 'Ref Survey')
+    transient_type = tables.Column(verbose_name= 'Type')
+    pipelinetag = tables.Column(verbose_name= 'Pipeline Tag')
+    usertag = tables.Column(verbose_name= 'User Tag')
+    userreason = tables.Column(verbose_name= 'User Reason')
+    checkedby = tables.Column(verbose_name= 'Checked By')
+    class Meta:
+        model = Transients
+        template_name = 'django_tables2/bootstrap4.html'
+        fields = ("id","image_id","master_name", "ra", "dec", "askap_iflux","catalog_iflux", "ratio", "survey", "transient_type", "pipelinetag", "usertag", "userreason", "checkedby")
         attrs = {"th":{"bgcolor":"#EBEDEF"}}  
   
     

@@ -16,7 +16,8 @@ tag_options=[("help", "Help"),
 
 transient_options=[("sumssnomatch", "No ASKAP match to Catalog"),
 ("askapnotseen", "No Catalog match to ASKAP"),
-("largeratio", "Large flux ratio")]
+("largeratio", "Large flux ratio"),
+{"transients", "Transients"}]
 
 class TagForm(forms.ModelForm):
     class Meta:

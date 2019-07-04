@@ -10,8 +10,8 @@ from django_tables2.export.export import TableExport
 # Create your views here.
 from django.http import HttpResponse
 
-from .models import Image, Sumssnomatch, Largeratio, Askapnotseen, Goodmatch, Processingsettings, Query
-from .tables import ImageTable, SumssNoMatchListTable, LargeRatioListTable, GoodMatchListTable, AskapNotSeenListTable, CrossmatchDetailFluxTable, NearestSourceDetailFluxTable
+from .models import Image, Sumssnomatch, Largeratio, Askapnotseen, Goodmatch, Processingsettings, Query, Transients
+from .tables import ImageTable, SumssNoMatchListTable, LargeRatioListTable, GoodMatchListTable, AskapNotSeenListTable, CrossmatchDetailFluxTable, NearestSourceDetailFluxTable, TransientTable
 from .forms import TagForm
 
 def home(request):
@@ -73,6 +73,19 @@ def goodmatch(request,pk):
         exporter = TableExport(export_format, table)
         return exporter.response('goodmatch_image{}.{}'.format(pk, export_format))
     return render(request, 'good_match.html', {'goodmatch_sources':goodmatch_sources, 'image':image, "table":table})
+
+def transients(request,pk):
+    # goodmatch_sources = Goodmatch.objects.all()
+    transient_sources = Transients.objects.all().filter(image_id=pk).order_by("id")
+    image = Image.objects.get(pk=pk)
+    table = TransientTable(transient_sources)
+    RequestConfig(request, paginate={'per_page': 100}).configure(table)
+    export_format = request.GET.get('_export', None)
+
+    if TableExport.is_valid_format(export_format):
+        exporter = TableExport(export_format, table)
+        return exporter.response('transients_image{}.{}'.format(pk, export_format))
+    return render(request, 'transients.html', {'transient_sources':transient_sources, 'image':image, "table":table, "querytype":"transients"})
     
 def query_queries(request):
     if request.method == "POST":
@@ -106,13 +119,20 @@ def search_results(request, transient_type, user_tag, user):
         table = AskapNotSeenListTable(askapnotseen_sources)
         RequestConfig(request, paginate={'per_page': 100}).configure(table)
         friendly_type = "No Catalog Match to ASKAP"
-    else:
+    elif transient_type == "largeratio":
         largeratio_sources = Largeratio.objects.all().filter(usertag=user_tag).order_by("id")
         if user != "all":
             largeratio_sources = largeratio_sources.filter(checkedby=user)
         table = LargeRatioListTable(largeratio_sources)
         RequestConfig(request, paginate={'per_page': 100}).configure(table)
         friendly_type = "Large Flux Ratio"
+    else:
+        transient_sources = Transients.objects.all().filter(usertag=user_tag).order_by("id")
+        if user != "all":
+            transient_sources = transient_sources.filter(checkedby=user)
+        table = TransientTable(transient_sources)
+        RequestConfig(request, paginate={'per_page': 100}).configure(table)
+        friendly_type = "Transients"
         
         
     # context = {
@@ -131,15 +151,18 @@ def crossmatch_detail(request,pk,querytype,cross_id):
     object_from_query={"noaskapmatchtocatalog":Sumssnomatch,
                         "largeratio":Largeratio,
                         "nocatalogmatchtoaskap":Askapnotseen,
-                        "goodmatch":Goodmatch}
+                        "goodmatch":Goodmatch,
+                        "transients":Transients}
     title ={"noaskapmatchtocatalog":"No ASKAP Match to Catalog",
                         "largeratio":"Large Ratio",
                         "nocatalogmatchtoaskap":"No Catalog Match to ASKAP",
-                        "goodmatch":"Good Matches"}
+                        "goodmatch":"Good Matches",
+                        "transients":"Transients"}
     html ={"noaskapmatchtocatalog":"noaskapmatchtocatalog",
                         "largeratio":"largeratio",
                         "nocatalogmatchtoaskap":"nocatalogmatchtoaskap",
-                        "goodmatch":"goodmatch"}
+                        "goodmatch":"goodmatch",
+                        "transients":"transients"}
     allsources = object_from_query[querytype].objects.all().filter(image_id=pk)
     if querytype == "nocatalogmatchtoaskap" or querytype == "noaskapmatchtocatalog":
         thesources = allsources.filter(pipelinetag="Candidate")
@@ -156,7 +179,7 @@ def crossmatch_detail(request,pk,querytype,cross_id):
         nearest_sources = crossmatch_source.nearest_sources
         nearest_sources = nearest_sources.split(",")
         print nearest_sources
-        nearest_sources = Goodmatch.objects.all().filter(image_id=pk, master_name__in=nearest_sources)
+        nearest_sources = Transients.objects.all().filter(image_id=pk, master_name__in=nearest_sources)
         nearest_sources_table = NearestSourceDetailFluxTable(nearest_sources)
     else:
         nearest_sources_table = ""
@@ -177,15 +200,18 @@ def crossmatch_commit(request,pk,querytype,cross_id):
     object_from_query={"noaskapmatchtocatalog":Sumssnomatch,
                         "largeratio":Largeratio,
                         "nocatalogmatchtoaskap":Askapnotseen,
-                        "goodmatch":Goodmatch}
+                        "goodmatch":Goodmatch,
+                        "transients":Transients}
     title ={"noaskapmatchtocatalog":"No ASKAP Match to Catalog",
                         "largeratio":"Large Ratio",
                         "nocatalogmatchtoaskap":"No Catalog Match to ASKAP",
-                        "goodmatch":"Good Matches"}
+                        "goodmatch":"Good Matches",
+                        "transients":"Transients"}
     html ={"noaskapmatchtocatalog":"noaskapmatchtocatalog",
                         "largeratio":"largeratio",
                         "nocatalogmatchtoaskap":"nocatalogmatchtoaskap",
-                        "goodmatch":"goodmatch"}
+                        "goodmatch":"goodmatch",
+                        "transients":"transients"}
     allsources = object_from_query[querytype].objects.all().filter(image_id=pk)
     if querytype == "nocatalogmatchtoaskap" or querytype == "noaskapmatchtocatalog":
         thesources = allsources.filter(pipelinetag="Candidate")
@@ -248,17 +274,20 @@ def crossmatch_quickview(request,pk,querytype):
     object_from_query={"noaskapmatchtocatalog":Sumssnomatch,
                         "largeratio":Largeratio,
                         "nocatalogmatchtoaskap":Askapnotseen,
-                        "goodmatch":Goodmatch}
+                        "goodmatch":Goodmatch,
+                        "transients":Transients}
     title ={"noaskapmatchtocatalog":"No ASKAP Match to Catalog",
                         "largeratio":"Large Ratio",
                         "nocatalogmatchtoaskap":"No Catalog Match to ASKAP",
-                        "goodmatch":"Good Matches"}
+                        "goodmatch":"Good Matches",
+                        "transients":"Transients"}
     html ={"noaskapmatchtocatalog":"noaskapmatchtocatalog",
                         "largeratio":"largeratio",
                         "nocatalogmatchtoaskap":"nocatalogmatchtoaskap",
-                        "goodmatch":"goodmatch"}
-    if querytype=="largeratio":
-        allsources = object_from_query[querytype].objects.all().filter(image_id=pk).exclude(pipelinetag__contains="Match ")
+                        "goodmatch":"goodmatch",
+                        "transients":"transients"}
+    if querytype=="transients":
+        allsources = object_from_query[querytype].objects.all().filter(image_id=pk).filter(ratio__gte=2.0).order_by("id")
     else:
         allsources = object_from_query[querytype].objects.all().filter(image_id=pk).exclude(pipelinetag="Candidate")
     image = Image.objects.get(pk=pk)

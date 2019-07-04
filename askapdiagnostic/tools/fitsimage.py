@@ -366,9 +366,8 @@ class askapimage(object):
             transients_noaskapmatchtocatalog_candidates=0,
             transients_nocatalogmatchtoaskap_total=0,
             transients_nocatalogmatchtoaskap_candidates=0,
-            transients_largeratio_total=0,
-            transients_largeratio_candidates=0,
-            transients_goodmatches_total=0):
+            transients_goodmatches_total=0,
+            transients_master_total=0):
         # image_id=1
         unique_tag = str(uuid.uuid4())
         engine = sqlalchemy.create_engine('{}://{}@{}:{}/{}'.format(db_engine, db_username, db_host, db_port, db_database))
@@ -385,16 +384,13 @@ class askapimage(object):
             transients_noaskapmatchtocatalog_candidates,
             transients_nocatalogmatchtoaskap_total,
             transients_nocatalogmatchtoaskap_candidates,
-            transients_largeratio_total,
-            transients_largeratio_candidates,
-            transients_goodmatches_total, self.matched_to]], columns=["unique_tag", "name", "description", 
+            transients_goodmatches_total, transients_master_total, self.matched_to]], columns=["unique_tag", "name", "description", 
                 "ra", "dec", "runtime", "url"]+["runby", "number_askap_sources", "number_sumss_sources", "rms", "number_nvss_sources"]+["transients_noaskapmatchtocatalog_total",
             "transients_noaskapmatchtocatalog_candidates",
             "transients_nocatalogmatchtoaskap_total",
             "transients_nocatalogmatchtoaskap_candidates",
-            "transients_largeratio_total",
-            "transients_largeratio_candidates",
             "transients_goodmatches_total",
+            "transients_master_total",
             "matched_to"])
         tempdf.to_sql("images_image", engine, if_exists="append", index=False)
         

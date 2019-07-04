@@ -105,7 +105,7 @@
   <!-- <h5 class="card-header bg-info mb-1 text-white">User Tag Assign Options</h5> -->
    <!-- <div class="card-body"> -->
        <div class="container">
-       <h5><center>Pipeline Tag: <b>{{ crossmatch_source.pipelinetag }}</b>. <small>Set a user tag using the buttons below.</small></center></h5><p></p>
+       <h5><center>Ratio: <b> {{ crossmatch_source.ratio|floatformat:-2 }} </b> / Pipeline Tag: <b>{{ crossmatch_source.pipelinetag }}</b>. <small>Set a user tag using the buttons below.</small></center></h5><p></p>
        <div class="col text-center">
         {% if user.is_authenticated %}
        Safe to Ignore: 
@@ -120,25 +120,28 @@ Report Technical Issue: <a href="{% url 'crossmatch_commit' pk=image.pk querytyp
        <a href="{% url 'crossmatch_commit' pk=image.pk querytype=type cross_id=crossmatch_source.id %}?usertag=problem&userreason=askap%20artefact" class="btn btn-secondary mx-auto btn-sm">ASKAP artefact</a>
 	          <a href="{% url 'crossmatch_commit' pk=image.pk querytype=type cross_id=crossmatch_source.id %}?usertag=problem&userreason=src.%20ext.%20error" class="btn btn-secondary mx-auto btn-sm">Source extraction errors</a>
          <a href="{% url 'crossmatch_commit' pk=image.pk querytype=type cross_id=crossmatch_source.id %}?usertag=problem&userreason=too%20noisy" class="btn btn-secondary mx-auto btn-sm">Too noisy</a><p></p>   
-Investigate: <a href="{% url 'crossmatch_commit' pk=image.pk querytype=type cross_id=crossmatch_source.id %}?usertag=investigate&userreason=large%20ratio" class="btn btn-danger mx-auto btn-sm">Large Ratio</a>
-       <a href="{% url 'crossmatch_commit' pk=image.pk querytype=type cross_id=crossmatch_source.id %}?usertag=investigate&userreason=catalogue%20non-detection" class="btn btn-danger mx-auto btn-sm">Catalogue Non-detection</a>
-       <a href="{% url 'crossmatch_commit' pk=image.pk querytype=type cross_id=crossmatch_source.id %}?usertag=investigate&userreason=askap%20non-detection" class="btn btn-danger mx-auto btn-sm">ASKAP Non-detection</a>
+Investigate: <a href="{% url 'crossmatch_commit' pk=image.pk querytype=type cross_id=crossmatch_source.id %}?usertag=investigate&userreason=investigate" class="btn btn-danger mx-auto btn-sm">Investigate</a>
+       <!-- <a href="{% url 'crossmatch_commit' pk=image.pk querytype=type cross_id=crossmatch_source.id %}?usertag=investigate&userreason=catalogue%20non-detection" class="btn btn-danger mx-auto btn-sm">Catalogue Non-detection</a>
+       <a href="{% url 'crossmatch_commit' pk=image.pk querytype=type cross_id=crossmatch_source.id %}?usertag=investigate&userreason=askap%20non-detection" class="btn btn-danger mx-auto btn-sm">ASKAP Non-detection</a> -->
        <a href="{% url 'crossmatch_commit' pk=image.pk querytype=type cross_id=crossmatch_source.id %}?usertag=help&userreason=not%20sure" class="btn btn-warning mx-auto btn-sm">Not sure</a>
        
        {% else %}
-      <button type="button" class="btn btn-warning mx-auto btn-sm" disabled>Not sure</button>
+       Safe to Ignore:
        <button type="button" class="btn btn-success mx-auto btn-sm" disabled>There is a match</button>
        <button type="button" class="btn btn-success mx-auto btn-sm" disabled>Non-detection</button>
        <button type="button" class="btn btn-success mx-auto btn-sm" disabled>Extended/Diffuse</button>
        <button type="button" class="btn btn-success mx-auto btn-sm" disabled>Close to bright source</button>
-       <button type="button" class="btn btn-success mx-auto btn-sm" disabled>Double</button>
-      <button type="button" class="btn btn-danger mx-auto btn-sm" disabled>Large Ratio</button><br><br>
-       <button type="button" class="btn btn-danger mx-auto btn-sm" disabled>Catalogue Non-detection</button>
-       <button type="button" class="btn btn-danger mx-auto btn-sm" disabled>ASKAP Non-detection</button>
+       <button type="button" class="btn btn-success mx-auto btn-sm" disabled>Double source</button><p></p>
+       Report Technical Issue:
        <button type="button" class="btn btn-secondary mx-auto btn-sm" disabled>Edge of Field</button>
        <button type="button" class="btn btn-secondary mx-auto btn-sm" disabled>Out of Range</button>
        <button type="button" class="btn btn-secondary mx-auto btn-sm" disabled>Catalogue artefact</button>
        <button type="button" class="btn btn-secondary mx-auto btn-sm" disabled>ASKAP artefact</button>
+       <button type="button" class="btn btn-secondary mx-auto btn-sm" disabled>Source extraction errors</button>
+       <button type="button" class="btn btn-secondary mx-auto btn-sm" disabled>Too noisy</button><p></p>
+       Investigate:
+         <button type="button" class="btn btn-danger mx-auto btn-sm" disabled>Investigate</button>
+      <button type="button" class="btn btn-warning mx-auto btn-sm" disabled>Not sure</button>
        {% endif %}
    </div>
    </div>

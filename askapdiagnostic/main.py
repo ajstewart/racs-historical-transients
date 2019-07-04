@@ -247,6 +247,7 @@ def main():
         "transients":False,
         "transients_askap_snr_thresh":5.0,
         "transients_large_flux_ratio_thresh":3.0,
+        "db_inject":True,
         "db_engine":"postgresql",
         "db_username":"postgres",
         "db_host":"localhost",
@@ -325,6 +326,7 @@ def main():
      upon the estimated SUMSS SNR if the source was placed in the SUMSS image.")
     parser.add_argument("--transients-large-flux-ratio-thresh", type=str2float, help="Define the threshold for which sources are considered to have a large flux ratio.\
      Median value +/- threshold x std.")
+    parser.add_argument("--db-inject", type=str2bool, help="Turn databse injection on or off.")
     parser.add_argument("--db-engine", type=str, help="Define the database engine.")
     parser.add_argument("--db-username", type=str, help="Define the username to use for the database")
     parser.add_argument("--db-host", type=str, help="Define the host for the databse.")
@@ -639,6 +641,7 @@ def main():
             askap_catalog.add_single_val_col("rms_preconv", original_theimg.rms)
             non_conv_askap_cat.add_single_val_col("rms", theimg.rms)
             non_conv_askap_cat.add_single_val_col("rms_preconv", original_theimg.rms)
+            non_conv_askap_cat.add_distance_from_pos(theimg.centre)
             askap_catalog._merge_askap_non_convolved_catalogue(non_conv_askap_cat, sumss=sumss, nvss=nvss)
                 
         #Load the askap convolved island file if available
@@ -757,29 +760,29 @@ def main():
         
         #Produce two plots of the image with overlay of ASKAP and SUMSS sources
         theimg.plots={}
-        theimg.plots["sumss_overlay"]="N/A"
-        theimg.plots["nvss_overlay"]="N/A"
-        theimg.plots["askap_overlay"]="N/A"
-        # if args.remove_extended:
-        #     if sumss:
-        #         theimg.plots["sumss_overlay"]=theimg.create_overlay_plot(sumss_touse.df, overlay_cat_label="SUMSS Sources", overlay_cat_2=sumss_catalog.sumss_ext_cat, overlay_cat_label_2="SUMSS Extended Sources", sumss=True)
-        #     else:
-        #         theimg.plots["sumss_overlay"]="N/A"
-        #     if nvss:
-        #         theimg.plots["nvss_overlay"]=theimg.create_overlay_plot(nvss_touse.df, overlay_cat_label="NVSS Sources", overlay_cat_2=nvss_catalog.nvss_ext_cat, overlay_cat_label_2="NVSS Extended Sources", sumss=False, nvss=True)
-        #     else:
-        #         theimg.plots["nvss_overlay"]="N/A"
-        #     theimg.plots["askap_overlay"]=theimg.create_overlay_plot(askap_touse.df, overlay_cat_label="ASKAP Extracted Sources", overlay_cat_2=askap_catalog.askap_ext_cat, overlay_cat_label_2="ASKAP Extended Extracted Sources")
-        # else:
-        #     if sumss:
-        #         theimg.plots["sumss_overlay"]=theimg.create_overlay_plot(sumss_touse.df, overlay_cat_label="SUMSS Sources", sumss=True)
-        #     else:
-        #         theimg.plots["sumss_overlay"]="N/A"
-        #     if nvss:
-        #         theimg.plots["nvss_overlay"]=theimg.create_overlay_plot(nvss_touse.df, overlay_cat_label="NVSS Sources", sumss=False, nvss=True)
-        #     else:
-        #         theimg.plots["nvss_overlay"]="N/A"
-        #     theimg.plots["askap_overlay"]=theimg.create_overlay_plot(askap_touse.df, overlay_cat_label="ASKAP Extracted Sources")
+        # theimg.plots["sumss_overlay"]="N/A"
+        # theimg.plots["nvss_overlay"]="N/A"
+        # theimg.plots["askap_overlay"]="N/A"
+        if args.remove_extended:
+            if sumss:
+                theimg.plots["sumss_overlay"]=theimg.create_overlay_plot(sumss_touse.df, overlay_cat_label="SUMSS Sources", overlay_cat_2=sumss_catalog.sumss_ext_cat, overlay_cat_label_2="SUMSS Extended Sources", sumss=True)
+            else:
+                theimg.plots["sumss_overlay"]="N/A"
+            if nvss:
+                theimg.plots["nvss_overlay"]=theimg.create_overlay_plot(nvss_touse.df, overlay_cat_label="NVSS Sources", overlay_cat_2=nvss_catalog.nvss_ext_cat, overlay_cat_label_2="NVSS Extended Sources", sumss=False, nvss=True)
+            else:
+                theimg.plots["nvss_overlay"]="N/A"
+            theimg.plots["askap_overlay"]=theimg.create_overlay_plot(askap_touse.df, overlay_cat_label="ASKAP Extracted Sources", overlay_cat_2=askap_catalog.askap_ext_cat, overlay_cat_label_2="ASKAP Extended Extracted Sources")
+        else:
+            if sumss:
+                theimg.plots["sumss_overlay"]=theimg.create_overlay_plot(sumss_touse.df, overlay_cat_label="SUMSS Sources", sumss=True)
+            else:
+                theimg.plots["sumss_overlay"]="N/A"
+            if nvss:
+                theimg.plots["nvss_overlay"]=theimg.create_overlay_plot(nvss_touse.df, overlay_cat_label="NVSS Sources", sumss=False, nvss=True)
+            else:
+                theimg.plots["nvss_overlay"]="N/A"
+            theimg.plots["askap_overlay"]=theimg.create_overlay_plot(askap_touse.df, overlay_cat_label="ASKAP Extracted Sources")
         #
             
         #Add the respective image to the ASKAP catalog for later
@@ -1022,31 +1025,28 @@ def main():
         #Write out crossmatch df to file
         transient_crossmatch.write_crossmatch(crossmatch_name)
         
-        #Stopping here for testing
-        sys.exit()
-        
         if args.postage_stamps:
             logger.info("Starting postage stamp production.")
             transient_crossmatch.produce_postage_stamps(postage_options, nprocs=1, max_separation=args.transient_max_separation, convolve=args.convolve, 
                 pre_convolve_image=theimg.non_convolved, preconolve_catalog=non_conv_askap_cat, dualmode=dualmode, basecat=basecat, transients=args.transients)
-            os.makedirs("postage-stamps/good")
-            os.makedirs("postage-stamps/bad")
-            if args.transients:
-                try:
-                    subprocess.check_output("mv transient*NOMATCH*_sidebyside.jpg transients/no-match/", shell=True, stderr=subprocess.STDOUT)
-                except subprocess.CalledProcessError as e:
-                    logger.warning("No transient 'NO MATCH' images to move.")
-                try:
-                    subprocess.check_output("mv transient*LARGERATIO*_sidebyside.jpg transients/large-ratio/", shell=True, stderr=subprocess.STDOUT)
-                except subprocess.CalledProcessError as e:
-                    logger.warning("No transient 'LARGE RATIO' images to move.")
-                try:
-                    subprocess.check_output("mv transient_askapnotseen*_sidebyside.jpg transients/askap-notseen/", shell=True, stderr=subprocess.STDOUT)
-                except subprocess.CalledProcessError as e:
-                    logger.warning("No transient 'ASKAP NOT SEEN' images to move.")
+            os.mkdir("postage-stamps")
+ #            os.makedirs("postage-stamps/bad")
+ #            if args.transients:
+ #                try:
+ #                    subprocess.check_output("mv transient*NOMATCH*_sidebyside.jpg transients/no-match/", shell=True, stderr=subprocess.STDOUT)
+ #                except subprocess.CalledProcessError as e:
+ #                    logger.warning("No transient 'NO MATCH' images to move.")
+ #                try:
+ #                    subprocess.check_output("mv transient*LARGERATIO*_sidebyside.jpg transients/large-ratio/", shell=True, stderr=subprocess.STDOUT)
+ #                except subprocess.CalledProcessError as e:
+ #                    logger.warning("No transient 'LARGE RATIO' images to move.")
+ #                try:
+ #                    subprocess.check_output("mv transient_askapnotseen*_sidebyside.jpg transients/askap-notseen/", shell=True, stderr=subprocess.STDOUT)
+ #                except subprocess.CalledProcessError as e:
+ #                    logger.warning("No transient 'ASKAP NOT SEEN' images to move.")
                 
-            subprocess.call("mv *GOOD*_sidebyside.jpg postage-stamps/good/", shell=True)
-            subprocess.call("mv *BAD*_sidebyside.jpg postage-stamps/bad/", shell=True)
+            subprocess.call("mv *_postagestamps.jpg postage-stamps/", shell=True)
+            # subprocess.call("mv *BAD*_sidebyside.jpg postage-stamps/bad/", shell=True)
         
         #Hack fix for now CHANGE!
         theimg.rms=base_image_rms
@@ -1059,33 +1059,38 @@ def main():
             transients_noaskapmatchtocatalog_candidates=transient_crossmatch.transients_noaskapmatchtocatalog_candidates
             transients_nocatalogmatchtoaskap_total=transient_crossmatch.transients_nocatalogmatchtoaskap_total
             transients_nocatalogmatchtoaskap_candidates=transient_crossmatch.transients_nocatalogmatchtoaskap_candidates
-            transients_largeratio_total=transient_crossmatch.transients_largeratio_total
-            transients_largeratio_candidates=transient_crossmatch.transients_largeratio_candidates
+            # transients_largeratio_total=transient_crossmatch.transients_largeratio_total
+            # transients_largeratio_candidates=transient_crossmatch.transients_largeratio_candidates
             transients_goodmatches_total=transient_crossmatch.transients_goodmatches_total
+            transients_master_total=transient_crossmatch.transients_master_total
         else:
             transients_noaskapmatchtocatalog_total=0
             transients_noaskapmatchtocatalog_candidates=0
             transients_nocatalogmatchtoaskap_total=0
             transients_nocatalogmatchtoaskap_candidates=0
-            transients_largeratio_total=0
-            transients_largeratio_candidates=0
+            # transients_largeratio_total=0
+            # transients_largeratio_candidates=0
             transients_goodmatches_total=0
-        image_id=theimg.inject_db(basecat=basecat, datestamp=launchtime, user=username, description=args.db_tag, db_engine=args.db_engine, db_username=args.db_username, db_host=args.db_host, 
-            db_port=args.db_port, db_database=args.db_database, transients_noaskapmatchtocatalog_total=transients_noaskapmatchtocatalog_total,
-            transients_noaskapmatchtocatalog_candidates=transients_noaskapmatchtocatalog_candidates,
-            transients_nocatalogmatchtoaskap_total=transients_nocatalogmatchtoaskap_total,
-            transients_nocatalogmatchtoaskap_candidates=transients_nocatalogmatchtoaskap_candidates,
-            transients_largeratio_total=transients_largeratio_total,
-            transients_largeratio_candidates=transients_largeratio_candidates,
-            transients_goodmatches_total=transients_goodmatches_total)
-        theimg.inject_processing_db(image_id, full_output, askap_cat_file, sumss_source_cat, nvss_source_cat, args.askap_ext_thresh, 
-            args.sumss_ext_thresh, args.nvss_ext_thresh, args.transient_max_separation, sf_sigmas, db_engine=args.db_engine, db_username=args.db_username, db_host=args.db_host, 
-            db_port=args.db_port, db_database=args.db_database)
-        transient_crossmatch.inject_good_db(image_id, sumss, nvss, db_engine=args.db_engine, db_username=args.db_username, db_host=args.db_host, 
-            db_port=args.db_port, db_database=args.db_database, max_separation=args.transient_max_separation, dualmode=dualmode, basecat=basecat)
-        if args.transients:
-            transient_crossmatch.inject_transients_db(image_id, db_engine=args.db_engine, db_username=args.db_username, db_host=args.db_host, 
-            db_port=args.db_port, db_database=args.db_database, dualmode=dualmode, basecat=basecat)
+            transients_master_total=0
+        if args.db_inject:
+            image_id=theimg.inject_db(basecat=basecat, datestamp=launchtime, user=username, description=args.db_tag, db_engine=args.db_engine, db_username=args.db_username, db_host=args.db_host, 
+                db_port=args.db_port, db_database=args.db_database, transients_noaskapmatchtocatalog_total=transients_noaskapmatchtocatalog_total,
+                transients_noaskapmatchtocatalog_candidates=transients_noaskapmatchtocatalog_candidates,
+                transients_nocatalogmatchtoaskap_total=transients_nocatalogmatchtoaskap_total,
+                transients_nocatalogmatchtoaskap_candidates=transients_nocatalogmatchtoaskap_candidates,
+                # transients_largeratio_total=transients_largeratio_total,
+                # transients_largeratio_candidates=transients_largeratio_candidates,
+                transients_goodmatches_total=transients_goodmatches_total,
+                transients_master_total=transients_master_total)
+            theimg.inject_processing_db(image_id, full_output, askap_cat_file, sumss_source_cat, nvss_source_cat, args.askap_ext_thresh, 
+                args.sumss_ext_thresh, args.nvss_ext_thresh, args.transient_max_separation, sf_sigmas, db_engine=args.db_engine, db_username=args.db_username, db_host=args.db_host, 
+                db_port=args.db_port, db_database=args.db_database)
+            if args.transients:
+                transient_crossmatch.inject_transients_db(image_id, sumss, nvss, db_engine=args.db_engine, db_username=args.db_username, db_host=args.db_host, 
+                    db_port=args.db_port, db_database=args.db_database, max_separation=args.transient_max_separation, dualmode=dualmode, basecat=basecat)
+        # if args.transients:
+            # transient_crossmatch.inject_transients_db(image_id, db_engine=args.db_engine, db_username=args.db_username, db_host=args.db_host,
+            # db_port=args.db_port, db_database=args.db_database, dualmode=dualmode, basecat=basecat)
         
         if args.website_media_dir!="none":
             media_dir=os.path.join(args.website_media_dir, str(image_id))
@@ -1094,10 +1099,10 @@ def main():
         stamp_media_dir=os.path.join(media_dir, "stamps")
         # os.makedirs(media_dir)
         os.makedirs(stamp_media_dir)
-        subprocess.call("cp postage-stamps/good/*.jpg {}/".format(stamp_media_dir), shell=True)
-        subprocess.call("cp postage-stamps/bad/*.jpg {}/".format(stamp_media_dir), shell=True)
-        if args.transients:
-            subprocess.call("cp transients/askap-notseen/*.jpg {}/".format(stamp_media_dir), shell=True)
+        subprocess.call("cp postage-stamps/*.jpg {}/".format(stamp_media_dir), shell=True)
+        # subprocess.call("cp postage-stamps/bad/*.jpg {}/".format(stamp_media_dir), shell=True)
+        # if args.transients:
+        #     subprocess.call("cp transients/askap-notseen/*.jpg {}/".format(stamp_media_dir), shell=True)
         subprocess.call("cp *.png {}/".format(media_dir), shell=True)
              
         os.chdir("..")

@@ -165,7 +165,7 @@ def create_askap_postage_stamps(askap_df,crossmatch_df,askap_image, nprocs, cat_
         askap_workers.close()
     else:
         produce_postage_stamps(askap_df, crossmatch_df, askap_image, [],[], cat_extractions, askap_extractions, cat2_extractions=cat2_extractions, radius=16./60., 
-            max_separation=None, askap_only=True, convolve=convolve, askap_pre_convolve_image=askap_pre_convolve_image, askap_pre_convolve_catalog=askap_pre_convolve_catalog, 
+            max_separation=None, convolve=convolve, askap_pre_convolve_image=askap_pre_convolve_image, askap_pre_convolve_catalog=askap_pre_convolve_catalog, 
             dualmode=dualmode, basecat=basecat)
     
 
@@ -198,32 +198,33 @@ def _get_extracted_rectangle_size(panel, ra, dec, shift):
     
 
 def crossmatch_stamps(crossmatch, askap_image, postage_options, nprocs, radius=13./60., max_separation=15., convolve=False,
-            askap_pre_convolve_image=None, askap_pre_convolve_catalog=None, dualmode=False, basecat="sumss", transients=False):
-    # For reference, the transient df's are:
-    # self.transients_no_matches_df=no_matches - crossmatch format
-    # self.transients_large_ratios_df=large_ratios - crossmatch format
-    # self.transients_not_matched_askap_should_see_df=not_matched_askap_sources_should_see - askap_cat -format
+            askap_pre_convolve_image=None, askap_pre_convolve_catalog=None, dualmode=False, basecat="sumss", transients=False, transient_min_ratio=2.0):
+
+    #Here we just need to plot from the transients master df based on the ratio - good and bad no longer exists
+    
     
     #work out good and bad
     if transients:
-        good_df=crossmatch.goodmatches_df_trans
-        bad_df=crossmatch.badmatches_df_trans
+        #For now hardcode in limit
+        # mean=crossmatch.transients_master_df["master_ratio"].mean()
+        # std=crossmatch.transients_master_df["master_ratio"].std()
+        # transient_min_ratio = mean + (1.0 *std)
+        df_to_plot = crossmatch.transients_master_df[crossmatch.transients_master_df["master_ratio"]>=transient_min_ratio]
     else:
-        good_df=crossmatch.crossmatch_df[crossmatch.crossmatch_df["d2d"]<=max_separation].reset_index(drop=True)
-        bad_df=crossmatch.crossmatch_df[crossmatch.crossmatch_df["d2d"]>max_separation].reset_index(drop=True)
+        df_to_plot = crossmatch.transients_master_df
     
-    good_sources=good_df["master_name"].values
-    bad_sources=bad_df["master_name"].values
+    # good_sources=good_df["master_name"].values
+    # bad_sources=bad_df["master_name"].values
     
-    if "all" in postage_options:
-        mode="all"
-        filter_names=[]
-        df = crossmatch.crossmatch_df
-    elif postage_options==["transients",]:
-        mode="transients"
-        filter_names = crossmatch.transients_no_matches_df["master_name"].tolist() + crossmatch.transients_large_ratios_df["master_name"].tolist()
-        # df = crossmatch.crossmatch_df[crossmatch.crossmatch_df["master_name"].isin(filter_names)].reset_index(drop=True)
-        df = crossmatch.transients_no_matches_df.append(crossmatch.transients_large_ratios_df, ignore_index=True)
+    # if "all" in postage_options:
+    #     mode="all"
+    #     filter_names=[]
+    #     df = crossmatch.crossmatch_df
+    # elif postage_options==["transients",]:
+    #     mode="transients"
+    #     filter_names = crossmatch.transients_no_matches_df["master_name"].tolist() + crossmatch.transients_large_ratios_df["master_name"].tolist()
+    #     # df = crossmatch.crossmatch_df[crossmatch.crossmatch_df["master_name"].isin(filter_names)].reset_index(drop=True)
+    #     df = crossmatch.transients_no_matches_df.append(crossmatch.transients_large_ratios_df, ignore_index=True)
     
     
     
@@ -282,14 +283,14 @@ def crossmatch_stamps(crossmatch, askap_image, postage_options, nprocs, radius=1
             workers.close()
             sys.exit()
     else:
-        produce_postage_stamps(df, crossmatch.crossmatch_df, askap_image, 
-            good_sources,bad_sources, cat_extractions, askap_extractions, cat2_extractions=cat2_extractions, radius=13./60., max_separation=None, askap_only=False, 
+        produce_postage_stamps(df_to_plot, askap_image, 
+            cat_extractions, askap_extractions, cat2_extractions=cat2_extractions, radius=13./60., max_separation=None, 
             convolve=convolve, askap_pre_convolve_image=askap_pre_convolve_image, askap_pre_convolve_catalog=askap_pre_convolve_catalog, dualmode=dualmode, 
-            basecat=basecat, filter_names=filter_names)
+            basecat=basecat)
         
-    if "transients" in postage_options:
-        _copy_images_to_transient_folders(crossmatch.transients_no_matches_df["master_name"].tolist(), "NOMATCH", good_sources, bad_sources)
-        _copy_images_to_transient_folders(crossmatch.transients_large_ratios_df["master_name"].tolist(), "LARGERATIO", good_sources, bad_sources)
+    # if "transients" in postage_options:
+        # _copy_images_to_transient_folders(crossmatch.transients_no_matches_df["master_name"].tolist(), "NOMATCH", good_sources, bad_sources)
+        # _copy_images_to_transient_folders(crossmatch.transients_large_ratios_df["master_name"].tolist(), "LARGERATIO", good_sources, bad_sources)
         # else:
         #     #all transients should have been done now above
         #     sumss_done=df["master_name"].tolist()
@@ -312,9 +313,9 @@ def crossmatch_stamps(crossmatch, askap_image, postage_options, nprocs, radius=1
         #         produce_postage_stamps(df_required, crossmatch.crossmatch_df, askap_image, sumss_mosaic_dir, good_sources, bad_sources, radius=16./60., max_separation=None, askap_only=False, convolve=convolve, askap_pre_convolve_image=askap_pre_convolve_image,
         #             askap_pre_convolve_catalog=askap_pre_convolve_catalog, dualmode=, )
         
-        create_askap_postage_stamps(crossmatch.transients_not_matched_askap_should_see_df, crossmatch.crossmatch_df, askap_image,nprocs, 
-            cat_extractions, askap_extractions, cat2_extractions=cat2_extractions, convolve=convolve, askap_pre_convolve_image=askap_pre_convolve_image,
-            askap_pre_convolve_catalog=askap_pre_convolve_catalog, dualmode=dualmode, basecat=basecat)
+        # create_askap_postage_stamps(crossmatch.transients_not_matched_askap_should_see_df, crossmatch.crossmatch_df, askap_image,nprocs,
+        #     cat_extractions, askap_extractions, cat2_extractions=cat2_extractions, convolve=convolve, askap_pre_convolve_image=askap_pre_convolve_image,
+        #     askap_pre_convolve_catalog=askap_pre_convolve_catalog, dualmode=dualmode, basecat=basecat)
         
             
             
@@ -429,9 +430,9 @@ def produce_comp_postage_stamps_multicore(sumss_image, askap_image, params_dict,
     #I think this will clear the SUMSS one, must be a more specific way.
     
     
-def produce_postage_stamps(df, full_df, askap_fits, good_sources, bad_sources, cat_extractions, askap_extractions, cat2_extractions="None", 
-    radius=13./60., max_separation=None, askap_only=False, convolve=False, askap_pre_convolve_image=None, askap_pre_convolve_catalog=None, dualmode=False, basecat="sumss", filter_names=[]):
-        logger.info("Estimated time to completion = {:.2f} hours".format(len(df.index)*6./3600.))
+def produce_postage_stamps(df, askap_fits, cat_extractions, askap_extractions, cat2_extractions="None", 
+    radius=13./60., max_separation=None, convolve=False, askap_pre_convolve_image=None, askap_pre_convolve_catalog=None, dualmode=False, basecat="sumss"):
+        # logger.info("Estimated time to completion = {:.2f} hours".format(len(df.index)*6./3600.))
         #Minimise fits opening so first get a list of all the unique SUMSS fits files to be used
         
         # Get the image paths here
@@ -446,11 +447,11 @@ def produce_postage_stamps(df, full_df, askap_fits, good_sources, bad_sources, c
         #         df.at[i, fits_col] = os.path.join(sumss_mosaic_dir, row[fits_col]+".FITS")
         #     else:
         #         df.at[i, fits_col] = os.path.join(nvss_mosaic_dir, row[fits_col])
-        if askap_only:
-            fits_col="catalog_Mosaic_path"
-        else:
-            fits_col="master_catalog_Mosaic_path"
-        fits_mosaics = df[fits_col].unique()
+        # if askap_only:
+        #     fits_col="catalog_Mosaic_path"
+        # else:
+        #     fits_col="master_catalog_Mosaic_path"
+        fits_mosaics = df["master_catalog_mosaic_path"].unique()
         #For now support one ASKAP image at a time so can just take this from the first entry.
         
         #First initialise the figure and set up the askap panel with the image.
@@ -490,11 +491,14 @@ def produce_postage_stamps(df, full_df, askap_fits, good_sources, bad_sources, c
             logger.debug("Image: {}".format(s_image))
             # s_image_path=os.path.join(sumss_mosaic_dir, s_image+".FITS")
             #Filter the dataframe such that only the SUMSS sources are present
-            filtered_cross_matches=df[df[fits_col]==s_image].reset_index(drop=True)
-            if not askap_only:
+            filtered_cross_matches=df[df["master_catalog_mosaic_path"]==s_image].reset_index(drop=True)
+            # if not askap_only:
+            if not pd.isna(filtered_cross_matches.iloc[0]["master_catalog_Mosaic_rms"]):
                 image_rms = filtered_cross_matches.iloc[0]["master_catalog_Mosaic_rms"]
             else:
                 image_rms = filtered_cross_matches.iloc[0]["catalog_Mosaic_rms"]
+            # else:
+                # image_rms = filtered_cross_matches.iloc[0]["catalog_Mosaic_rms"]
             #Generate the base SUMSS panel
             if image_type=="SUMSS":
                 vmin=-0.9e-02
@@ -521,64 +525,35 @@ def produce_postage_stamps(df, full_df, askap_fits, good_sources, bad_sources, c
             #Now begin the main loop per source
             # debug_num=0
             for i, row in filtered_cross_matches.iterrows():
-                if not askap_only:
-                    if row["master_name"] in good_sources:
-                        panels[1].set_title("ASKAP "+row["askap_name"])
-                    elif convolve:
-                        panels[1].set_title("ASKAP Convolved")
-                        panels[2].set_title("ASKAP Not Convolved")
+                if row["type"] == "goodmatch":
+                    askap_title = "RACS "+row["askap_name"]
+                    if pd.isna(row["aegean_convolved_int_flux"]):
+                        askap_title_2 = "RACS "+row["askap_non_conv_name"]
                     else:
-                        panels[1].set_title("ASKAP")
-                        
-                    panels[0].set_title(row["master_name"]+" ({})".format(s_image.split("/")[-1]))
+                        askap_title_2 = "RACS" + row["askap_name"]
+                    sumss_title = "SUMSS "+row["master_name"]
                     recentre_ra=row["master_ra"]
                     recentre_dec=row["master_dec"]
-                else:
-                    panels[0].set_title(image_type+" ({})".format(s_image.split("/")[-1]))
-                    panels[1].set_title("ASKAP "+row["name"])
-                    if convolve:
-                        panels[2].set_title("ASKAP Not Convolved")
-                    recentre_ra=row["ra"]
-                    recentre_dec=row["dec"]
+                    
+                elif row["type"] == "noaskapmatch":
+                    askap_title = "RACS (Convolved)"
+                    askap_title_2 = "RACS (Non-Convolved)"
+                    sumss_title = "SUMSS "+row["master_name"]
+                    recentre_ra=row["master_ra"]
+                    recentre_dec=row["master_dec"]
+                elif row["type"] == "nocatalogmatch":
+                    askap_title = "RACS "+row["askap_name"]
+                    askap_title_2 = "RACS "+row["askap_non_conv_name"]
+                    sumss_title = "SUMSS ({})".format(row["master_catalog_mosaic"])
+                    recentre_ra=row["askap_ra"]
+                    recentre_dec=row["askap_dec"]
+                
+                panels[0].set_title(sumss_title)
+                panels[1].set_title(askap_title)
+                if convolve:
+                    panels[2].set_title(askap_title_2)
+               
                 #Centre each image on the ASKAP coordinates for clarity
-
-                
-                try:
-                    for p in panels:
-                        logger.debug("Fits Image: {}".format(s_image))
-                        logger.debug("RA: {}".format(recentre_ra))
-                        logger.debug("Dec: {}".format(recentre_dec))
-                        logger.debug("Panel: {}".format(p))
-                        panels[p].recenter(recentre_ra, recentre_dec, height=radius, width=radius)
-
-                        if not askap_only:
-                            #Edit here for transients
-                            if row["master_name"] in bad_sources:
-                                linestyle="--"
-                            else:
-                                linestyle="-"
-                            if row["master_name"] in good_sources:
-                                panels[p].show_circles([row["askap_ra"]], [row["askap_dec"]], 120./3600., color='C1', linewidth=3, linestyle=linestyle, label="ASKAP source", layer="ASKAP Source")
-                            else:
-                                #Rectangle on extracted flux on ASKAP images
-                                x_size,y_size=_get_extracted_rectangle_size(panels[1], recentre_ra, recentre_dec, 10)
-                                panels[1].show_rectangles([recentre_ra], [recentre_dec], x_size, y_size, color='C1', linewidth=1, label="Extracted Flux", layer="Extracted Flux")
-                                if convolve:
-                                    x_size,y_size=_get_extracted_rectangle_size(panels[2], recentre_ra, recentre_dec, 10)
-                                    panels[2].show_rectangles([recentre_ra], [recentre_dec], x_size, y_size, color='C1', linewidth=1, label="Extracted Flux", layer="Extracted Flux")
-                            panels[p].show_circles([recentre_ra], [recentre_dec], 120./3600., color='C9', linewidth=3, label="{} source".format(image_type), layer="Cat Source")
-                        else:
-                            panels[p].show_circles([recentre_ra], [recentre_dec], 120./3600., color='C1', linewidth=3, label="ASKAP position", layer="ASKAP Source")
-                            #Put a rectangle to show extracted peak flux measurement
-                            x_size,y_size=_get_extracted_rectangle_size(panels[0], recentre_ra, recentre_dec, 5)
-                            panels[0].show_rectangles([recentre_ra], [recentre_dec], x_size, y_size, color='C1', linewidth=1, label="Extracted Flux", layer="Extracted Flux")
-                except:
-                    logger.error("Can't zoom to region for source. Will skip.")
-                    logger.debug("SUMSS Image: {}".format(s_image))
-                    logger.debug("RA: {}".format(recentre_ra))
-                    logger.debug("Dec: {}".format(recentre_dec))
-                    continue
-                
                 if convolve:
                     pos_x_1 = 0.41
                     pos_y_1 = 0.68
@@ -600,141 +575,245 @@ def produce_postage_stamps(df, full_df, askap_fits, good_sources, bad_sources, c
                     pos_x_4 = 0.8
                     size=12
                 
-                if not askap_only:
-                    if row["master_name"] in good_sources:
-                        sep_text=plt.text(pos_x_3, pos_y_3, "Distance Separation = {:.2f} arcsec".format(row["d2d"]), transform=plt.gcf().transFigure, size=size)
-                        ratio_text=plt.text(pos_x_4, pos_y_3, "Int. Flux Ratio ASKAP/{} = {:.2f}".format(image_type, row["askap_cat_int_flux_ratio"]), transform=plt.gcf().transFigure, size=size)
-                        if row["pipelinetag"]=="Match (non-convolved)":
-                            askap_snr_text=plt.text(pos_x_1, pos_y_2, "ASKAP Flux = N/A mJy\nASKAP Image RMS ~ {:.2f} mJy\nASKAP Local RMS ~ {:.2f} mJy".format(row["askap_rms"]*1.e3, row["measured_askap_local_rms"]*1.e3), transform=plt.gcf().transFigure, bbox=bbox_dict)
-                        else:
-                            askap_snr_text=plt.text(pos_x_1, pos_y_2, "ASKAP Flux = {:.2f} mJy\nASKAP Image RMS ~ {:.2f} mJy\nASKAP Local RMS ~ {:.2f} mJy".format(row["askap_int_flux"]*1.e3, 
-                                row["askap_rms"]*1.e3, row["measured_askap_local_rms"]*1.e3), transform=plt.gcf().transFigure, bbox=bbox_dict)
-                        if convolve:
-                            if row["pipelinetag"]=="Match (non-convolved)":
-                                askap_snr_text_preconv=plt.text(pos_x_5, pos_y_2, "ASKAP Flux = {:.2f} mJy\nASKAP Image RMS ~ {:.2f} mJy\nASKAP Local RMS ~ {:.2f} mJy".format(row["askap_int_flux"]*1.e3, 
-                                    row["askap_rms_preconv"]*1.e3, row["measured_preconv_askap_local_rms"]*1.e3), transform=plt.gcf().transFigure, bbox=bbox_dict)
+                snr_col = "sumss_sumss_snr"
+                
+                # try:
+                for p in panels:
+                    logger.debug("Fits Image: {}".format(s_image))
+                    logger.debug("RA: {}".format(recentre_ra))
+                    logger.debug("Dec: {}".format(recentre_dec))
+                    logger.debug("Panel: {}".format(p))
+                    panels[p].recenter(recentre_ra, recentre_dec, height=radius, width=radius)
+
+                    if row["type"] == "goodmatch":
+                        panels[p].show_circles([recentre_ra], [recentre_dec], 120./3600., color='C9', linewidth=3, label="{} source".format(image_type), layer="Cat Source")
+                        panels[p].show_circles([row["askap_ra"]], [row["askap_dec"]], 120./3600., color='C1', linewidth=3, label="ASKAP source", layer="ASKAP Source")
+                        if p==0:
+                            sep_text=plt.text(pos_x_3, pos_y_3, "Distance Separation = {:.2f} arcsec".format(row["d2d"]), transform=plt.gcf().transFigure, size=size)
+                            ratio_text=plt.text(pos_x_4, pos_y_3, "Scaled Int. Flux Ratio = {:.2f}".format(row["master_ratio"]), transform=plt.gcf().transFigure, size=size)
+                            askap_snr_text=plt.text(pos_x_1, pos_y_2, "ASKAP Flux = {:.2f} +/- {:.2f} mJy\nASKAP Image RMS ~ {:.2f} mJy\nASKAP Local RMS ~ {:.2f} mJy".format(row["askap_flux_to_use"]*1.e3, 
+                                row["askap_flux_to_use_err"]*1.e3, row["askap_rms"]*1.e3, row["measured_askap_local_rms"]*1.e3), transform=plt.gcf().transFigure, bbox=bbox_dict)
+                            sumss_snr_text=plt.text(pos_x_2, pos_y_2, "{0} Int. Flux = {1:.2f} +/- {2:.2f} mJy\n{0} RMS ~ {3:.2f} mJy\n{0} SNR = {4:.2f}".format(image_type, 
+                                row["catalog_flux_to_use"]*1.e3,row["catalog_flux_to_use_err"]*1.e3,image_rms*1.e3, row[snr_col]), transform=plt.gcf().transFigure, bbox=bbox_dict)
+                            if convolve:
+                                askap_snr_text_preconv=plt.text(pos_x_5, pos_y_2, "ASKAP Flux = {:.2f} +/- {:.2f} mJy\nASKAP Image RMS ~ {:.2f} mJy\nASKAP Local RMS ~ {:.2f} mJy".format(row["askap_flux_to_use_2"]*1.e3, 
+                                    row["askap_flux_to_use_2_err"]*1.e3, row["askap_rms_preconv"]*1.e3, row["measured_preconv_askap_local_rms"]*1.e3), transform=plt.gcf().transFigure, bbox=bbox_dict)
+                                custom_lines = [Line2D([0], [0], color="w", marker="o", fillstyle="none", lw=2, markeredgecolor='#1f77b4'),
+                                                Line2D([0], [0], color="w", marker="o", fillstyle="none", lw=2, markeredgecolor='#d62728'),
+                                                Line2D([0], [0], color="w", markeredgecolor='#11BA1C', marker="o", fillstyle="none", lw=2),
+                                                Line2D([0], [0], color="w", markeredgecolor='C9', marker="o", fillstyle="none", lw=2),
+                                                Line2D([0], [0], color='C1'),
+                                                Line2D([0], [0], color='C9')
+                                            ]
+                                labels = ["ASKAP Sources", "{} Sources".format(basecat.upper()), "Non-conv ASKAP sources", "Extracted Flux", "SUMSS Source Position", "ASKAP Source Position"]
                             else:
-                                askap_snr_text_preconv=plt.text(pos_x_5, pos_y_2, "ASKAP Flux = {:.2f} mJy\nASKAP Image RMS ~ {:.2f} mJy\nASKAP Local RMS ~ {:.2f} mJy".format(row["askap_non_conv_int_flux"]*1.e3, 
-                                    row["askap_rms_preconv"]*1.e3, row["measured_preconv_askap_local_rms"]*1.e3), transform=plt.gcf().transFigure, bbox=bbox_dict)
-                    else:
-                        askap_snr_text=plt.text(pos_x_1, pos_y_2, "ASKAP Measured Peak Flux = {:.2f} mJy\nASKAP Image RMS ~ {:.2f} mJy\nASKAP Local RMS ~ {:.2f} mJy".format(row["measured_askap_peak_flux"]*1.e3, 
-                            row["askap_rms"]*1.e3, row["measured_askap_local_rms"]*1.e3), transform=plt.gcf().transFigure, bbox=bbox_dict)
+                                custom_lines = [Line2D([0], [0], color="w", marker="o", fillstyle="none", lw=2, markeredgecolor='#1f77b4'),
+                                                Line2D([0], [0], color="w", marker="o", fillstyle="none", lw=2, markeredgecolor='#d62728'),
+                                                Line2D([0], [0], color="w", markeredgecolor='C9', marker="o", fillstyle="none", lw=2),
+                                                Line2D([0], [0], color='C1'),
+                                                Line2D([0], [0], color='C9')
+                                            ]
+                                labels = ["ASKAP Sources", "{} Sources".format(basecat.upper()), "Extracted Flux", "SUMSS Source Position", "ASKAP Source Position"]
+                    elif row["type"] == "noaskapmatch":
+                        panels[p].show_circles([recentre_ra], [recentre_dec], 120./3600., color='C9', linewidth=3, label="{} source".format(image_type), layer="Cat Source")
+                        if p==0:
+                            ratio_text=plt.text(pos_x_4, pos_y_3, "Scaled Int. Flux Ratio = {:.2f}".format(row["master_ratio"]), transform=plt.gcf().transFigure, size=size)
                         if convolve:
-                            askap_snr_text_preconv=plt.text(pos_x_5, pos_y_2, "ASKAP Measured Peak Flux = {:.2f} mJy\nASKAP Image RMS ~ {:.2f} mJy\nASKAP Local RMS ~ {:.2f} mJy".format(row["measured_preconv_askap_peak_flux"]*1.e3,
-                                 row["askap_rms_preconv"]*1.e3, row["measured_preconv_askap_local_rms"]*1.e3), transform=plt.gcf().transFigure, bbox=bbox_dict)                              
-                    if image_type=="SUMSS":
-                        snr_col = "sumss_sumss_snr"
-                    else:
-                        snr_col = "nvss_nvss_snr"
-                    logger.debug("a {} b {} c {}".format(row["master_catflux"],image_rms*1.e3, row[snr_col]))
-                    sumss_snr_text=plt.text(pos_x_2, pos_y_2, "{0} Int. Flux = {1:.2f} mJy\n{0} RMS ~ {2:.2f} mJy\n{0} SNR = {3:.2f}".format(image_type, 
-                        row["master_catflux"],image_rms*1.e3, row[snr_col]), transform=plt.gcf().transFigure, bbox=bbox_dict)
-                else:
-                    askap_snr_text=plt.text(pos_x_1, pos_y_2, "ASKAP Flux = {:.2f} mJy\nASKAP Image RMS ~ {:.2f} mJy\nASKAP Local RMS ~ {:.2f} mJy".format(row["int_flux"]*1.e3, 
-                        row["rms"]*1.e3, row["measured_askap_local_rms"]*1.e3), transform=plt.gcf().transFigure, bbox=bbox_dict)
-                    if convolve:
-                        askap_snr_text_preconv=plt.text(pos_x_5, pos_y_2, "ASKAP Flux = {:.2f} mJy\nASKAP Image RMS ~ {:.2f} mJy\nASKAP Local RMS ~ {:.2f} mJy".format(row["non_conv_int_flux"]*1.e3, 
-                        row["rms_preconv"]*1.e3,row["measured_preconv_askap_local_rms"]*1.e3, image_type, row["{}_snr".format(image_type.lower())]), transform=plt.gcf().transFigure, bbox=bbox_dict)
-                    # if image_type == "SUMSS":
-                    #     cat_rms = _sumss_rms(row["dec"])
-                    # else:
-                    #     cat_rms = 0.0005
-                    sumss_snr_text=plt.text(pos_x_2, pos_y_5, "Measured {0} Peak Flux = {1:.2f} mJy\n{0} RMS ~ {2:.2f} mJy".format(image_type, row["measured_catalog_peak_flux"]*1.e3, image_rms*1.e3), transform=plt.gcf().transFigure, bbox=bbox_dict)
+                            if p==1:
+                                panels[p].show_circles([recentre_ra], [recentre_dec], 22.5/3600., color='C1', linewidth=1, label="Extracted Flux", layer="Extracted Flux")
+                            if p==2:
+                                panels[p].show_circles([recentre_ra], [recentre_dec], 7./3600., color='C1', linewidth=1, label="Extracted Flux", layer="Extracted Flux_2")
+                            if p==0:
+                                askap_snr_text=plt.text(pos_x_1, pos_y_2, "ASKAP Measured Int. Flux = {:.2f} mJy +/- {:.2f} \nASKAP Image RMS ~ {:.2f} mJy\nASKAP Local RMS ~ {:.2f} mJy".format(row["askap_flux_to_use"]*1.e3, 
+                                    row["askap_flux_to_use_err"]*1.e3, row["askap_rms"]*1.e3, row["measured_askap_local_rms"]*1.e3), transform=plt.gcf().transFigure, bbox=bbox_dict)
+                                askap_snr_text_preconv=plt.text(pos_x_5, pos_y_2, "ASKAP Flux = {:.2f} mJy\nASKAP Image RMS ~ {:.2f} mJy\nASKAP Local RMS ~ {:.2f} mJy".format(row["askap_flux_to_use_2"]*1.e3, 
+                                    row["askap_flux_to_use_2_err"]*1.e3, row["askap_rms_preconv"]*1.e3, row["measured_preconv_askap_local_rms"]*1.e3), transform=plt.gcf().transFigure, bbox=bbox_dict) 
+                                custom_lines = [Line2D([0], [0], color="w", marker="o", fillstyle="none", lw=2, markeredgecolor='#1f77b4'),
+                                                Line2D([0], [0], color="w", marker="o", fillstyle="none", lw=2, markeredgecolor='#d62728'),
+                                                Line2D([0], [0], color="w", markeredgecolor='#11BA1C', marker="o", fillstyle="none", lw=2),
+                                                Line2D([0], [0], color="w", markeredgecolor='C9', marker="o", fillstyle="none", lw=2),
+                                                Line2D([0], [0], color='C1')
+                                            ]
+                                labels = ["ASKAP Sources", "{} Sources".format(basecat.upper()), "Non-conv ASKAP sources", "Extracted Flux", "SUMSS Source Position"]
+                        else:
+                            if p==1:
+                                panels[p].show_circles([recentre_ra], [recentre_dec], 7./3600., color='C1', linewidth=1, label="Extracted Flux", layer="Extracted Flux")
+                            if p==0:
+                                askap_snr_text=plt.text(pos_x_1, pos_y_2, "ASKAP Measured Int. Flux = {:.2f} +/- {:.2f} mJy\nASKAP Image RMS ~ {:.2f} mJy\nASKAP Local RMS ~ {:.2f} mJy".format(row["askap_flux_to_use"]*1.e3, 
+                                    row["askap_flux_to_use_err"]*1.e3, row["askap_rms"]*1.e3, row["measured_askap_local_rms"]*1.e3), transform=plt.gcf().transFigure, bbox=bbox_dict)
+                                custom_lines = [Line2D([0], [0], color="w", marker="o", fillstyle="none", lw=2, markeredgecolor='#1f77b4'),
+                                                Line2D([0], [0], color="w", marker="o", fillstyle="none", lw=2, markeredgecolor='#d62728'),
+                                                Line2D([0], [0], color="w", markeredgecolor='C9', marker="o", fillstyle="none", lw=2),
+                                                Line2D([0], [0], color='C1')
+                                            ]
+                                labels = ["ASKAP Sources", "{} Sources".format(basecat.upper()), "Extracted Flux", "SUMSS Source Position"]
+                        if p==0:
+                            sumss_snr_text=plt.text(pos_x_2, pos_y_2, "{0} Int. Flux = {1:.2f} +/- {2:.2f} mJy\n{0} RMS ~ {3:.2f} mJy\n{0} SNR = {4:.2f}".format(image_type, 
+                                row["catalog_flux_to_use"]*1.e3, row["catalog_flux_to_use_err"]*1.e3,image_rms*1.e3, row[snr_col]), transform=plt.gcf().transFigure, bbox=bbox_dict)
+                        #Rectangle on extracted flux on ASKAP images
+                        # x_size,y_size=_get_extracted_rectangle_size(panels[1], recentre_ra, recentre_dec, 10)
+                        # panels[1].show_rectangles([recentre_ra], [recentre_dec], x_size, y_size, color='C1', linewidth=1, label="Extracted Flux", layer="Extracted Flux")
+                        # if convolve:
+                        #     x_size,y_size=_get_extracted_rectangle_size(panels[2], recentre_ra, recentre_dec, 10)
+                        #     panels[2].show_rectangles([recentre_ra], [recentre_dec], x_size, y_size, color='C1', linewidth=1, label="Extracted Flux", layer="Extracted Flux")
+                        
+                    elif row["type"] == "nocatalogmatch":
+                        panels[p].show_circles([recentre_ra], [recentre_dec], 120./3600., color='C1', linewidth=3, label="ASKAP position", layer="ASKAP Source")
+                        if p==0:
+                            ratio_text=plt.text(pos_x_4, pos_y_3, "Scaled Int. Flux Ratio = {:.2f}".format(row["master_ratio"]), transform=plt.gcf().transFigure, size=size)
+                            #Put a rectangle to show extracted peak flux measurement
+                            # x_size,y_size=_get_extracted_rectangle_size(panels[0], recentre_ra, recentre_dec, 5)
+                            panels[p].show_circles([recentre_ra], [recentre_dec], 22.5/3600., color='C9', linewidth=1, label="Extracted Flux", layer="Extracted Flux")
+                            askap_snr_text=plt.text(pos_x_1, pos_y_2, "ASKAP Measured Int. Flux = {:.2f} +/- {:.2f} mJy\nASKAP Image RMS ~ {:.2f} mJy\nASKAP Local RMS ~ {:.2f} mJy".format(row["askap_flux_to_use"]*1.e3, 
+                                row["askap_flux_to_use_err"]*1.e3,row["askap_rms"]*1.e3, row["measured_askap_local_rms"]*1.e3), transform=plt.gcf().transFigure, bbox=bbox_dict)
+                            if convolve:
+                                askap_snr_text_preconv=plt.text(pos_x_5, pos_y_2, "ASKAP Flux = {:.2f} +/- {:.2f} mJy\nASKAP Image RMS ~ {:.2f} mJy\nASKAP Local RMS ~ {:.2f} mJy".format(row["askap_flux_to_use_2"]*1.e3, 
+                                    row["askap_flux_to_use_2_err"]*1.e3,row["askap_rms_preconv"]*1.e3, row["measured_preconv_askap_local_rms"]*1.e3), transform=plt.gcf().transFigure, bbox=bbox_dict) 
+                                custom_lines = [Line2D([0], [0], color="w", marker="o", fillstyle="none", lw=2, markeredgecolor='#1f77b4'),
+                                                Line2D([0], [0], color="w", marker="o", fillstyle="none", lw=2, markeredgecolor='#d62728'),
+                                                Line2D([0], [0], color="w", markeredgecolor='#11BA1C', marker="o", fillstyle="none", lw=2),
+                                                Line2D([0], [0], color="w", markeredgecolor='C9', marker="o", fillstyle="none", lw=2),
+                                                Line2D([0], [0], color='C9')
+                                            ]
+                                labels = ["ASKAP Sources", "{} Sources".format(basecat.upper()), "Non-conv ASKAP sources", "Extracted Flux", "ASKAP Source Position"]
+                            else:
+                                custom_lines = [Line2D([0], [0], color="w", marker="o", fillstyle="none", lw=2, markeredgecolor='#1f77b4'),
+                                                Line2D([0], [0], color="w", marker="o", fillstyle="none", lw=2, markeredgecolor='#d62728'),
+                                                Line2D([0], [0], color="w", markeredgecolor='C9', marker="o", fillstyle="none", lw=2),
+                                                Line2D([0], [0], color='C9')
+                                            ]
+                                labels = ["ASKAP Sources", "{} Sources".format(basecat.upper()), "Extracted Flux", "ASKAP Source Position"]
+                            sumss_snr_text=plt.text(pos_x_2, pos_y_2, "{0} Int. Flux = {1:.2f} +/- {2:.2f} mJy\n{0} RMS ~ {3:.2f} mJy\n{0} SNR = {4:.2f}".format(image_type, 
+                                row["catalog_flux_to_use"]*1.e3,row["catalog_flux_to_use_err"]*1.e3,image_rms*1.e3, row[snr_col]), transform=plt.gcf().transFigure, bbox=bbox_dict)
+                        # panels[0].show_rectangles([recentre_ra], [recentre_dec], x_size, y_size, color='C1', linewidth=1, label="Extracted Flux", layer="Extracted Flux")
+                # except:
+                #     logger.error("Can't zoom to region for source. Will skip.")
+                #     logger.debug("SUMSS Image: {}".format(s_image))
+                #     logger.debug("RA: {}".format(recentre_ra))
+                #     logger.debug("Dec: {}".format(recentre_dec))
+                #     continue
+                
+                # if not askap_only:
+                #     if row["master_name"] in good_sources:
+                #
+                #         if row["pipelinetag"]=="Match (non-convolved)":
+                #
+                #         else:
+                #             askap_snr_text=plt.text(pos_x_1, pos_y_2, "ASKAP Flux = {:.2f} mJy\nASKAP Image RMS ~ {:.2f} mJy\nASKAP Local RMS ~ {:.2f} mJy".format(row["askap_int_flux"]*1.e3,
+                #                 row["askap_rms"]*1.e3, row["measured_askap_local_rms"]*1.e3), transform=plt.gcf().transFigure, bbox=bbox_dict)
+                #         if convolve:
+                #             if row["pipelinetag"]=="Match (non-convolved)":
+                #
+                #             else:
+                #                 askap_snr_text_preconv=plt.text(pos_x_5, pos_y_2, "ASKAP Flux = {:.2f} mJy\nASKAP Image RMS ~ {:.2f} mJy\nASKAP Local RMS ~ {:.2f} mJy".format(row["askap_non_conv_int_flux"]*1.e3,
+                #                     row["askap_rms_preconv"]*1.e3, row["measured_preconv_askap_local_rms"]*1.e3), transform=plt.gcf().transFigure, bbox=bbox_dict)
+                #     else:
+                #         askap_snr_text=plt.text(pos_x_1, pos_y_2, "ASKAP Measured Peak Flux = {:.2f} mJy\nASKAP Image RMS ~ {:.2f} mJy\nASKAP Local RMS ~ {:.2f} mJy".format(row["measured_askap_peak_flux"]*1.e3,
+                #             row["askap_rms"]*1.e3, row["measured_askap_local_rms"]*1.e3), transform=plt.gcf().transFigure, bbox=bbox_dict)
+                #         if convolve:
+                #             askap_snr_text_preconv=plt.text(pos_x_5, pos_y_2, "ASKAP Measured Peak Flux = {:.2f} mJy\nASKAP Image RMS ~ {:.2f} mJy\nASKAP Local RMS ~ {:.2f} mJy".format(row["measured_preconv_askap_peak_flux"]*1.e3,
+                #                  row["askap_rms_preconv"]*1.e3, row["measured_preconv_askap_local_rms"]*1.e3), transform=plt.gcf().transFigure, bbox=bbox_dict)
+                #     if image_type=="SUMSS":
+                #         snr_col = "sumss_sumss_snr"
+                #     else:
+                #         snr_col = "nvss_nvss_snr"
+                #     logger.debug("a {} b {} c {}".format(row["master_catflux"],image_rms*1.e3, row[snr_col]))
+                #
+                # else:
+                #     askap_snr_text=plt.text(pos_x_1, pos_y_2, "ASKAP Flux = {:.2f} mJy\nASKAP Image RMS ~ {:.2f} mJy\nASKAP Local RMS ~ {:.2f} mJy".format(row["int_flux"]*1.e3,
+                #         row["rms"]*1.e3, row["measured_askap_local_rms"]*1.e3), transform=plt.gcf().transFigure, bbox=bbox_dict)
+                #     if convolve:
+                #         askap_snr_text_preconv=plt.text(pos_x_5, pos_y_2, "ASKAP Flux = {:.2f} mJy\nASKAP Image RMS ~ {:.2f} mJy\nASKAP Local RMS ~ {:.2f} mJy".format(row["non_conv_int_flux"]*1.e3,
+                #         row["rms_preconv"]*1.e3,row["measured_preconv_askap_local_rms"]*1.e3, image_type, row["{}_snr".format(image_type.lower())]), transform=plt.gcf().transFigure, bbox=bbox_dict)
+                #     # if image_type == "SUMSS":
+                #     #     cat_rms = _sumss_rms(row["dec"])
+                #     # else:
+                #     #     cat_rms = 0.0005
+                #     sumss_snr_text=plt.text(pos_x_2, pos_y_5, "Measured {0} Peak Flux = {1:.2f} mJy\n{0} RMS ~ {2:.2f} mJy".format(image_type, row["measured_catalog_peak_flux"]*1.e3, image_rms*1.e3), transform=plt.gcf().transFigure, bbox=bbox_dict)
                 
                 #Figure name
                 # plt.title(row["sumss_name"])
-                if askap_only:
-                    figname = "transient_askapnotseen_ASKAP_{}_sidebyside.jpg".format(row["name"])
-                    custom_lines = [Line2D([0], [0], color="w", marker="o", fillstyle="none", lw=2, markeredgecolor='#1f77b4'),
-                                    Line2D([0], [0], color="w", marker="o", fillstyle="none", lw=2, markeredgecolor='#d62728')]  
-                    if dualmode:
-                        labels = ["ASKAP Sources", "{} Sources".format(basecat.upper()), "{} Sources".format(other[basecat].upper()), "ASKAP Source Position"]
-                        custom_lines+=[Line2D([0], [0], color="w", marker="o", fillstyle="none", lw=2, markeredgecolor='#F5B406'),]
-                    else:
-                        labels = ["ASKAP Sources", "{} Sources".format(basecat.upper()), "ASKAP Source Position"]
-                    custom_lines+=[Line2D([0], [0], color='C1'),]
-                    custom_lines.append(Line2D([0], [0], color="w", markeredgecolor='C1', marker="s", fillstyle="none", lw=2))
-                    labels.append("Measured Peak Flux Area")
-                    
-                    if convolve:  
-                        panels[2]._ax1.legend(custom_lines, labels)
-                    else:
-                        panels[1]._ax1.legend(custom_lines, labels)
+                figname = "source_{}_postagestamps.jpg".format(row["master_name"])
+                if convolve:
+                    panels[2]._ax1.legend(custom_lines,  labels)
                 else:
-                    if row["master_name"] in good_sources:
-                        tag="GOOD"
-                    else:
-                        tag="BAD"
-                    figname = "source_{}_{}_sidebyside.jpg".format(row["master_name"], tag)
-                    if tag=="BAD":
-                        askap_source_line=Line2D([0], [0], color='C1', linestyle=linestyle)
-                    else:
-                        askap_source_line=Line2D([0], [0], color='C1')
-                    custom_lines = [Line2D([0], [0], color="w", marker="o", fillstyle="none", lw=2, markeredgecolor='#1f77b4'),
-                                    Line2D([0], [0], color="w", marker="o", fillstyle="none", lw=2, markeredgecolor='#d62728'),]   
-                    if dualmode:
-                        custom_lines += [Line2D([0], [0], color="w", marker="o", fillstyle="none", lw=2, markeredgecolor='#d62728'),]   
-                                    
-                    if row["master_name"] in good_sources:
-                        custom_lines+=[askap_source_line]
-                    custom_lines+=[Line2D([0], [0], color='C9')]
-                                    
-                    if convolve:
-                        custom_lines.append(Line2D([0], [0], color="w", markeredgecolor='#11BA1C', marker="o", fillstyle="none", lw=2))
-                    
-                    labels=["ASKAP Sources", "{} Sources".format(basecat.upper())]
-                    if dualmode:
-                        labels+=["{} Source".format(other[basecat].upper())] 
-                    
-                    if row["master_name"] in good_sources:
-                        labels+=["Matched ASKAP"]
-                    labels+=["Matched {}".format(image_type)]
-                    
-                    if convolve:
-                        labels+=["Non-conv ASKAP Sources"]
+                    panels[1]._ax1.legend(custom_lines, labels)
+                    # custom_lines = [Line2D([0], [0], color="w", marker="o", fillstyle="none", lw=2, markeredgecolor='#1f77b4'),
+                    #                 Line2D([0], [0], color="w", marker="o", fillstyle="none", lw=2, markeredgecolor='#d62728')]
+                    # if dualmode:
+                    #     labels = ["ASKAP Sources", "{} Sources".format(basecat.upper()), "{} Sources".format(other[basecat].upper()), "ASKAP Source Position"]
+                    #     custom_lines+=[Line2D([0], [0], color="w", marker="o", fillstyle="none", lw=2, markeredgecolor='#F5B406'),]
+                    # else:
+                    #     labels = ["ASKAP Sources", "{} Sources".format(basecat.upper()), "ASKAP Source Position"]
+                    # custom_lines+=[Line2D([0], [0], color='C1'),]
+                    # custom_lines.append(Line2D([0], [0], color="w", markeredgecolor='C1', marker="s", fillstyle="none", lw=2))
+                    # labels.append("Measured Peak Flux Area")
+                    #
+                    # if convolve:
+                    #     panels[2]._ax1.legend(custom_lines, labels)
+                    # else:
+                    #     panels[1]._ax1.legend(custom_lines, labels)
+                    #
+                    # if tag=="BAD":
+                    #     askap_source_line=Line2D([0], [0], color='C1', linestyle=linestyle)
+                    # else:
+                    #     askap_source_line=Line2D([0], [0], color='C1')
+                    # custom_lines = [Line2D([0], [0], color="w", marker="o", fillstyle="none", lw=2, markeredgecolor='#1f77b4'),
+                    #                 Line2D([0], [0], color="w", marker="o", fillstyle="none", lw=2, markeredgecolor='#d62728'),]
+                    # if dualmode:
+                    #     custom_lines += [Line2D([0], [0], color="w", marker="o", fillstyle="none", lw=2, markeredgecolor='#d62728'),]
+                    #
+                    # if row["master_name"] in good_sources:
+                    #     custom_lines+=[askap_source_line]
+                    # custom_lines+=[Line2D([0], [0], color='C9')]
+                    #
+                    # if convolve:
+                    #     custom_lines.append(Line2D([0], [0], color="w", markeredgecolor='#11BA1C', marker="o", fillstyle="none", lw=2))
+                    #
+                    # labels=["ASKAP Sources", "{} Sources".format(basecat.upper())]
+                    # if dualmode:
+                    #     labels+=["{} Source".format(other[basecat].upper())]
+                    #
+                    # if row["master_name"] in good_sources:
+                    #     labels+=["Matched ASKAP"]
+                    # labels+=["Matched {}".format(image_type)]
+                    #
+                    # if convolve:
+                    #     labels+=["Non-conv ASKAP Sources"]
+                    #
+                    # if row["master_name"] not in good_sources:
+                    #     custom_lines.append(Line2D([0], [0], color="w", markeredgecolor='C1', marker="s", fillstyle="none", lw=2))
+                    #     labels.append("Measured Peak Flux Area")
                         
-                    if row["master_name"] not in good_sources:
-                        custom_lines.append(Line2D([0], [0], color="w", markeredgecolor='C1', marker="s", fillstyle="none", lw=2))
-                        labels.append("Measured Peak Flux Area")
-                        
-                    if convolve:
-                        panels[2]._ax1.legend(custom_lines,  labels+["Non-conv ASKAP Sources"])
-                    else:
-                        panels[1]._ax1.legend(custom_lines, labels)
+
 
                 plt.savefig(figname, bbox_inches="tight")
 
                 logger.info("Saved figure {}.".format(figname))
                 
                 for i in panels:
-                    if askap_only:
+                    if row["type"] == "goodmatch" or row["type"]=="nocatalogmatch":
                         panels[i].remove_layer("ASKAP Source")
-                    elif row["master_name"] in good_sources:
-                        panels[i].remove_layer("ASKAP Source")
-                    if not askap_only:
+                    if row["type"] == "goodmatch" or row["type"]=="noaskapmatch":
                         panels[i].remove_layer("Cat Source")
                         # panels[1].remove_layer("SUMSS Source")
-                if not askap_only:
-                    if row["master_name"] not in good_sources:
-                        panels[1].remove_layer("Extracted Flux")
-                        if convolve:
-                            panels[2].remove_layer("Extracted Flux")
-                else:
+                if row["type"]=="nocatalogmatch":
                     panels[0].remove_layer("Extracted Flux")
-                
-                # if not askap_only:
-                    # if row["master_name"] in good_sources:
-                    #     askap_snr_text.set_visible(False)
-                    #     if convolve:
-                    #         askap_snr_text_preconv.set_visible(False)
+                if row["type"]=="noaskapmatch":
+                    panels[1].remove_layer("Extracted Flux")
+                    if convolve:
+                        panels[2].remove_layer("Extracted Flux_2")
+                # print "Delete texts"
+                # print fig.texts
+                # for txt in fig.texts:
+                #     txt.set_visible(False)
                 askap_snr_text.set_visible(False)
                 if convolve:
                     askap_snr_text_preconv.set_visible(False)
                 sumss_snr_text.set_visible(False)
-                if not askap_only:
-                    if row["master_name"] in good_sources:
-                        sep_text.set_visible(False)
-                        ratio_text.set_visible(False)
+                if row["type"] == "goodmatch":
+                    sep_text.set_visible(False)
+                ratio_text.set_visible(False)
                 # debug_num+=1
                 # if debug_num==1:
                 #     debug_num=0
