@@ -870,9 +870,9 @@ class crossmatch(object):
                 ratio=flux_to_use/other_flux_to_use
                 ratio_error = self._calculate_ratio_error(ratio, flux_to_use, err_to_use,
                     other_flux_to_use, other_error_to_use)
-                if convolve and (row["type"] in convolve_check) and (row["pipelinetag"]=="Candidate"):
-                    convolve_ratio = scaled_askap_flux_to_use_2 / other_flux_to_use
-                    if convolve_ratio < 2.0:
+                if convolve and (row["type"] in convolve_check) and (row["pipelinetag"]=="Candidate") and (ratio >= 2.0):
+                    non_convolve_ratio = scaled_askap_flux_to_use_2 / other_flux_to_use
+                    if non_convolve_ratio < 2.0:
                         inflated_var = "True"
                     else:
                         inflated_var = "False"
@@ -882,9 +882,9 @@ class crossmatch(object):
                 ratio=other_flux_to_use/flux_to_use
                 ratio_error = self._calculate_ratio_error(ratio, other_flux_to_use, other_error_to_use,
                     flux_to_use, err_to_use)
-                if convolve and (row["type"] in convolve_check) and (row["pipelinetag"]=="Candidate"):
-                    convolve_ratio =  other_flux_to_use / scaled_askap_flux_to_use_2
-                    if convolve_ratio < 2.0:
+                if convolve and (row["type"] in convolve_check) and (row["pipelinetag"]=="Candidate") and (ratio >= 2.0):
+                    non_convolve_ratio =  other_flux_to_use / scaled_askap_flux_to_use_2
+                    if non_convolve_ratio < 2.0:
                         inflated_var = "True"
                     else:
                         inflated_var = "False"
@@ -1173,7 +1173,7 @@ class crossmatch(object):
             for i in indexes_missing:
                 temp = pd.Series([np.nan for j in aegean_results.columns], index=aegean_results.columns)
                 temp.name = aegean_results.index[-1]+1
-                aegean_results.append(temp)
+                aegean_results.append(temp,sort=False)
         else:
             indexes_missing = []
         #generate a dict to form the new index:
