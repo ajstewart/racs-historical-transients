@@ -59,13 +59,14 @@ def flux_ratio_image_view(df, title="Flux ratio plot", save=True, base_filename=
 def position_offset(df, title="Position offset plot", save=True, base_filename="image", bmaj=45., bmin=45., pa=0.0, basecat="sumss", 
         ra_offset_col="askap_sumss_ra_offset", dec_offset_col="askap_sumss_dec_offset", dualmode=False):
     # filter_df=df[df["d2d"]<=maxsep]
+    df = df.sort_values(by=["askap_int_flux",], ascending=[True,])
     if dualmode:
         ra_offset_sumss=df[df["survey_used"]=="sumss"][ra_offset_col]*3600.
         dec_offset_sumss=df[df["survey_used"]=="sumss"][dec_offset_col]*3600.
         ra_offset_nvss=df[df["survey_used"]=="nvss"][ra_offset_col]*3600.
         dec_offset_nvss=df[df["survey_used"]=="nvss"][dec_offset_col]*3600.
-    ra_offset=df[ra_offset_col]*3600.
-    dec_offset=df[dec_offset_col]*3600.
+    ra_offset=df[ra_offset_col]
+    dec_offset=df[dec_offset_col]
     med_ra_offset=ra_offset.median()
     med_dec_offset=dec_offset.median()
     fig = plt.figure(figsize=(10, 8))
@@ -81,20 +82,22 @@ def position_offset(df, title="Position offset plot", save=True, base_filename="
         ax.scatter(ra_offset_sumss, dec_offset_sumss, label="SUMSS to ASKAP")
         ax.scatter(ra_offset_nvss, dec_offset_nvss, label="NVSS to ASKAP")
     else:
-        ax.scatter(ra_offset, dec_offset, label="{} to ASKAP".format(basecat.upper()))
+        theplot=ax.scatter(ra_offset, dec_offset, label="{} to ASKAP".format(basecat.upper()), c=np.log10(df["askap_int_flux"]*1.e3), cmap="plasma")
+        cb=plt.colorbar(theplot, ax=ax)
+        cb.set_label("log ASKAP Int. Flux (mJy)")
     plt.axhline(0, color="k", ls="--")
     plt.axhline(med_dec_offset, color='r', ls="--", label="Median Offset")
     plt.axvline(0, color="k", ls="--")
     plt.axvline(med_ra_offset, color='r', ls="--")
     plt.title(title)
-    plt.xlabel("RA (arcsec)")
-    plt.ylabel("Dec (arcsec)")
+    plt.xlabel("RA ASKAP - CATALOG (arcsec)")
+    plt.ylabel("Dec ASKAP - CATALOG (arcsec)")
     plt.xlim([-20,20])
     plt.ylim([-20,20])
     # custom_lines=[Line2D([0], [0], color="r"),]
     # ax.legend(custom_lines, ['Median Offset'])
     ax.legend()
-    ax.text(10,-19, "Median RA Offset = {:.2f}\nMedian Dec Offset = {:.2f}".format(med_ra_offset, med_dec_offset))
+    ax.text(3,-19, "Median RA Offset = {:.2f} arcsec\nMedian Dec Offset = {:.2f} arcsec".format(med_ra_offset, med_dec_offset))
     filename="{}_position_offset_from_{}.png".format(base_filename, basecat)
     if save:
         plt.savefig(filename, bbox_inches="tight")
@@ -221,6 +224,7 @@ def flux_ratios_askap_flux(df, max_sep, title="Flux ratio", save=True, base_file
 def flux_ratios_distance_from_centre(df, max_sep, title="Flux ratio", save=True, base_filename="image", basecat="sumss", ratio_col="askap_sumss_int_flux_ratio", dualmode=False):
     fig = plt.figure(figsize=(10, 8))
     ax = fig.add_subplot(111)
+    df = df.sort_values(by=["askap_int_flux",], ascending=[True,])
     # filter_df=df[df["d2d"]<=maxsep].reset_index(drop=True)
     # ratios=filter_df["askap_int_flux"]/(filter_df["sumss_St"]/1.e3)
     mask=[True if i <= 5. else False for i in df[ratio_col]]
@@ -232,7 +236,9 @@ def flux_ratios_distance_from_centre(df, max_sep, title="Flux ratio", save=True,
         ax.scatter(to_plot_sumss["askap_distance_from_centre"], to_plot_sumss[ratio_col], label="SUMSS to ASKAP Crossmatch < {}\"".format(max_sep))
         ax.scatter(to_plot_nvss["askap_distance_from_centre"], to_plot_nvss[ratio_col], label="NVSS to ASKAP Crossmatch < {}\"".format(max_sep))
     else:
-        ax.scatter(to_plot["askap_distance_from_centre"], to_plot[ratio_col], label="{} to ASKAP Crossmatch < {}\"".format(basecat.upper(), max_sep))        
+        theplot = ax.scatter(to_plot["askap_distance_from_centre"], to_plot[ratio_col], label="{} to ASKAP Crossmatch < {}\"".format(basecat.upper(), max_sep),c=np.log10(df["askap_int_flux"]*1.e3), cmap="plasma")
+        cb=plt.colorbar(theplot, ax=ax)
+        cb.set_label("log ASKAP Int. Flux (mJy)")
     median_flux_ratio=to_plot[ratio_col].median()
     std_flux_ratio=to_plot[ratio_col].std()
     ax.set_xlabel("ASKAP Position From Image Centre (deg)")
@@ -247,7 +253,7 @@ def flux_ratios_distance_from_centre(df, max_sep, title="Flux ratio", save=True,
     ax.axhline(1., color="k", ls="--")
     # ax.axhline(median_flux_ratio+std_flux_ratio, label="Median +/- STD (STD = {:.2f})".format(std_flux_ratio), color="gold")
     # ax.axhline(median_flux_ratio-std_flux_ratio, color="gold")
-    ax.fill_between([-1,6],median_flux_ratio-std_flux_ratio,median_flux_ratio+std_flux_ratio, alpha=0.3, label="Median +/- std", color="#A9E5F4")
+    ax.fill_between([-1,6],median_flux_ratio-std_flux_ratio,median_flux_ratio+std_flux_ratio, alpha=0.2, label="Median +/- std", color="#A9E5F4")
     ax.set_xlim([-0.2, 5.2])
     plt.legend()
     filename="{}_flux_ratio_vs_distance_from_centre.png".format(base_filename)

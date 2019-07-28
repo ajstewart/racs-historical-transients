@@ -483,6 +483,9 @@ def produce_postage_stamps(df, askap_fits, cat_extractions, askap_extractions, c
         
         #Now start the Catalog FITS loop
         for s_image in fits_mosaics:# [:1]:
+            if s_image.split("/")[-1] == "SKIP.FITS":
+                logger.warning("Missing SUMSS FITS file: skipping these sources.")
+                continue
             if s_image.split("/")[-1].startswith("J"):
                 image_type="SUMSS"
             else:
@@ -501,8 +504,12 @@ def produce_postage_stamps(df, askap_fits, cat_extractions, askap_extractions, c
                 # image_rms = filtered_cross_matches.iloc[0]["catalog_Mosaic_rms"]
             #Generate the base SUMSS panel
             if image_type=="SUMSS":
-                vmin=-0.9e-02
-                vmax=2.e-02
+                if int(s_image.split(".FITS")[0][-2:]) <= 48:
+                    vmin=-0.7e-02
+                    vmax=1.5e-02
+                else:
+                    vmin=-0.4e-02
+                    vmax=0.9e-02
             else:
                 vmin=-0.1e-2
                 vmax=0.5e-2
@@ -525,6 +532,7 @@ def produce_postage_stamps(df, askap_fits, cat_extractions, askap_extractions, c
             #Now begin the main loop per source
             # debug_num=0
             for i, row in filtered_cross_matches.iterrows():
+                skip=False
                 if row["type"] == "goodmatch":
                     askap_title = "RACS "+row["askap_name"]
                     if pd.isna(row["aegean_convolved_int_flux"]):
@@ -561,7 +569,7 @@ def produce_postage_stamps(df, askap_fits, cat_extractions, askap_extractions, c
                     pos_y_2 = 0.27
                     pos_x_3 = 0.17
                     pos_y_3 = 0.15
-                    pos_x_4 = 0.65
+                    pos_x_4 = 0.6
                     pos_x_5 = 0.68
                     pos_y_5 = 0.27
                     size=15
@@ -577,26 +585,31 @@ def produce_postage_stamps(df, askap_fits, cat_extractions, askap_extractions, c
                 
                 snr_col = "sumss_sumss_snr"
                 
-                # try:
                 for p in panels:
                     logger.debug("Fits Image: {}".format(s_image))
                     logger.debug("RA: {}".format(recentre_ra))
                     logger.debug("Dec: {}".format(recentre_dec))
                     logger.debug("Panel: {}".format(p))
-                    panels[p].recenter(recentre_ra, recentre_dec, height=radius, width=radius)
+                    try:
+                        panels[p].recenter(recentre_ra, recentre_dec, height=radius, width=radius)
+                    except:
+                        logger.error("Image out of range, can't recentre. Skipping Image.")
+                        skip=True
+                        break
+                        
 
                     if row["type"] == "goodmatch":
                         panels[p].show_circles([recentre_ra], [recentre_dec], 120./3600., color='C9', linewidth=3, label="{} source".format(image_type), layer="Cat Source")
                         panels[p].show_circles([row["askap_ra"]], [row["askap_dec"]], 120./3600., color='C1', linewidth=3, label="ASKAP source", layer="ASKAP Source")
                         if p==0:
                             sep_text=plt.text(pos_x_3, pos_y_3, "Distance Separation = {:.2f} arcsec".format(row["d2d"]), transform=plt.gcf().transFigure, size=size)
-                            ratio_text=plt.text(pos_x_4, pos_y_3, "Scaled Int. Flux Ratio = {:.2f}".format(row["master_ratio"]), transform=plt.gcf().transFigure, size=size)
-                            askap_snr_text=plt.text(pos_x_1, pos_y_2, "ASKAP Flux = {:.2f} +/- {:.2f} mJy\nASKAP Image RMS ~ {:.2f} mJy\nASKAP Local RMS ~ {:.2f} mJy".format(row["askap_flux_to_use"]*1.e3, 
+                            ratio_text=plt.text(pos_x_4, pos_y_3, "Scaled Int. Flux Ratio = {:.2f} +/- {:.2f}".format(row["master_ratio"], row["master_ratio_err"]), transform=plt.gcf().transFigure, size=size)
+                            askap_snr_text=plt.text(pos_x_1, pos_y_2, "ASKAP Int. Flux = {:.2f} +/- {:.2f} mJy\nASKAP Image RMS ~ {:.2f} mJy\nASKAP Local RMS ~ {:.2f} mJy".format(row["askap_flux_to_use"]*1.e3, 
                                 row["askap_flux_to_use_err"]*1.e3, row["askap_rms"]*1.e3, row["measured_askap_local_rms"]*1.e3), transform=plt.gcf().transFigure, bbox=bbox_dict)
                             sumss_snr_text=plt.text(pos_x_2, pos_y_2, "{0} Int. Flux = {1:.2f} +/- {2:.2f} mJy\n{0} RMS ~ {3:.2f} mJy\n{0} SNR = {4:.2f}".format(image_type, 
                                 row["catalog_flux_to_use"]*1.e3,row["catalog_flux_to_use_err"]*1.e3,image_rms*1.e3, row[snr_col]), transform=plt.gcf().transFigure, bbox=bbox_dict)
                             if convolve:
-                                askap_snr_text_preconv=plt.text(pos_x_5, pos_y_2, "ASKAP Flux = {:.2f} +/- {:.2f} mJy\nASKAP Image RMS ~ {:.2f} mJy\nASKAP Local RMS ~ {:.2f} mJy".format(row["askap_flux_to_use_2"]*1.e3, 
+                                askap_snr_text_preconv=plt.text(pos_x_5, pos_y_2, "ASKAP Int. Flux = {:.2f} +/- {:.2f} mJy\nASKAP Image RMS ~ {:.2f} mJy\nASKAP Local RMS ~ {:.2f} mJy".format(row["askap_flux_to_use_2"]*1.e3, 
                                     row["askap_flux_to_use_2_err"]*1.e3, row["askap_rms_preconv"]*1.e3, row["measured_preconv_askap_local_rms"]*1.e3), transform=plt.gcf().transFigure, bbox=bbox_dict)
                                 custom_lines = [Line2D([0], [0], color="w", marker="o", fillstyle="none", lw=2, markeredgecolor='#1f77b4'),
                                                 Line2D([0], [0], color="w", marker="o", fillstyle="none", lw=2, markeredgecolor='#d62728'),
@@ -617,7 +630,7 @@ def produce_postage_stamps(df, askap_fits, cat_extractions, askap_extractions, c
                     elif row["type"] == "noaskapmatch":
                         panels[p].show_circles([recentre_ra], [recentre_dec], 120./3600., color='C9', linewidth=3, label="{} source".format(image_type), layer="Cat Source")
                         if p==0:
-                            ratio_text=plt.text(pos_x_4, pos_y_3, "Scaled Int. Flux Ratio = {:.2f}".format(row["master_ratio"]), transform=plt.gcf().transFigure, size=size)
+                            ratio_text=plt.text(pos_x_4, pos_y_3, "Scaled Int. Flux Ratio = {:.2f} +/- {:.2f}".format(row["master_ratio"], row["master_ratio_err"]), transform=plt.gcf().transFigure, size=size)
                         if convolve:
                             if p==1:
                                 panels[p].show_circles([recentre_ra], [recentre_dec], 22.5/3600., color='C1', linewidth=1, label="Extracted Flux", layer="Extracted Flux")
@@ -626,7 +639,7 @@ def produce_postage_stamps(df, askap_fits, cat_extractions, askap_extractions, c
                             if p==0:
                                 askap_snr_text=plt.text(pos_x_1, pos_y_2, "ASKAP Measured Int. Flux = {:.2f} mJy +/- {:.2f} \nASKAP Image RMS ~ {:.2f} mJy\nASKAP Local RMS ~ {:.2f} mJy".format(row["askap_flux_to_use"]*1.e3, 
                                     row["askap_flux_to_use_err"]*1.e3, row["askap_rms"]*1.e3, row["measured_askap_local_rms"]*1.e3), transform=plt.gcf().transFigure, bbox=bbox_dict)
-                                askap_snr_text_preconv=plt.text(pos_x_5, pos_y_2, "ASKAP Flux = {:.2f} mJy\nASKAP Image RMS ~ {:.2f} mJy\nASKAP Local RMS ~ {:.2f} mJy".format(row["askap_flux_to_use_2"]*1.e3, 
+                                askap_snr_text_preconv=plt.text(pos_x_5, pos_y_2, "ASKAP Measured Int. Flux = {:.2f} +/- {:.2f} mJy\nASKAP Image RMS ~ {:.2f} mJy\nASKAP Local RMS ~ {:.2f} mJy".format(row["askap_flux_to_use_2"]*1.e3, 
                                     row["askap_flux_to_use_2_err"]*1.e3, row["askap_rms_preconv"]*1.e3, row["measured_preconv_askap_local_rms"]*1.e3), transform=plt.gcf().transFigure, bbox=bbox_dict) 
                                 custom_lines = [Line2D([0], [0], color="w", marker="o", fillstyle="none", lw=2, markeredgecolor='#1f77b4'),
                                                 Line2D([0], [0], color="w", marker="o", fillstyle="none", lw=2, markeredgecolor='#d62728'),
@@ -660,14 +673,14 @@ def produce_postage_stamps(df, askap_fits, cat_extractions, askap_extractions, c
                     elif row["type"] == "nocatalogmatch":
                         panels[p].show_circles([recentre_ra], [recentre_dec], 120./3600., color='C1', linewidth=3, label="ASKAP position", layer="ASKAP Source")
                         if p==0:
-                            ratio_text=plt.text(pos_x_4, pos_y_3, "Scaled Int. Flux Ratio = {:.2f}".format(row["master_ratio"]), transform=plt.gcf().transFigure, size=size)
+                            ratio_text=plt.text(pos_x_4, pos_y_3, "Scaled Int. Flux Ratio = {:.2f} +/- {:.2f}".format(row["master_ratio"], row["master_ratio_err"]), transform=plt.gcf().transFigure, size=size)
                             #Put a rectangle to show extracted peak flux measurement
                             # x_size,y_size=_get_extracted_rectangle_size(panels[0], recentre_ra, recentre_dec, 5)
                             panels[p].show_circles([recentre_ra], [recentre_dec], 22.5/3600., color='C9', linewidth=1, label="Extracted Flux", layer="Extracted Flux")
-                            askap_snr_text=plt.text(pos_x_1, pos_y_2, "ASKAP Measured Int. Flux = {:.2f} +/- {:.2f} mJy\nASKAP Image RMS ~ {:.2f} mJy\nASKAP Local RMS ~ {:.2f} mJy".format(row["askap_flux_to_use"]*1.e3, 
+                            askap_snr_text=plt.text(pos_x_1, pos_y_2, "ASKAP Int. Flux = {:.2f} +/- {:.2f} mJy\nASKAP Image RMS ~ {:.2f} mJy\nASKAP Local RMS ~ {:.2f} mJy".format(row["askap_flux_to_use"]*1.e3, 
                                 row["askap_flux_to_use_err"]*1.e3,row["askap_rms"]*1.e3, row["measured_askap_local_rms"]*1.e3), transform=plt.gcf().transFigure, bbox=bbox_dict)
                             if convolve:
-                                askap_snr_text_preconv=plt.text(pos_x_5, pos_y_2, "ASKAP Flux = {:.2f} +/- {:.2f} mJy\nASKAP Image RMS ~ {:.2f} mJy\nASKAP Local RMS ~ {:.2f} mJy".format(row["askap_flux_to_use_2"]*1.e3, 
+                                askap_snr_text_preconv=plt.text(pos_x_5, pos_y_2, "ASKAP Int. Flux = {:.2f} +/- {:.2f} mJy\nASKAP Image RMS ~ {:.2f} mJy\nASKAP Local RMS ~ {:.2f} mJy".format(row["askap_flux_to_use_2"]*1.e3, 
                                     row["askap_flux_to_use_2_err"]*1.e3,row["askap_rms_preconv"]*1.e3, row["measured_preconv_askap_local_rms"]*1.e3), transform=plt.gcf().transFigure, bbox=bbox_dict) 
                                 custom_lines = [Line2D([0], [0], color="w", marker="o", fillstyle="none", lw=2, markeredgecolor='#1f77b4'),
                                                 Line2D([0], [0], color="w", marker="o", fillstyle="none", lw=2, markeredgecolor='#d62728'),
@@ -683,9 +696,12 @@ def produce_postage_stamps(df, askap_fits, cat_extractions, askap_extractions, c
                                                 Line2D([0], [0], color='C9')
                                             ]
                                 labels = ["ASKAP Sources", "{} Sources".format(basecat.upper()), "Extracted Flux", "ASKAP Source Position"]
-                            sumss_snr_text=plt.text(pos_x_2, pos_y_2, "{0} Int. Flux = {1:.2f} +/- {2:.2f} mJy\n{0} RMS ~ {3:.2f} mJy\n{0} SNR = {4:.2f}".format(image_type, 
-                                row["catalog_flux_to_use"]*1.e3,row["catalog_flux_to_use_err"]*1.e3,image_rms*1.e3, row[snr_col]), transform=plt.gcf().transFigure, bbox=bbox_dict)
+                            sumss_snr_text=plt.text(pos_x_2, pos_y_2, "Measured {0} Int. Flux = {1:.2f} +/- {2:.2f} mJy\n{0} RMS ~ {3:.2f} mJy\n{0} SNR = {4:.2f}".format(image_type, 
+                                row["catalog_flux_to_use"]*1.e3,row["catalog_flux_to_use_err"]*1.e3,image_rms*1.e3, row["catalog_flux_to_use"]/image_rms), transform=plt.gcf().transFigure, bbox=bbox_dict)
                         # panels[0].show_rectangles([recentre_ra], [recentre_dec], x_size, y_size, color='C1', linewidth=1, label="Extracted Flux", layer="Extracted Flux")
+                
+                if skip:
+                    continue
                 # except:
                 #     logger.error("Can't zoom to region for source. Will skip.")
                 #     logger.debug("SUMSS Image: {}".format(s_image))

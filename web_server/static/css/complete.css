@@ -1,0 +1,7 @@
+tr[complete='true'] {
+    background-color: #EAF8E4;
+}
+
+tr[complete='false'] {
+    background-color: #F9E7E1;
+}

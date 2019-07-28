@@ -14,20 +14,25 @@ class Image(models.Model):
     dec = models.DecimalField(max_digits=10, decimal_places=7)
     runtime = models.DateTimeField(auto_now=False, auto_now_add=True)
     url = models.URLField(max_length=300)
+    url_2 = models.URLField(max_length=300, default="N/A")
     matched_to = models.CharField(max_length=40, default="SUMSS")
     runby = models.CharField(max_length=20, unique=False, default="unknown")
     number_askap_sources=models.IntegerField(default=0)
     number_sumss_sources=models.IntegerField(default=0)
     number_nvss_sources=models.IntegerField(default=0)
     rms=models.DecimalField(max_digits=20, decimal_places=17, default=0.0)
-    transients_noaskapmatchtocatalog_total=models.IntegerField(default=0)
-    transients_noaskapmatchtocatalog_candidates=models.IntegerField(default=0)
-    transients_nocatalogmatchtoaskap_total=models.IntegerField(default=0)
-    transients_nocatalogmatchtoaskap_candidates=models.IntegerField(default=0)
+    # transients_noaskapmatchtocatalog_total=models.IntegerField(default=0)
+    # transients_noaskapmatchtocatalog_candidates=models.IntegerField(default=0)
+    # transients_nocatalogmatchtoaskap_total=models.IntegerField(default=0)
+    # transients_nocatalogmatchtoaskap_candidates=models.IntegerField(default=0)
     # transients_largeratio_total=models.IntegerField(default=0)
     # transients_largeratio_candidates=models.IntegerField(default=0)
-    transients_goodmatches_total=models.IntegerField(default=0)
+    # transients_goodmatches_total=models.IntegerField(default=0)
     transients_master_total=models.IntegerField(default=0)
+    transients_master_candidates_total=models.IntegerField(default=0)
+    transients_master_flagged_total=models.IntegerField(default=0)
+    claimed_by=models.CharField(max_length=20, unique=False, default="Unclaimed")
+    number_candidates_checked = models.IntegerField(default=0)
     
     def __str__(self):
         return self.name
@@ -275,6 +280,8 @@ class Transients(models.Model):
     catalog_rms = models.DecimalField(max_digits=20, decimal_places=12, default=0)
     # catalog_local_rms = models.DecimalField(max_digits=20, decimal_places=12, default=0)
     catalog_mosaic = models.CharField(max_length=50, unique=False, default="catalog mosaic")
+    askap_image = models.CharField(max_length=250, unique=False, default="askap_image")
+    askap_image_2 = models.CharField(max_length=250, unique=False, default="askap_image_2")
     askap_iflux = models.DecimalField(max_digits=20, decimal_places=12, default=0)
     askap_iflux_e = models.DecimalField(max_digits=20, decimal_places=12, default=0)
     askap_scale_flux = models.DecimalField(max_digits=20, decimal_places=12, default=0)
@@ -301,6 +308,8 @@ class Transients(models.Model):
     survey = models.CharField(max_length=10, unique=False, default="N/A")
     nearest_sources = models.CharField(max_length=250, unique=False, default="")
     transient_type = models.CharField(max_length=50, unique=False, default="")
+    aegean_rms_used = models.CharField(max_length=6, unique=False, default="False")
+    inflated_convolved_flux = models.CharField(max_length=6, unique=False, default="False")
         
     def __str__(self):
         return self.sumss_name

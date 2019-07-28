@@ -101,9 +101,9 @@ class Catalog(object):
         max_dec+=2.*(45./3600.)
         self.logger.info("Removing ASKAP sources beyond the SUMSS border.")
         before = len(self.df.index)
-        self.df = self.df[self.df[self.dec_col] < max_dec].reset_index=True
+        self.df = self.df[self.df[self.dec_col] < max_dec].reset_index(drop=True)
         after = len(self.df.index)
-        self.logger("{} sources removed leaving {}.".format(before-after, after))
+        self.logger.info("{} sources removed leaving {}.".format(before-after, after))
         
     def add_distance_from_pos(self, position, label="centre"):
         self.df["distance_from_{}".format(label)]=position.separation(self._crossmatch_catalog).deg
@@ -198,6 +198,7 @@ class Catalog(object):
         self.logger.info("Fluxes scaled to {} catalogue frequency ({} MHz)".format(label, this_freq/1.e6))
         
     def _add_sumss_mosaic_info(self, sumss_mosaic_dir):
+        missing = ['J0712M28', 'J0848M28', 'J1648M28', 'J1704M28', 'J1840M28', 'J0744M28', 'J0800M28', 'J0816M28', 'J0832M28', 'J1824M28']
         if self.survey_name.lower()!="sumss":
             self.logger.error("Catalog is not defined as a SUMSS catalog. Cannot add SUMSS mosaic directory information.")
             return
@@ -207,6 +208,9 @@ class Catalog(object):
             sumss_centres = SkyCoord(ra=sumss_mosaic_data["center-ra"].values*u.deg, dec=sumss_mosaic_data["center-dec"].values*u.deg)
         except:
             self.logger.error("SUMSS mosaic data cannot be found!")
+        #some SUMSS fits files are missing
+        mask = self.df["Mosaic"].isin(missing)
+        self.df["Mosaic"] = np.where(mask, "SKIP", self.df["Mosaic"])
         full_paths = [os.path.join(sumss_mosaic_dir, i+".FITS") for i in self.df["Mosaic"].tolist()]
         rms_values = [sumss_mosaic_data[sumss_mosaic_data["image"]==i+".FITS"].iloc[0]["rms"] for i in self.df["Mosaic"].tolist()]
         self.logger.debug("RMS values {}".format(rms_values))

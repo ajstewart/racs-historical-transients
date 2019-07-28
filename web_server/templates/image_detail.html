@@ -9,15 +9,51 @@
 
 
 {% block content %}
+
+ {% if claim_attempt and claimed_success %}
+  <div style="position: fixed; top: 0; right: 0; z-index: 99">
+ <div class="alert alert-success alert-dismissible fade show" role="alert">
+   <strong>Image successfully claimed.</strong>
+   <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+     <span aria-hidden="true">&times;</span>
+   </button>
+ </div>
+</div>
+ {% endif %}
+ 
+ {% if claim_attempt and not claimed_success %}
+  <div style="position: fixed; top: 0; right: 0; z-index: 99">
+ <div class="alert alert-success alert-dismissible fade show" role="alert">
+   <strong>Image claim failed!</strong>
+   <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+     <span aria-hidden="true">&times;</span>
+   </button>
+ </div>
+</div>
+ {% endif %}
+
+<div class="container">
+  <div class="row">
+    <div class="col text-center">
+{% if image.claimed_by == "Unclaimed" and user.is_authenticated %}
+<a href="{% url 'image_detail_claim' image.pk %}" class="btn btn-success mx-auto">Claim Image</a></p>
+{% else %}
+<h5>Image claimed by <b>{{ image.claimed_by }}</b>.</h5></p>
+    {% if user.is_staff %}
+    <a href="{% url 'image_detail_reset' image.pk %}" class="btn btn-success mx-auto">Reset Claim</a></p>
+    {% endif %}
+{% endif %}
+    </div>
+     </div>
 <div class="card mb-3 mx-auto">
- <h5 class="card-header bg-secondary mg-1 text-white">Crossmatch Outputs</h5>
+ <h5 class="card-header bg-secondary mg-1 text-white">Transient Search Outputs</h5>
   <div class="card-body">
-    <!-- <h5 class="card-title">{{ image.name}} details</h5> -->
     <p class="card-text">
-        <!-- <a href="{% url 'noaskapmatchtocatalog' image.pk %}" class="btn btn-primary">No ASKAP Match to Catalog ({{ image.transients_noaskapmatchtocatalog_total }})</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-        <a href="{% url 'nocatalogmatchtoaskap' image.pk %}" class="btn btn-primary mx-auto">No Catalog Match to ASKAP ({{ image.transients_nocatalogmatchtoaskap_total }})</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-        <a href="{% url 'largeratio' image.pk %}" class="btn btn-primary mx-auto">Large Flux Ratio ({{ image.transients_largeratio_total }})</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; -->
-        <a href="{% url 'transients' image.pk %}" class="btn btn-primary mx-auto">Transients Ratio Analysis ({{ image.transients_master_total }})</a></p>
+            <div class="col text-center">
+        <a href="{% url 'transients' image.pk 'candidates' %}" class="btn btn-success mx-auto">Transients Candidates Only ({{ image.transients_master_candidates_total }})</a>
+        <a href="{% url 'transients' image.pk 'flagged' %}" class="btn btn-danger mx-auto">Transients Flagged Candidates ({{ image.transients_master_flagged_total }})</a>
+        <a href="{% url 'transients' image.pk 'all' %}" class="btn btn-primary mx-auto">View all Crossmatch Output ({{ image.transients_master_total }})</a>
+    </div>
   </div>
 </div>
 
@@ -25,7 +61,10 @@
  <h5 class="card-header bg-info mb-3 text-white">Image Details</h5>
   <div class="card-body">
     <!-- <h5 class="card-title">{{ image.name}} details</h5> -->
-    <p class="card-text"><b>Right Ascension:</b> {{image.ra|deg_to_hms}} ({{image.ra}}d) &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 
+    <p class="card-text">
+        <b>Image Location:</b> {{image.url}} </p>
+        <b>Image Location (Non-convolved):</b> {{image.url_2}} </p>
+        <b>Right Ascension:</b> {{image.ra|deg_to_hms}} ({{image.ra}}d) &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 
         <b>Number of ASKAP Sources:</b> {{image.number_askap_sources}}&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 
         <b>RMS Estimate:</b> {{image.rms|jy_to_mjy|floatformat:3}} mJy<br>
     <b>Declination:</b> {{image.dec|deg_to_dms}} ({{image.dec}}d) &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 
@@ -69,11 +108,23 @@
     <img src="{% static processing_options.flux_ratios_from_centre %}" class="mx-auto d-block" width="90%" height="90%"/></p></a>
     <a href="{% static processing_options.askap_overlay %}" >
     <img src="{% static processing_options.askap_overlay %}" class="mx-auto d-block" width="90%" height="90%"/></a>
+    {% if image.matched_to == "SUMSS" or image.matched_to == "SUMSS & NVSS" %}
     <a href="{% static processing_options.sumss_overlay %}" >
     <img src="{% static processing_options.sumss_overlay %}" class="mx-auto d-block" width="90%" height="90%"/></a></p>
-    <a href="{% static processing_options.nvss_overlay %}" >
-    <img src="{% static processing_options.nvss_overlay %}" class="mx-auto d-block" width="90%" height="90%"/></a></p>
+    {% endif %}
+    {% if image.matched_to == "NVSS" or image.matched_to == "SUMSS & NVSS" %}
+        <a href="{% static processing_options.nvss_overlay %}" >
+        <img src="{% static processing_options.nvss_overlay %}" class="mx-auto d-block" width="90%" height="90%"/></a></p>
+    {% endif %}
   </div>
 </div>
+
+<script type="text/javascript">
+window.setTimeout(function () {
+    $(".alert-success").fadeTo(500, 0).slideUp(500, function () {
+        $(this).remove();
+    });
+}, 2000);
+</script>
 {% endblock %}
 

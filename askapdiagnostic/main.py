@@ -297,7 +297,7 @@ def main():
     parser.add_argument("--askap-islands-csv", type=str, help="Manually define a csv file containing the extracted islands to use for the ASKAP image.")
     parser.add_argument("--sumss-csv", type=str, help="Manually provide the SUMSS catalog csv.")
     parser.add_argument("--nvss-csv", type=str, help="Manually provide the NVSS catalog csv.")
-    parser.add_argument("--askap-csv-format", type=str, choices=["aegean"], help="Define which source finder provided the ASKAP catalog (currently only supports aegean).")
+    parser.add_argument("--askap-csv-format", type=str, choices=["aegean", "selavy"], help="Define which source finder provided the ASKAP catalog (currently only supports aegean).")
     parser.add_argument("--remove-extended", type=str2bool, 
         help="Remove perceived extended sources from the catalogues. Uses the following arguments 'askap-ext-thresh' and 'sumss-ext-thresh' to set the threshold.")
     parser.add_argument("--askap-ext-thresh", type=str2float, 
@@ -706,14 +706,19 @@ def main():
             if args.sumss_only:
                 max_sumss = sumss_catalog.df["_DEJ2000"].max() 
                 if max_sumss >-31.0:
-                    logger.warning("ASKAP image near the SUMSS border. Will check for ASKAP sources that are out of range.")
-                    askap_catalog.askap_remove_out_of_sumss_bounds(max_sumss)
-                    if args.convolve:
-                        non_conv_askap_cat.askap_remove_out_of_sumss_bounds(max_sumss)
+                    logger.warning("ASKAP image near the SUMSS border. Will check for ASKAP sources that are out of range when searching for transients.")
+                    clean_for_sumss=True
+                else:
+                    clean_for_sumss=False
+            else:
+                clean_for_sumss=False
+                max_sumss=0.0
         else:
             #Define empty ones for diagnostic plots
             sumss_catalog=[]
             theimg.total_sumss_sources = 0
+            clean_for_sumss=False
+            max_sumss = 0.0
         
         if nvss:
             if fetch_nvss:
@@ -783,7 +788,7 @@ def main():
             else:
                 theimg.plots["nvss_overlay"]="N/A"
             theimg.plots["askap_overlay"]=theimg.create_overlay_plot(askap_touse.df, overlay_cat_label="ASKAP Extracted Sources")
-        #
+
             
         #Add the respective image to the ASKAP catalog for later
         askap_touse.add_single_val_col("image", theimg.image)
@@ -889,8 +894,10 @@ def main():
             
         diag_crossmatch.calculate_ratio("master_scaled_askap_iflux", "master_catflux", "askap_{}_int_flux_ratio".format(tag), col2_scaling=1.e-3, dualmode=dualmode, basecat=basecat)
         diag_crossmatch.calculate_ratio("master_catflux", "master_scaled_askap_iflux", "{}_askap_int_flux_ratio".format(tag), col1_scaling=1.e-3, dualmode=dualmode, basecat=basecat)
-        diag_crossmatch.calculate_diff("askap_ra", "master_ra", "askap_{}_ra_offset".format(tag), dualmode=dualmode, basecat=basecat)
-        diag_crossmatch.calculate_diff("askap_dec", "master_dec", "askap_{}_dec_offset".format(tag), dualmode=dualmode, basecat=basecat)
+        diag_crossmatch.calculate_offsets(tag=tag)
+        # diag_crossmatch.calculate_diff("askap_ra", "master_ra", "askap_{}_ra_offset".format(tag), dualmode=dualmode, basecat=basecat)
+        
+        # diag_crossmatch.calculate_diff("askap_dec", "master_dec", "askap_{}_dec_offset".format(tag), dualmode=dualmode, basecat=basecat)
         
         #Write out crossmatch df to file
         diag_crossmatch.write_crossmatch(crossmatch_name)
@@ -909,21 +916,26 @@ def main():
         #Ratio view plot
         plot_titles={"source_counts":theimg.imagename+" source counts",
         }
-        if dualmode:
-            plot_titles["flux_ratio_image_view"]=theimg.imagename+" ASKAP / (SUMSS & NVSS) flux ratio"
-            plot_titles["position_offset"]=theimg.imagename+" SUMSS & NVSS Position Offset"
-            plot_titles["flux_ratios_from_centre"]=theimg.imagename+" ASKAP / SUMSS & NVSS int. flux ratio vs. Distance from Image Centre"
-            plot_titles["flux_ratios"]=theimg.imagename+" ASKAP / SUMSS & NVSS int. flux ratio vs. ASKAP Int Flux"
-        elif sumss:
-            plot_titles["flux_ratio_image_view"]=theimg.imagename+" ASKAP / SUMSS flux ratio"
-            plot_titles["position_offset"]=theimg.imagename+" SUMSS Position Offset"
-            plot_titles["flux_ratios_from_centre"]=theimg.imagename+" ASKAP / SUMSS int. flux ratio vs. Distance from Image Centre"
-            plot_titles["flux_ratios"]=theimg.imagename+" ASKAP / SUMSS int. flux ratio vs. ASKAP Int Flux"
-        else:
-            plot_titles["flux_ratio_image_view"]=theimg.imagename+" ASKAP / NVSS flux ratio"
-            plot_titles["position_offset"]=theimg.imagename+" NVSS Position Offset"
-            plot_titles["flux_ratios_from_centre"]=theimg.imagename+" ASKAP / NVSS int. flux ratio vs. Distance from Image Centre"
-            plot_titles["flux_ratios"]=theimg.imagename+" ASKAP / NVSS int. flux ratio vs. ASKAP Int Flux"
+        # if dualmode:
+        #     plot_titles["flux_ratio_image_view"]=theimg.imagename+" ASKAP / (SUMSS & NVSS) flux ratio"
+        #     plot_titles["position_offset"]=theimg.imagename+" SUMSS & NVSS Position Offset"
+        #     plot_titles["flux_ratios_from_centre"]=theimg.imagename+" ASKAP / SUMSS & NVSS int. flux ratio vs. Distance from Image Centre"
+        #     plot_titles["flux_ratios"]=theimg.imagename+" ASKAP / SUMSS & NVSS int. flux ratio vs. ASKAP Int Flux"
+        # elif sumss:
+        #     plot_titles["flux_ratio_image_view"]=theimg.imagename+" ASKAP / SUMSS flux ratio"
+        #     plot_titles["position_offset"]=theimg.imagename+" SUMSS Position Offset"
+        #     plot_titles["flux_ratios_from_centre"]=theimg.imagename+" ASKAP / SUMSS int. flux ratio vs. Distance from Image Centre"
+        #     plot_titles["flux_ratios"]=theimg.imagename+" ASKAP / SUMSS int. flux ratio vs. ASKAP Int Flux"
+        # else:
+        #     plot_titles["flux_ratio_image_view"]=theimg.imagename+" ASKAP / NVSS flux ratio"
+        #     plot_titles["position_offset"]=theimg.imagename+" NVSS Position Offset"
+        #     plot_titles["flux_ratios_from_centre"]=theimg.imagename+" ASKAP / NVSS int. flux ratio vs. Distance from Image Centre"
+        #     plot_titles["flux_ratios"]=theimg.imagename+" ASKAP / NVSS int. flux ratio vs. ASKAP Int Flux"
+            
+        plot_titles["flux_ratio_image_view"]=theimg.imagename
+        plot_titles["position_offset"]=theimg.imagename
+        plot_titles["flux_ratios_from_centre"]=theimg.imagename
+        plot_titles["flux_ratios"]=theimg.imagename
             
         theimg.plots["flux_ratio_image_view"]=plots.flux_ratio_image_view(plotting_df, title=plot_titles["flux_ratio_image_view"], base_filename=theimg.imagename.replace(".fits", ""), basecat=basecat,
             ratio_col="askap_{}_int_flux_ratio".format(tag))
@@ -986,8 +998,9 @@ def main():
             #Also need to calculate all the ratios
             preconv_crossmatch_transient.calculate_ratio("master_scaled_askap_iflux", "master_catflux", "askap_cat_int_flux_ratio".format(tag), col2_scaling=1.e-3, dualmode=dualmode, basecat=basecat)
             preconv_crossmatch_transient.calculate_ratio("master_catflux", "master_scaled_askap_iflux", "cat_askap_int_flux_ratio".format(tag), col1_scaling=1.e-3, dualmode=dualmode, basecat=basecat)
-            preconv_crossmatch_transient.calculate_diff("askap_ra", "master_ra", "askap_{}_ra_offset".format(tag), dualmode=dualmode, basecat=basecat)
-            preconv_crossmatch_transient.calculate_diff("askap_dec", "master_dec", "askap_{}_dec_offset".format(tag), dualmode=dualmode, basecat=basecat)
+            preconv_crossmatch_transient.calculate_offsets(tag=tag)
+            # preconv_crossmatch_transient.calculate_diff("askap_ra", "master_ra", "askap_{}_ra_offset".format(tag), dualmode=dualmode, basecat=basecat)
+            # preconv_crossmatch_transient.calculate_diff("askap_dec", "master_dec", "askap_{}_dec_offset".format(tag), dualmode=dualmode, basecat=basecat)
         else:
             preconv_crossmatch_transient = None
             preconv_crossmatch_transient = None    
@@ -996,8 +1009,9 @@ def main():
         logger.info("Calculating flux ratios and separations of crossmatches.")
         transient_crossmatch.calculate_ratio("master_scaled_askap_iflux", "master_catflux", "askap_cat_int_flux_ratio".format(tag), col2_scaling=1.e-3, dualmode=dualmode, basecat=basecat)
         transient_crossmatch.calculate_ratio("master_catflux", "master_scaled_askap_iflux", "cat_askap_int_flux_ratio".format(tag), col1_scaling=1.e-3, dualmode=dualmode, basecat=basecat)
-        transient_crossmatch.calculate_diff("askap_ra", "master_ra", "askap_{}_ra_offset".format(tag), dualmode=dualmode, basecat=basecat)
-        transient_crossmatch.calculate_diff("askap_dec", "master_dec", "askap_{}_dec_offset".format(tag), dualmode=dualmode, basecat=basecat)
+        transient_crossmatch.calculate_offsets(tag=tag)
+        # transient_crossmatch.calculate_diff("askap_ra", "master_ra", "askap_{}_ra_offset".format(tag), dualmode=dualmode, basecat=basecat)
+        # transient_crossmatch.calculate_diff("askap_dec", "master_dec", "askap_{}_dec_offset".format(tag), dualmode=dualmode, basecat=basecat)
         
         transient_crossmatch.get_good_matches(maxsep=args.transient_max_separation)
         transient_crossmatch.get_bad_matches(maxsep=args.transient_max_separation)
@@ -1016,7 +1030,7 @@ def main():
                 pre_conv_crossmatch=preconv_crossmatch_transient, image_beam_maj=theimg.bmaj*3600., image_beam_min=theimg.bmin*3600., image_beam_pa=theimg.bpa, dualmode=dualmode, sumss=sumss, nvss=nvss,
                 askap_img_wcs=theimg.wcs, askap_img_header=theimg.header, askap_img_data=theimg.data, preconv_askap_img_wcs=preconv_askap_img_wcs, preconv_askap_img_header=preconv_askap_img_header,
                 preconv_askap_img_data=preconv_askap_img_data,askap_cat_islands_df=askap_cat_islands_df, non_convolved_isl_cat_df=non_convolved_isl_cat_df,
-                askap_image=theimg, preconv_askap_image=original_theimg)
+                askap_image=theimg, preconv_askap_image=original_theimg, clean_for_sumss=clean_for_sumss, max_sumss=max_sumss)
             os.makedirs("transients/no-match")
             os.makedirs("transients/large-ratio")
             os.makedirs("transients/askap-notseen")
@@ -1063,6 +1077,8 @@ def main():
             # transients_largeratio_candidates=transient_crossmatch.transients_largeratio_candidates
             transients_goodmatches_total=transient_crossmatch.transients_goodmatches_total
             transients_master_total=transient_crossmatch.transients_master_total
+            transients_master_candidates_total = transient_crossmatch.transients_master_candidates_total
+            transients_master_flagged_total = transient_crossmatch.transients_master_flagged_total
         else:
             transients_noaskapmatchtocatalog_total=0
             transients_noaskapmatchtocatalog_candidates=0
@@ -1072,7 +1088,13 @@ def main():
             # transients_largeratio_candidates=0
             transients_goodmatches_total=0
             transients_master_total=0
+            transients_master_candidates_total = 0
+            transients_master_flagged_total = 0
         if args.db_inject:
+            if args.convolve:
+                image_2 = original_theimg.image
+            else:
+                image_2 = "N/A"
             image_id=theimg.inject_db(basecat=basecat, datestamp=launchtime, user=username, description=args.db_tag, db_engine=args.db_engine, db_username=args.db_username, db_host=args.db_host, 
                 db_port=args.db_port, db_database=args.db_database, transients_noaskapmatchtocatalog_total=transients_noaskapmatchtocatalog_total,
                 transients_noaskapmatchtocatalog_candidates=transients_noaskapmatchtocatalog_candidates,
@@ -1081,13 +1103,14 @@ def main():
                 # transients_largeratio_total=transients_largeratio_total,
                 # transients_largeratio_candidates=transients_largeratio_candidates,
                 transients_goodmatches_total=transients_goodmatches_total,
-                transients_master_total=transients_master_total)
+                transients_master_total=transients_master_total,transients_master_candidates_total=transients_master_candidates_total, transients_master_flagged_total=transients_master_flagged_total, image_2 = image_2)
             theimg.inject_processing_db(image_id, full_output, askap_cat_file, sumss_source_cat, nvss_source_cat, args.askap_ext_thresh, 
                 args.sumss_ext_thresh, args.nvss_ext_thresh, args.transient_max_separation, sf_sigmas, db_engine=args.db_engine, db_username=args.db_username, db_host=args.db_host, 
                 db_port=args.db_port, db_database=args.db_database)
             if args.transients:
                 transient_crossmatch.inject_transients_db(image_id, sumss, nvss, db_engine=args.db_engine, db_username=args.db_username, db_host=args.db_host, 
-                    db_port=args.db_port, db_database=args.db_database, max_separation=args.transient_max_separation, dualmode=dualmode, basecat=basecat)
+                    db_port=args.db_port, db_database=args.db_database, max_separation=args.transient_max_separation, dualmode=dualmode, basecat=basecat, askap_image = theimg.image,
+                    askap_image_2 = image_2)
         # if args.transients:
             # transient_crossmatch.inject_transients_db(image_id, db_engine=args.db_engine, db_username=args.db_username, db_host=args.db_host,
             # db_port=args.db_port, db_database=args.db_database, dualmode=dualmode, basecat=basecat)
