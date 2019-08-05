@@ -1,8 +1,6 @@
 # askap-image-diagnostic
 A module to perform diagnostic analysis on ASKAP images using the SUMSS catalogue. Creates a crossmatch catalogue for SUMSS -> ASKAP sources and also produces diagnostic plots. Also includes the ability to create postage stamps of each crossmatch and to search for transients from either catalogue.
 
-**Warning** A new version is being worked on that will make transient searching much more defined. While this version works in the current state it's recommended to wait for v0.8.
-
 ## Installation
 I recommend to install the module to a new python environment using, for example, conda or virtualenv.
 
@@ -19,7 +17,7 @@ Or you can clone the git repository and install using ```python setup.py install
 ### Creating a Database
 This script was intended to be run on the ada machine which has a installation of postgresql available. To create a database run:
 
-```createdb <db name>``` e.g. ```createdb RACS``` (if you get a denied message contact the system administrator)
+```createdb <db name>``` e.g. ```createdb racs``` (if you get a denied message contact the system administrator)
 
 This will create an empty database with the chosen name. Make sure to note down the database settings (port, user, name) for use with the pipeline options. If the pipeline is run without first initilising the tables then the tables will be newly created. The easiest way to initilise the tables is by setting up the [website](#Installation of the Website).
 
@@ -36,6 +34,8 @@ Now run the migrations as so, this will essentially create the tables in the dat
 python manage.py makemigrations
 python manage.py migrate
 ```
+
+**WARNING**: There is a bug in Django 1.11.X which seems to cause the migration on a fresh database to fail. The workaround I've found is to downgrade to Django 1.7.X, perform the migration, and then upgrade back to 1.11.X.
 
 Now make a `media` direcoty in the `static` directory:
 
@@ -63,7 +63,8 @@ A range of options exist to influence processing:
 ```
 usage: processASKAPimage.py [-h] [-c FILE] [--output-tag OUTPUT_TAG]
                             [--log-level {WARNING,INFO,DEBUG}] [--nice NICE]
-                            [--clobber CLOBBER] [--weight-crop WEIGHT_CROP]
+                            [--clobber CLOBBER] [--sumss-only SUMSS_ONLY]
+                            [--weight-crop WEIGHT_CROP]
                             [--weight-crop-value WEIGHT_CROP_VALUE]
                             [--weight-crop-image WEIGHT_CROP_IMAGE]
                             [--convolve CONVOLVE]
@@ -74,7 +75,7 @@ usage: processASKAPimage.py [-h] [-c FILE] [--output-tag OUTPUT_TAG]
                             [--frequency FREQUENCY] [--askap-csv ASKAP_CSV]
                             [--askap-islands-csv ASKAP_ISLANDS_CSV]
                             [--sumss-csv SUMSS_CSV] [--nvss-csv NVSS_CSV]
-                            [--askap-csv-format {aegean}]
+                            [--askap-csv-format {aegean,selavy}]
                             [--remove-extended REMOVE_EXTENDED]
                             [--askap-ext-thresh ASKAP_EXT_THRESH]
                             [--sumss-ext-thresh SUMSS_EXT_THRESH]
@@ -94,7 +95,7 @@ usage: processASKAPimage.py [-h] [-c FILE] [--output-tag OUTPUT_TAG]
                             [--transients TRANSIENTS]
                             [--transients-askap-snr-thresh TRANSIENTS_ASKAP_SNR_THRESH]
                             [--transients-large-flux-ratio-thresh TRANSIENTS_LARGE_FLUX_RATIO_THRESH]
-                            [--db-engine DB_ENGINE]
+                            [--db-inject DB_INJECT] [--db-engine DB_ENGINE]
                             [--db-username DB_USERNAME] [--db-host DB_HOST]
                             [--db-port DB_PORT] [--db-database DB_DATABASE]
                             [--db-tag DB_TAG]
@@ -114,6 +115,8 @@ optional arguments:
                         Set the logging level. (default: INFO)
   --nice NICE           Set the 'nice' level of processes. (default: 10)
   --clobber CLOBBER     Overwrite output if already exists. (default: False)
+  --sumss-only SUMSS_ONLY
+                        Only use SUMSS in the image analysis. (default: False)
   --weight-crop WEIGHT_CROP
                         Crop image using the weights image. (default: False)
   --weight-crop-value WEIGHT_CROP_VALUE
@@ -151,7 +154,7 @@ optional arguments:
                         Manually provide the SUMSS catalog csv. (default:
                         None)
   --nvss-csv NVSS_CSV   Manually provide the NVSS catalog csv. (default: None)
-  --askap-csv-format {aegean}
+  --askap-csv-format {aegean,selavy}
                         Define which source finder provided the ASKAP catalog
                         (currently only supports aegean). (default: aegean)
   --remove-extended REMOVE_EXTENDED
@@ -228,6 +231,8 @@ optional arguments:
                         Define the threshold for which sources are considered
                         to have a large flux ratio. Median value +/- threshold
                         x std. (default: 3.0)
+  --db-inject DB_INJECT
+                        Turn databse injection on or off. (default: True)
   --db-engine DB_ENGINE
                         Define the database engine. (default: postgresql)
   --db-username DB_USERNAME
@@ -242,7 +247,6 @@ optional arguments:
   --website-media-dir WEBSITE_MEDIA_DIR
                         Copy the image directory directly to the static media
                         directory of the website. (default: none)
-
 ```
 
 These options can be entered using a ConfigParser configuration file:
@@ -255,6 +259,7 @@ nice=10
 clobber=True
 
 [ANALYSIS]
+sumss_only=true
 frequency=864e6
 weight_crop=True
 weight_crop_value=0.04
@@ -296,6 +301,7 @@ transients_askap_sumss_snr_thresh=5.0
 transients_large_flux_ratio_thresh=2.0
 
 [DATABASE]
+db_inject=true
 db_engine=postgresql
 db_username=user
 db_host=localhost
@@ -321,12 +327,13 @@ These plots are produced by only using sources that have a crossmatch distance <
 ## Transient Searching
 The pipeline works by matching each SUMSS source in the image with the nearest ASKAP source extracted.
 
-Good matches are deemed those that are <= the max separation defined by the user. Above this is considered to have no match. Using this approach the results are categorised into four categories:
+Good matches are deemed those that are <= the max separation defined by the user. Above this is considered to have no match. This provides 3 different sub-types of cross matches:
 
 * **No ASKAP Match to SUMSS** - This defines a SUMSS source that has no ASKAP source matched to it within the max separation limit.
 * **No SUMSS Match to ASKAP** - This defines an ASKAP source that has not been matched to a SUMSS source within the max separation limit **AND** has an integrated flux density such that it would be at least a 5 sigma detection in the SUMSS image (this does not yet account for spectral index).
-* **Large Ratio** - These are sources that are good matches but have a integrated ASKAP/SUMSS flux ratio that is >/< the median flux ratio +/- standard deviation.
 * **Good Matches** - The sources that are defined as being a good match (including the large ratio sources).
+
+From here, force extractions are performed using Aegean where a source has not been found. This enables the flux ratio to be computed for each crossmatch source - no matter the sub type. Transient candidates are those sources which have a flux ratio >= 2.0.
 
 ## Output
 In the top level directory will be:
