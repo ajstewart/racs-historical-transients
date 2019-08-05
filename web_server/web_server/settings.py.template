@@ -155,7 +155,7 @@ HOTKEYS = [
             {'keys': 'i',  # go home
             'link': '?assign=true&usertag=investigate&userreason=investigate&hotkey=true'},
             {'keys': 'x',  # go home
-            'link': 'assign=true&?usertag=help&userreason=not%20sure&hotkey=true'},
+            'link': '?assign=true&usertag=help&userreason=not%20sure&hotkey=true'},
             {'keys': 'm',  # go home
             'link': '?assign=true&usertag=ignore&userreason=is%20match&hotkey=true'},
             {'keys': 'n',  # go home
@@ -165,7 +165,7 @@ HOTKEYS = [
             {'keys': 'b',  # go home
             'link': '?assign=true&usertag=ignore&userreason=bright%20source&hotkey=true'},
             {'keys': 'd',  # go home
-            'link': '?assign=true&usertag=ignore&userreason=double&hotkey=true'},
+            'link': '?assign=true&usertag=ignore&userreason=multiple&hotkey=true'},
             {'keys': 'f',  # go home
             'link': '?assign=true&usertag=problem&userreason=edge%20of%20field&hotkey=true'},
             {'keys': 'c',  # go home
