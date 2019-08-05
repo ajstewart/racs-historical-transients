@@ -25,10 +25,10 @@ def flux_ratio_image_view(df, title="Flux ratio plot", save=True, base_filename=
     #check for 360 deg boundary
     ra_values=df["askap_ra"].values[mask]
     # print ra_values
-    if np.min(ra_values) < 1 and np.max(ra_values) > 359:
+    if np.min(ra_values) < 2 and np.max(ra_values) > 358:
         new_ra_values = []
         for ra in ra_values:
-            if ra >= 0.0:
+            if ra >= 0.0 and ra < 180.:
                 new_ra_values.append(ra + 360.)
             else:
                 new_ra_values.append(ra)
@@ -47,6 +47,16 @@ def flux_ratio_image_view(df, title="Flux ratio plot", save=True, base_filename=
     plt.gca().invert_xaxis()
     
     plt.title(title)
+    
+    plt.draw()
+    
+    labels = [int(item.get_text()) for item in ax.get_xticklabels()]
+    # logger.info("Labels: {}".format(labels))
+    
+    labels = [str(item-360) if item >= 360 else str(item) for item in labels]
+    
+    ax.set_xticklabels(labels)
+    
     filename="{}_flux_ratio_image_view.png".format(base_filename)
     
     if save:

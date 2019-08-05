@@ -4,13 +4,16 @@
 {% load units %}
 {% load render_table from django_tables2 %}
 {% load querystring from django_tables2 %}
+{% load comments %}
 
 {% block morehead %}
+    
     <!-- required for error bars -->
     <script src="{{ STATIC_URL }}highcharts/highcharts-more.js"></script>
 
     <!-- include Aladin Lite CSS  -->
     <link rel="stylesheet" href="http://aladin.u-strasbg.fr/AladinLite/api/v2/latest/aladin.min.css" />
+    
 {% endblock %}
 
 {% block breadcrumb %}
@@ -30,6 +33,11 @@
        <div class="col text-left">
            <a href="{{ simbad_query }}" class="btn btn-info mx-auto" target="_blank">SIMBAD</a>
            <a href="{{ ned_query }}" class="btn btn-info mx-auto" target="_blank">NED</a>
+           {% if request.session.hotkeys != 'true' %}
+                  <a href="{% url 'crossmatch_detail' pk=image.pk querytype=type cross_id=crossmatch_source.id %}?hotkeys_on=true" class="btn btn-dark mx-auto">Turn Hotkeys ON</a>
+                  {% else %}
+                  <a href="{% url 'crossmatch_detail' pk=image.pk querytype=type cross_id=crossmatch_source.id %}?hotkeys_off=true" class="btn btn-dark mx-auto">Turn Hotkeys OFF</a>
+                  {% endif %}
           </div>
      <div class="col text-center">
          {% if crossmatch_source.id > min_id %}
@@ -44,24 +52,24 @@
            {% endif %}
      </div>
      <div class="col text-right">
-     {{ crossmatch_source.id|subtract:min_id|add:1 }} / {{ total }}
+     {% if crossmatch_source.id|subtract:min_id|add:1 > image.transients_master_candidates_total %} <b>Beyond candidate cutoff &nbsp;&nbsp;&nbsp;&nbsp;</b> {% endif %}{{ crossmatch_source.id|subtract:min_id|add:1 }} / {{ total }}
  </div>
    </div>
  </div>
     <div class="row">
 &nbsp;
     </div>
- {% if not user.is_authenticated %}
+ {% if not user.is_authenticated or user.get_username != image.claimed_by and not user.is_staff %}
  <div style="position: fixed; top: 0; left: 38%; z-index: 99">
  <div class="alert alert-danger alert-dismissible fade show" role="alert">
-   <strong>You must be logged in to assign a user tag!</strong>
+   <strong>You must be logged in and/or have claimed the image to assign a user tag!</strong>
    <button type="button" class="close" data-dismiss="alert" aria-label="Close">
      <span aria-hidden="true">&times;</span>
    </button>
  </div>
  </div>
  {% endif %}
- {% if crossmatch_source.checkedby != "N/A" and saved == False and updated == False %}
+ {% if crossmatch_source.checkedby != "N/A" %}
  <div class="alert alert-warning alert-dismissible fade show" role="alert">
    <strong>This source is already marked as checked!</strong> Checked by <strong>{{ crossmatch_source.checkedby }}</strong>, tag: <strong>{{ crossmatch_source.usertag }}</strong>, reason: <strong>{{ crossmatch_source.userreason }}</strong>.
    <button type="button" class="close" data-dismiss="alert" aria-label="Close">
@@ -72,7 +80,7 @@
  {% if saved %}
   <div style="position: fixed; top: 0; right: 0; z-index: 99">
  <div class="alert alert-success alert-dismissible fade show" role="alert">
-   <strong>User tag has been saved.</strong>
+   <strong>Source {{ crossmatch_source.id }} saved as {{ crossmatch_source.usertag }}: {{ crossmatch_source.userreason }}.</strong>
    <button type="button" class="close" data-dismiss="alert" aria-label="Close">
      <span aria-hidden="true">&times;</span>
    </button>
@@ -83,13 +91,33 @@
  {% if updated %}
  <div style="position: fixed; top: 0; right: 0; z-index: 99">
  <div class="alert alert-success alert-dismissible fade show" role="alert">
-   <strong>Your user tag has been updated.</strong>
+   <strong>Source {{ crossmatch_source.id }} updated to {{ crossmatch_source.usertag }}: {{ crossmatch_source.userreason }}.</strong>
    <button type="button" class="close" data-dismiss="alert" aria-label="Close">
      <span aria-hidden="true">&times;</span>
    </button>
  </div>
  </div>
  {% endif %}
+ 
+  {% if hotkey_assign %}
+   <div style="position: fixed; top: 0; right: 0; z-index: 99">
+     {% if hotkey_updated %}
+  <div class="alert alert-success alert-dismissible fade show" role="alert">
+    <strong>Previous source {{ hotkey_prev_id }} updated to {{ hotkey_usertag }}: {{ hotkey_userreason }}.</strong>
+    <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+      <span aria-hidden="true">&times;</span>
+    </button>
+  </div>
+  {% else %}
+  <div class="alert alert-success alert-dismissible fade show" role="alert">
+    <strong>Previous source {{ hotkey_prev_id }} saved as {{ hotkey_usertag }}: {{ hotkey_userreason }}.</strong>
+    <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+      <span aria-hidden="true">&times;</span>
+    </button>
+  </div>
+  {% endif %}
+ </div>
+  {% endif %}
  
  {% if saved == False and updated == False and conflict == True %}
   <div style="position: fixed; top: 0; right: 0; z-index: 99">
@@ -106,43 +134,41 @@
   <!-- <h5 class="card-header bg-info mb-1 text-white">User Tag Assign Options</h5> -->
    <!-- <div class="card-body"> -->
        <div class="container">
-       <h5><center>Ratio: <b> {{ crossmatch_source.ratio|floatformat:-2 }} </b> / Pipeline Tag: <b>{{ crossmatch_source.pipelinetag }}</b>. <small>Set a user tag using the buttons below.</small></center></h5><p></p>
+       <h5><center>ID: <b>{{ crossmatch_source.id }}</b> / Ratio: <b> {{ crossmatch_source.ratio|floatformat:-2 }} </b> / Pipeline Tag: <b>{{ crossmatch_source.pipelinetag }}</b>. <small>Set a user tag using the buttons below.  </small></center></h5><p></p>
        <div class="col text-center">
-        {% if user.is_authenticated %}
+        {% if user.is_authenticated and user.get_username == image.claimed_by or user.is_staff %}
        Safe to Ignore: 
-       <a href="{% url 'crossmatch_commit' pk=image.pk querytype=type cross_id=crossmatch_source.id %}?usertag=ignore&userreason=is%20match" class="btn btn-success mx-auto btn-sm">There is a match</a>
-       <a href="{% url 'crossmatch_commit' pk=image.pk querytype=type cross_id=crossmatch_source.id %}?usertag=ignore&userreason=non-detection" class="btn btn-success mx-auto btn-sm">Non-detection</a>
-       <a href="{% url 'crossmatch_commit' pk=image.pk querytype=type cross_id=crossmatch_source.id %}?usertag=ignore&userreason=extended" class="btn btn-success mx-auto btn-sm">Extended/Diffuse</a>
-       <a href="{% url 'crossmatch_commit' pk=image.pk querytype=type cross_id=crossmatch_source.id %}?usertag=ignore&userreason=bright%20source" class="btn btn-success mx-auto btn-sm">Close to bright source</a>
-       <a href="{% url 'crossmatch_commit' pk=image.pk querytype=type cross_id=crossmatch_source.id %}?usertag=ignore&userreason=double" class="btn btn-success mx-auto btn-sm">Double source</a><p></p>
-Report Technical Issue: <a href="{% url 'crossmatch_commit' pk=image.pk querytype=type cross_id=crossmatch_source.id %}?usertag=problem&userreason=edge%20of%20field" class="btn btn-secondary mx-auto btn-sm">Edge of Field</a>
-       <a href="{% url 'crossmatch_commit' pk=image.pk querytype=type cross_id=crossmatch_source.id %}?usertag=problem&userreason=out%20of%20range" class="btn btn-secondary mx-auto btn-sm">Out of Range</a>
-       <a href="{% url 'crossmatch_commit' pk=image.pk querytype=type cross_id=crossmatch_source.id %}?usertag=problem&userreason=catalogue%20artefact" class="btn btn-secondary mx-auto btn-sm">Catalogue artefact</a>
-       <a href="{% url 'crossmatch_commit' pk=image.pk querytype=type cross_id=crossmatch_source.id %}?usertag=problem&userreason=askap%20artefact" class="btn btn-secondary mx-auto btn-sm">ASKAP artefact</a>
-	          <a href="{% url 'crossmatch_commit' pk=image.pk querytype=type cross_id=crossmatch_source.id %}?usertag=problem&userreason=src.%20ext.%20error" class="btn btn-secondary mx-auto btn-sm">Source extraction errors</a>
-         <a href="{% url 'crossmatch_commit' pk=image.pk querytype=type cross_id=crossmatch_source.id %}?usertag=problem&userreason=too%20noisy" class="btn btn-secondary mx-auto btn-sm">Too noisy</a><p></p>   
-Investigate: <a href="{% url 'crossmatch_commit' pk=image.pk querytype=type cross_id=crossmatch_source.id %}?usertag=investigate&userreason=investigate" class="btn btn-danger mx-auto btn-sm">Investigate</a>
-       <!-- <a href="{% url 'crossmatch_commit' pk=image.pk querytype=type cross_id=crossmatch_source.id %}?usertag=investigate&userreason=catalogue%20non-detection" class="btn btn-danger mx-auto btn-sm">Catalogue Non-detection</a>
-       <a href="{% url 'crossmatch_commit' pk=image.pk querytype=type cross_id=crossmatch_source.id %}?usertag=investigate&userreason=askap%20non-detection" class="btn btn-danger mx-auto btn-sm">ASKAP Non-detection</a> -->
-       <a href="{% url 'crossmatch_commit' pk=image.pk querytype=type cross_id=crossmatch_source.id %}?usertag=help&userreason=not%20sure" class="btn btn-warning mx-auto btn-sm">Not sure</a>
+       <a href="{% url 'crossmatch_detail' pk=image.pk querytype=type cross_id=crossmatch_source.id %}?assign=true&usertag=ignore&userreason=is%20match&hotkey=false" class="btn btn-success mx-auto btn-sm">There is a match (m)</a>
+       <a href="{% url 'crossmatch_detail' pk=image.pk querytype=type cross_id=crossmatch_source.id %}?assign=true&usertag=ignore&userreason=non-detection&hotkey=false" class="btn btn-success mx-auto btn-sm">Non-detection (n)</a>
+       <a href="{% url 'crossmatch_detail' pk=image.pk querytype=type cross_id=crossmatch_source.id %}?assign=true&usertag=ignore&userreason=extended&hotkey=false" class="btn btn-success mx-auto btn-sm">Extended/Diffuse (e)</a>
+       <a href="{% url 'crossmatch_detail' pk=image.pk querytype=type cross_id=crossmatch_source.id %}?assign=true&usertag=ignore&userreason=bright%20source&hotkey=false" class="btn btn-success mx-auto btn-sm">Close to bright source (b)</a>
+       <a href="{% url 'crossmatch_detail' pk=image.pk querytype=type cross_id=crossmatch_source.id %}?assign=true&usertag=ignore&userreason=double&hotkey=false" class="btn btn-success mx-auto btn-sm">Double source (d)</a><p></p>
+Technical Issue: <a href="{% url 'crossmatch_detail' pk=image.pk querytype=type cross_id=crossmatch_source.id %}?assign=true&usertag=problem&userreason=edge%20of%20field&hotkey=false" class="btn btn-secondary mx-auto btn-sm">Field Edge (f)</a>
+       <a href="{% url 'crossmatch_detail' pk=image.pk querytype=type cross_id=crossmatch_source.id %}?assign=true&usertag=problem&userreason=convolved%20flux%20error&hotkey=false" class="btn btn-secondary mx-auto btn-sm">Convolved Flux Error (c)</a>
+       <a href="{% url 'crossmatch_detail' pk=image.pk querytype=type cross_id=crossmatch_source.id %}?assign=true&usertag=problem&userreason=catalogue%20artefact&hotkey=false" class="btn btn-secondary mx-auto btn-sm">Catalogue artefact (a)</a>
+       <a href="{% url 'crossmatch_detail' pk=image.pk querytype=type cross_id=crossmatch_source.id %}?assign=true&usertag=problem&userreason=askap%20artefact&hotkey=false" class="btn btn-secondary mx-auto btn-sm">ASKAP artefact (q)</a>
+	          <a href="{% url 'crossmatch_detail' pk=image.pk querytype=type cross_id=crossmatch_source.id %}?assign=true&usertag=problem&userreason=src.%20ext.%20error&hotkey=false" class="btn btn-secondary mx-auto btn-sm">Extraction error (s)</a>
+         <a href="{% url 'crossmatch_detail' pk=image.pk querytype=type cross_id=crossmatch_source.id %}?assign=true&usertag=problem&userreason=too%20noisy&hotkey=false" class="btn btn-secondary mx-auto btn-sm">Too noisy (t)</a><p></p>   
+Investigate: <a href="{% url 'crossmatch_detail' pk=image.pk querytype=type cross_id=crossmatch_source.id %}?assign=true&usertag=investigate&userreason=investigate&hotkey=false" class="btn btn-danger mx-auto btn-sm">Investigate (i)</a>
+       <a href="{% url 'crossmatch_detail' pk=image.pk querytype=type cross_id=crossmatch_source.id %}?assign=true&usertag=help&userreason=not%20sure&hotkey=false" class="btn btn-warning mx-auto btn-sm">Not sure (x)</a>
        
        {% else %}
        Safe to Ignore:
-       <button type="button" class="btn btn-success mx-auto btn-sm" disabled>There is a match</button>
-       <button type="button" class="btn btn-success mx-auto btn-sm" disabled>Non-detection</button>
-       <button type="button" class="btn btn-success mx-auto btn-sm" disabled>Extended/Diffuse</button>
-       <button type="button" class="btn btn-success mx-auto btn-sm" disabled>Close to bright source</button>
-       <button type="button" class="btn btn-success mx-auto btn-sm" disabled>Double source</button><p></p>
-       Report Technical Issue:
-       <button type="button" class="btn btn-secondary mx-auto btn-sm" disabled>Edge of Field</button>
-       <button type="button" class="btn btn-secondary mx-auto btn-sm" disabled>Out of Range</button>
-       <button type="button" class="btn btn-secondary mx-auto btn-sm" disabled>Catalogue artefact</button>
-       <button type="button" class="btn btn-secondary mx-auto btn-sm" disabled>ASKAP artefact</button>
-       <button type="button" class="btn btn-secondary mx-auto btn-sm" disabled>Source extraction errors</button>
-       <button type="button" class="btn btn-secondary mx-auto btn-sm" disabled>Too noisy</button><p></p>
+       <button type="button" class="btn btn-success mx-auto btn-sm" disabled>There is a match (m)</button>
+       <button type="button" class="btn btn-success mx-auto btn-sm" disabled>Non-detection (n)</button>
+       <button type="button" class="btn btn-success mx-auto btn-sm" disabled>Extended/Diffuse (e)</button>
+       <button type="button" class="btn btn-success mx-auto btn-sm" disabled>Close to bright source (b)</button>
+       <button type="button" class="btn btn-success mx-auto btn-sm" disabled>Double source (d)</button><p></p>
+       Technical Issue:
+       <button type="button" class="btn btn-secondary mx-auto btn-sm" disabled>Field Edge (f)</button>
+       <button type="button" class="btn btn-secondary mx-auto btn-sm" disabled>Convolved Flux Error (c)</button>
+       <button type="button" class="btn btn-secondary mx-auto btn-sm" disabled>Catalogue artefact (a)</button>
+       <button type="button" class="btn btn-secondary mx-auto btn-sm" disabled>ASKAP artefact (q)</button>
+       <button type="button" class="btn btn-secondary mx-auto btn-sm" disabled>Extraction error (s)</button>
+       <button type="button" class="btn btn-secondary mx-auto btn-sm" disabled>Too noisy (t)</button><p></p>
        Investigate:
-         <button type="button" class="btn btn-danger mx-auto btn-sm" disabled>Investigate</button>
-      <button type="button" class="btn btn-warning mx-auto btn-sm" disabled>Not sure</button>
+         <button type="button" class="btn btn-danger mx-auto btn-sm" disabled>Investigate (i)</button>
+      <button type="button" class="btn btn-warning mx-auto btn-sm" disabled>Not sure (x)</button>
        {% endif %}
    </div>
    </div>
@@ -169,7 +195,17 @@ Investigate: <a href="{% url 'crossmatch_commit' pk=image.pk querytype=type cros
      <!-- <h5 class="card-title">{{ image.name}} details</h5> -->
      <a href="{% static crossmatch_source.ploturl %}" >
      <img src="{% static crossmatch_source.ploturl %}" class="mx-auto d-block" width="95%" height="95%"/></a>
+   <div class="row">
+                  <div class="col text-left">
+                      <b>Galactic Coordinates:</b> {{ crossmatch_source.master_name|deg_to_gal }}</p>
+          </div>
+          <div class="col text-center">
+          </div>
+       <div class="col text-right">
+           <a href="{% url 'crossmatch_detail' pk=image.pk querytype=type cross_id=crossmatch_source.id %}#comments">Go to comments.</a>
    </div>
+     </div>
+        </div>
  </div>
 
 <p></p>
@@ -219,7 +255,7 @@ Investigate: <a href="{% url 'crossmatch_commit' pk=image.pk querytype=type cros
 <script type="text/javascript" src="//aladin.u-strasbg.fr/AladinLite/api/v2/latest/aladin.min.js" charset="utf-8"></script>
 <script type="text/javascript">
     var aladin = A.aladin('#aladin-lite-div');
-    aladin.setZoom(0.18);
+    aladin.setZoom(0.36);
     aladin.gotoPosition({{ crossmatch_source.ra }}, {{ crossmatch_source.dec }});
     var sumss = aladin.createImageSurvey('SUMSS', 'SUMSS', 'http://alasky.u-strasbg.fr/SUMSS', 'equatorial', 6, {imgFormat: 'png'});
     var nvss = aladin.createImageSurvey('NVSS', 'NVSS', 'http://alasky.u-strasbg.fr/NVSS/intensity/', 'equatorial', 5, {imgFormat: 'jpg'});
@@ -233,11 +269,11 @@ Investigate: <a href="{% url 'crossmatch_commit' pk=image.pk querytype=type cros
         <script type="text/javascript" src="//aladin.u-strasbg.fr/AladinLite/api/v2/latest/aladin.min.js" charset="utf-8"></script>
         <script type="text/javascript">
             var aladin2 = A.aladin('#aladin-lite-div-2');
-            aladin2.setZoom(0.18);
+            aladin2.setZoom(0.36);
             aladin2.gotoPosition({{ crossmatch_source.ra }}, {{ crossmatch_source.dec }});
-            var racs = aladin2.createImageSurvey('RACS', 'RACS', "{% static 'RACS_test' %}", 'equatorial', 8, {imgFormat: 'png'});
+            var racs = aladin2.createImageSurvey('RACS', 'RACS', "{% static 'racs_hips' %}", 'equatorial', 8, {imgFormat: 'png'});
             var gleam = aladin2.createImageSurvey('GLEAM_colored', 'GLEAM_colored', 'http://ict.icrar.org/store/gleam/gleam_color/', 'equatorial', 5, {imgFormat: 'png'});
-            var sumss = aladin2.createImageSurvey('SUMSS', 'SUMSS', 'http://alasky.u-strasbg.fr/SUMSS', 'equatorial', 6, {imgFormat: 'png'});
+            var sumss = aladin2.createImageSurvey('SUMSS', 'SUMSS', 'http://alasky.u-strasbg.fr/SUMSS', 'equatorial', 6, {imgFormat: 'fits'});
             var nvss = aladin2.createImageSurvey('NVSS', 'NVSS', 'http://alasky.u-strasbg.fr/NVSS/intensity/', 'equatorial', 5, {imgFormat: 'jpg'});
             var tgss = aladin2.createImageSurvey('TGSS', 'TGSS', 'http://tgssadr.strw.leidenuniv.nl/hips', 'equatorial', 7, {imgFormat: 'png'});
             var skymapU = aladin2.createImageSurvey('skymapper-U', 'skymapper-U', "http://alasky.u-strasbg.fr/Skymapper/skymapper_U", 'equatorial', 9, {imgFormat: 'png'});
@@ -278,10 +314,33 @@ Investigate: <a href="{% url 'crossmatch_commit' pk=image.pk querytype=type cros
 </div>
 <script type="text/javascript">
 window.setTimeout(function () {
-    $(".alert-success").fadeTo(500, 0).slideUp(500, function () {
+    $(".alert-success").fadeTo(500, 0).slideUp(600, function () {
+        $(this).remove();
+    });
+    $(".alert-danger").fadeTo(500, 0).slideUp(600, function () {
         $(this).remove();
     });
 }, 2000);
 </script>
+<h3>Comments</h3>
+<a name="comments"></a>
+
+{% render_comment_list for crossmatch_source %}
+{% if user.is_authenticated %}
+    {% get_comment_form for crossmatch_source as form %}
+    <form action="{% comment_form_target %}" method="POST">
+    {% csrf_token %}
+    {{ form.comment }}
+    {{ form.content_type }}
+    {{ form.object_pk }}
+    {{ form.timestamp }}
+    {{ form.security_hash }}
+    <input type="hidden" name="next" value="{% url 'crossmatch_detail' pk=image.pk querytype=type cross_id=crossmatch_source.id %}" /></p>
+    <input type="submit" value="Add comment" id="id_submit" />
+    </form>
+{% else %}
+    <p>Please <a href="{% url 'login' %}">log in</a> to leave a comment.</p>
+{% endif %}
+
 
 {% endblock %}

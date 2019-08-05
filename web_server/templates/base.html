@@ -1,8 +1,16 @@
-{% load static %}<!DOCTYPE html>
+{% load static %}
+{% if request.session.hotkeys == 'true' %}
+{% load hotkeys %}
+{% endif %}
+
+<!DOCTYPE html>
 <html>
   <head>
     <meta charset="utf-8">
     <title>{% block title %}ASKAP RACS VAST Analysis{% endblock %}</title>
+    {% if request.session.hotkeys == 'true' %}
+        {% setup_hotkeys %}
+    {% endif %}
     <link href="https://fonts.googleapis.com/css?family=Peralta" rel="stylesheet">
     <link rel="stylesheet" href="{% static 'css/bootstrap.min.css' %}">
     <link rel="stylesheet" href="{% static 'css/app.css' %}">
@@ -19,6 +27,9 @@
       <span class="navbar-toggler-icon"></span>
     </button>
     <div class="collapse navbar-collapse" id="mainMenu">
+    {% if request.session.hotkeys == 'true' %}
+    <a href="{% url 'home' %}?hotkeys_off=true" class="btn btn-danger mx-auto">WARNING! Hotkeys are on. Click here to turn off.</a>
+    {% endif %}
       {% if user.is_authenticated %}
       <ul class="navbar-nav ml-auto">
       {% if user.is_staff %}

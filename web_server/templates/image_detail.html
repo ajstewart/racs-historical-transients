@@ -1,6 +1,7 @@
 {% extends 'base.html' %}
 {% load static %}
 {% load units %}
+{% load comments %}
 
 {% block breadcrumb %}
  <li class="breadcrumb-item"><a href="{% url 'home' %}">Images</a></li>
@@ -13,7 +14,7 @@
  {% if claim_attempt and claimed_success %}
   <div style="position: fixed; top: 0; right: 0; z-index: 99">
  <div class="alert alert-success alert-dismissible fade show" role="alert">
-   <strong>Image successfully claimed.</strong>
+   <strong>Image successfully claimed!</strong>
    <button type="button" class="close" data-dismiss="alert" aria-label="Close">
      <span aria-hidden="true">&times;</span>
    </button>
@@ -23,7 +24,7 @@
  
  {% if claim_attempt and not claimed_success %}
   <div style="position: fixed; top: 0; right: 0; z-index: 99">
- <div class="alert alert-success alert-dismissible fade show" role="alert">
+ <div class="alert alert-danger alert-dismissible fade show" role="alert">
    <strong>Image claim failed!</strong>
    <button type="button" class="close" data-dismiss="alert" aria-label="Close">
      <span aria-hidden="true">&times;</span>
@@ -39,8 +40,8 @@
 <a href="{% url 'image_detail_claim' image.pk %}" class="btn btn-success mx-auto">Claim Image</a></p>
 {% else %}
 <h5>Image claimed by <b>{{ image.claimed_by }}</b>.</h5></p>
-    {% if user.is_staff %}
-    <a href="{% url 'image_detail_reset' image.pk %}" class="btn btn-success mx-auto">Reset Claim</a></p>
+    {% if user.is_staff or user.get_username == image.claimed_by %}
+    <a href="{% url 'image_detail_reset' image.pk %}" class="btn btn-success mx-auto">Unclaim Image</a></p>
     {% endif %}
 {% endif %}
     </div>
@@ -70,7 +71,7 @@
     <b>Declination:</b> {{image.dec|deg_to_dms}} ({{image.dec}}d) &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 
         <b>Number of SUMSS Sources:</b> {{image.number_sumss_sources}}&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 
 		<b>Number of NVSS Sources:</b> {{image.number_nvss_sources}}<br></p>
-        <b>Catalogues Matched to:</b> {{ image.matched_to }}
+        <b>Catalogues Matched to:</b> {{ image.matched_to }}&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="{% url 'image_detail' pk=image.pk %}#comments">Go to comments.</a>
   </div>
 </div>
 
@@ -119,9 +120,32 @@
   </div>
 </div>
 
+
+<h3>Comments</h3>
+<a name="comments"></a>
+{% render_comment_list for image %}
+{% if user.is_authenticated %}
+    {% get_comment_form for image as form %}
+    <form action="{% comment_form_target %}" method="POST">
+    {% csrf_token %}
+    {{ form.comment }}
+    {{ form.content_type }}
+    {{ form.object_pk }}
+    {{ form.timestamp }}
+    {{ form.security_hash }}
+    <input type="hidden" name="next" value="{% url 'image_detail' pk=image.pk %}" /></p>
+    <input type="submit" value="Add comment" id="id_submit" />
+    </form>
+{% else %}
+    <p>Please <a href="{% url 'login' %}">log in</a> to leave a comment.</p>
+{% endif %}
+
 <script type="text/javascript">
 window.setTimeout(function () {
     $(".alert-success").fadeTo(500, 0).slideUp(500, function () {
+        $(this).remove();
+    });
+    $(".alert-danger").fadeTo(500, 0).slideUp(500, function () {
         $(this).remove();
     });
 }, 2000);

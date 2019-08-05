@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 import django_tables2 as tables
-from .models import Image, Sumssnomatch, Largeratio, Goodmatch, Askapnotseen, Transients
+from .models import Image, Transients
 from django_tables2.utils import A
 from templatetags import units
 
@@ -39,6 +39,7 @@ class CapitalColumn(tables.Column):
     
 
 class ImageTable(tables.Table):
+    export_formats = ['csv',]
     id = tables.Column(verbose_name= 'ID')
     name = tables.LinkColumn('image_detail', args=[A('pk')], orderable=True,)
     ra = RAColumn(attrs={"td":{"style":"white-space:nowrap;"}}, verbose_name= 'RA' )
@@ -63,93 +64,7 @@ class ImageTable(tables.Table):
         row_attrs = {
                 'complete': lambda record: 'true' if (record.number_candidates_checked >= record.transients_master_candidates_total) else 'false'
                 }
-        
-        
-class SumssNoMatchListTable(tables.Table):
-    export_formats = ['csv',]
-    id = tables.Column(verbose_name= 'ID')
-    image_id = tables.LinkColumn('image_detail', args=[A('image_id'),], orderable=True, verbose_name= 'Img. ID')
-    master_name = tables.LinkColumn('crossmatch_detail', args=[A('image_id'), "noaskapmatchtocatalog", A('id')], orderable=True, verbose_name= 'Source Name')
-    ra = RAColumn(attrs={"td":{"style":"white-space:nowrap;"}}, verbose_name= 'RA' )
-    dec = DecColumn(attrs={"td":{"style":"white-space:nowrap;"}}, verbose_name= 'Dec')
-    # ra_decimal = table.Column(verbose_name= 'RA dec', accessor=A('ra'))
-    # askap_iflux = RMSColumn(verbose_name= 'ASKAP Int. Flux (mJy)')
-    catalog_iflux = FloatColumn(verbose_name= 'Cat. Int. Flux (mJy)')
-    cat_snr = tables.Column(verbose_name= 'Catalog SNR')
-    scaled_cat_snr = tables.Column(verbose_name= 'Scaled ASKAP SNR')
-    survey = CapitalColumn(verbose_name= 'Ref Survey')
-    pipelinetag = tables.Column(verbose_name= 'Pipeline Tag')
-    usertag = tables.Column(verbose_name= 'User Tag')
-    userreason = tables.Column(verbose_name= 'User Reason')
-    checkedby = tables.Column(verbose_name= 'Checked By')
-    class Meta:
-        model = Sumssnomatch
-        template_name = 'django_tables2/bootstrap4.html'
-        fields = ("id", "image_id", "master_name", "ra", "dec", "catalog_iflux", "cat_snr", "scaled_cat_snr", "survey", "pipelinetag", "usertag", "userreason", "checkedby")
-        attrs = {"th":{"bgcolor":"#EBEDEF"}}
-    
-class LargeRatioListTable(tables.Table):
-    id = tables.Column(verbose_name= 'ID')
-    image_id = tables.LinkColumn('image_detail', args=[A('image_id'),], orderable=True, verbose_name= 'Img. ID')
-    master_name = tables.LinkColumn('crossmatch_detail', args=[A('image_id'), "largeratio", A('id')], orderable=True, verbose_name= 'Source Name')
-    ra = RAColumn(attrs={"td":{"style":"white-space:nowrap;"}}, verbose_name= 'RA' )
-    dec = DecColumn(attrs={"td":{"style":"white-space:nowrap;"}}, verbose_name= 'Dec')
-    askap_iflux = RMSColumn(verbose_name= 'ASKAP Int. Flux (mJy)')
-    catalog_iflux = FloatColumn(verbose_name= 'Cat. Int. Flux (mJy)')
-    cat_snr = tables.Column(verbose_name= 'Catalog SNR')
-    askap_cat_ratio = FloatColumn(verbose_name= 'ASKAP / Catalog')
-    survey = CapitalColumn(verbose_name= 'Ref Survey')
-    pipelinetag = tables.Column(verbose_name= 'Pipeline Tag')
-    usertag = tables.Column(verbose_name= 'User Tag')
-    userreason = tables.Column(verbose_name= 'User Reason')
-    checkedby = tables.Column(verbose_name= 'Checked By')
-    class Meta:
-        model = Largeratio
-        template_name = 'django_tables2/bootstrap4.html'
-        fields = ("id","image_id", "master_name", "ra", "dec", "askap_iflux", "catalog_iflux", "cat_snr", "askap_cat_ratio", "survey", "pipelinetag", "usertag", "userreason", "checkedby")
-        attrs = {"th":{"bgcolor":"#EBEDEF"}}   
-        
-class GoodMatchListTable(tables.Table):
-    id = tables.Column(verbose_name= 'ID')
-    image_id = tables.LinkColumn('image_detail', args=[A('image_id'),], orderable=True, verbose_name= 'Img. ID')
-    master_name = tables.LinkColumn('crossmatch_detail', args=[A('image_id'), "goodmatch", A('id')], orderable=True, verbose_name= 'Source Name')
-    ra = RAColumn(attrs={"td":{"style":"white-space:nowrap;"}}, verbose_name= 'RA' )
-    dec = DecColumn(attrs={"td":{"style":"white-space:nowrap;"}}, verbose_name= 'Dec')
-    survey = CapitalColumn(verbose_name= 'Survey')
-    askap_iflux = RMSColumn(verbose_name= 'ASKAP Int. Flux (mJy)')
-    catalog_iflux = FloatColumn(verbose_name= 'Cat. Int. Flux (mJy)')
-    sumss_snr = tables.Column(verbose_name= 'SUMSS SNR')
-    nvss_snr = tables.Column(verbose_name= 'NVSS SNR')
-    pipelinetag = tables.Column(verbose_name= 'Pipeline Tag')
-    usertag = tables.Column(verbose_name= 'User Tag')
-    userreason = tables.Column(verbose_name= 'User Reason')
-    checkedby = tables.Column(verbose_name= 'Checked By')
-    class Meta:
-        model = Goodmatch
-        template_name = 'django_tables2/bootstrap4.html'
-        fields = ("id", "image_id", "master_name", "ra", "dec", "askap_iflux", "catalog_iflux", "survey", "sumss_snr", "nvss_snr", "pipelinetag", "usertag", "userreason", "checkedby")
-        attrs = {"th":{"bgcolor":"#EBEDEF"}}   
-        
-class AskapNotSeenListTable(tables.Table):
-    id = tables.Column(verbose_name= 'ID')
-    image_id = tables.LinkColumn('image_detail', args=[A('image_id'),], orderable=True, verbose_name= 'Img. ID')
-    master_name = tables.LinkColumn('crossmatch_detail', args=[A('image_id'), "nocatalogmatchtoaskap", A('id')], orderable=True, verbose_name= 'ASKAP Name')
-    ra = RAColumn(attrs={"td":{"style":"white-space:nowrap;"}}, verbose_name= 'RA' )
-    dec = DecColumn(attrs={"td":{"style":"white-space:nowrap;"}}, verbose_name= 'Dec')
-    askap_iflux = RMSColumn(verbose_name= 'ASKAP Int. Flux (mJy)')
-    askap_snr = tables.Column(verbose_name= 'Local ASKAP SNR')
-    # catalog_iflux = tables.Column(verbose_name= 'Cat. Int. Flux (mJy)')
-    scaled_askap_snr = tables.Column(verbose_name= 'Scaled Catalog SNR')
-    survey = CapitalColumn(verbose_name= 'Ref Survey')
-    pipelinetag = tables.Column(verbose_name= 'Pipeline Tag')
-    usertag = tables.Column(verbose_name= 'User Tag')
-    userreason = tables.Column(verbose_name= 'User Reason')
-    checkedby = tables.Column(verbose_name= 'Checked By')
-    class Meta:
-        model = Askapnotseen
-        template_name = 'django_tables2/bootstrap4.html'
-        fields = ("id","image_id","master_name", "ra", "dec", "askap_iflux", "askap_snr", "scaled_askap_snr", "survey", "pipelinetag", "usertag", "userreason", "checkedby")
-        attrs = {"th":{"bgcolor":"#EBEDEF"}}   
+ 
     
 class CrossmatchDetailTable(tables.Table):
     id = tables.Column(verbose_name= 'ID')
@@ -211,6 +126,7 @@ class NearestSourceDetailFluxTable(tables.Table):
         
         
 class TransientTable(tables.Table):
+    export_formats = ['csv',]
     id = tables.Column(verbose_name= 'ID')
     image_id = tables.LinkColumn('image_detail', args=[A('image_id'),], orderable=True, verbose_name= 'Img. ID')
     master_name = tables.LinkColumn('crossmatch_detail', args=[A('image_id'), "transients", A('id')], orderable=True, verbose_name= 'Name')
@@ -280,20 +196,3 @@ class TransientTableAll(tables.Table):
         row_attrs = {
                 'highlight': lambda record: 'true' if (record.ratio >= 2.0 and record.pipelinetag == "Candidate") else 'false' 
                 }
-    
-    # image_id = models.IntegerField()
-    # match_id = models.IntegerField()
-    # sumss_name = models.CharField(max_length=50, unique=False, default="sumss source")
-    # ra = models.DecimalField(max_digits=10, decimal_places=7)
-    # dec = models.DecimalField(max_digits=10, decimal_places=7)
-    # sumss_iflux = models.DecimalField(max_digits=20, decimal_places=3, default=0)
-    # sumss_iflux_e = models.DecimalField(max_digits=20, decimal_places=3, default=0)
-    # askap_iflux = models.DecimalField(max_digits=20, decimal_places=3, default=0)
-    # askap_iflux_e = models.DecimalField(max_digits=20, decimal_places=3, default=0)
-    # sumss_snr = models.DecimalField(max_digits=20, decimal_places=2, default=0)
-    # ploturl = models.CharField(max_length=200, unique=False, default="plot")
-    # pipelinetag = models.CharField(max_length=30, unique=False, default="N/A")
-    # usertag = models.CharField(max_length=30, unique=False, default="N/A")
-    # checkedby = models.CharField(max_length=20, unique=False, default="N/A")
-
-

@@ -319,7 +319,7 @@ class Catalog(object):
         y = int(y)
         x = int(x)
         if y < 0 or x < 0:
-            self.logger.error("Pixels out of range - returning nan.")
+            self.logger.debug("Pixels out of range - returning nan.")
             return True
         self.logger.debug("RA: {}, Dec:{}".format(ra,dec))
         self.logger.debug("Pixels: {}, {}".format(y,x))
@@ -332,7 +332,7 @@ class Catalog(object):
             else:
                 data_selection=img_data[0,0,row_idx[:, None], col_idx]
         except:
-            self.logger.error("Measuring failed - returning nan.")
+            self.logger.debug("Measuring failed - returning nan.")
             data_selection=[np.nan]
         self.logger.debug(data_selection)
         return np.isnan(data_selection).any()

@@ -476,23 +476,28 @@ class askapimage(object):
         return med
 
     def get_rms_clipping(self, max_iter=10, sigma=4):
-        fln=fits.open(self.image)
-        rawdata=np.nan_to_num(fln[0].data)
-        angle=fln[0].header['crval1']
-        bscale=fln[0].header['bscale']
-        rawdata=rawdata.squeeze()
-        rawdata=rawdata*bscale
-        while len(rawdata) < 20:
-            rawdata = rawdata[0]
-        X,Y = np.shape(rawdata)
-        # rawdata = rawdata[Y/6:5*Y/6,X/6:5*X/6]
-        rawdata = rawdata[2*Y/6:4*Y/6,2*X/6:4*X/6]
-        orig_raw = rawdata
-        med, std, mask = self._Median_clip(rawdata, full_output=True, ftol=0.0, max_iter=max_iter, sigma=sigma)
-        rawdata[mask==False] = med
-        self.logger.info("{0} estimate rms: {1} Jy".format(self.imagename,std))
-        fln.close()
-        self.rms = std
+        try:
+            fln=fits.open(self.image)
+            rawdata=np.nan_to_num(fln[0].data)
+            angle=fln[0].header['crval1']
+            bscale=fln[0].header['bscale']
+            rawdata=rawdata.squeeze()
+            rawdata=rawdata*bscale
+            while len(rawdata) < 20:
+                rawdata = rawdata[0]
+            X,Y = np.shape(rawdata)
+            # rawdata = rawdata[Y/6:5*Y/6,X/6:5*X/6]
+            rawdata = rawdata[2*Y/6:4*Y/6,2*X/6:4*X/6]
+            orig_raw = rawdata
+            med, std, mask = self._Median_clip(rawdata, full_output=True, ftol=0.0, max_iter=max_iter, sigma=sigma)
+            rawdata[mask==False] = med
+            self.logger.info("{0} estimate rms: {1} Jy".format(self.imagename,std))
+            fln.close()
+            self.rms = std
+        except:
+            std = 0.00025
+        if (std == 0.0) or (std == np.nan):
+            std = 0.00025
         return std
         
     def get_local_rms_clipping(self, ra, dec, max_iter=10, sigma=4, num_pixels=50):
