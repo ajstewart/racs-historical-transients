@@ -151,7 +151,7 @@
        <a href="{% url 'crossmatch_detail' pk=image.pk querytype=type cross_id=crossmatch_source.id %}?assign=true&usertag=ignore&userreason=non-detection&hotkey=false" class="btn btn-success mx-auto btn-sm">Non-detection (n)</a>
        <a href="{% url 'crossmatch_detail' pk=image.pk querytype=type cross_id=crossmatch_source.id %}?assign=true&usertag=ignore&userreason=extended&hotkey=false" class="btn btn-success mx-auto btn-sm">Extended/Diffuse (e)</a>
        <a href="{% url 'crossmatch_detail' pk=image.pk querytype=type cross_id=crossmatch_source.id %}?assign=true&usertag=ignore&userreason=bright%20source&hotkey=false" class="btn btn-success mx-auto btn-sm">Close to bright source (b)</a>
-       <a href="{% url 'crossmatch_detail' pk=image.pk querytype=type cross_id=crossmatch_source.id %}?assign=true&usertag=ignore&userreason=double&hotkey=false" class="btn btn-success mx-auto btn-sm">Double source (d)</a><p></p>
+       <a href="{% url 'crossmatch_detail' pk=image.pk querytype=type cross_id=crossmatch_source.id %}?assign=true&usertag=ignore&userreason=multiple&hotkey=false" class="btn btn-success mx-auto btn-sm">Multiple sources (d)</a><p></p>
 Technical Issue: <a href="{% url 'crossmatch_detail' pk=image.pk querytype=type cross_id=crossmatch_source.id %}?assign=true&usertag=problem&userreason=edge%20of%20field&hotkey=false" class="btn btn-secondary mx-auto btn-sm">Field Edge (f)</a>
        <a href="{% url 'crossmatch_detail' pk=image.pk querytype=type cross_id=crossmatch_source.id %}?assign=true&usertag=problem&userreason=convolved%20flux%20error&hotkey=false" class="btn btn-secondary mx-auto btn-sm">Convolved Flux Error (c)</a>
        <a href="{% url 'crossmatch_detail' pk=image.pk querytype=type cross_id=crossmatch_source.id %}?assign=true&usertag=problem&userreason=catalogue%20artefact&hotkey=false" class="btn btn-secondary mx-auto btn-sm">Catalogue artefact (a)</a>
@@ -167,7 +167,7 @@ Investigate: <a href="{% url 'crossmatch_detail' pk=image.pk querytype=type cros
        <button type="button" class="btn btn-success mx-auto btn-sm" disabled>Non-detection (n)</button>
        <button type="button" class="btn btn-success mx-auto btn-sm" disabled>Extended/Diffuse (e)</button>
        <button type="button" class="btn btn-success mx-auto btn-sm" disabled>Close to bright source (b)</button>
-       <button type="button" class="btn btn-success mx-auto btn-sm" disabled>Double source (d)</button><p></p>
+       <button type="button" class="btn btn-success mx-auto btn-sm" disabled>Multiple sources (d)</button><p></p>
        Technical Issue:
        <button type="button" class="btn btn-secondary mx-auto btn-sm" disabled>Field Edge (f)</button>
        <button type="button" class="btn btn-secondary mx-auto btn-sm" disabled>Convolved Flux Error (c)</button>
@@ -280,7 +280,7 @@ Investigate: <a href="{% url 'crossmatch_detail' pk=image.pk querytype=type cros
             var aladin2 = A.aladin('#aladin-lite-div-2');
             aladin2.setZoom(0.36);
             aladin2.gotoPosition({{ crossmatch_source.ra }}, {{ crossmatch_source.dec }});
-            var racs = aladin2.createImageSurvey('RACS', 'RACS', "{% static 'racs_hips' %}", 'equatorial', 8, {imgFormat: 'png'});
+            var racs = aladin2.createImageSurvey('RACS', 'RACS', "{% static 'racsHiPSlow' %}", 'equatorial', 6, {imgFormat: 'png'});
             var gleam = aladin2.createImageSurvey('GLEAM_colored', 'GLEAM_colored', 'http://ict.icrar.org/store/gleam/gleam_color/', 'equatorial', 5, {imgFormat: 'png'});
             var sumss = aladin2.createImageSurvey('SUMSS', 'SUMSS', 'http://alasky.u-strasbg.fr/SUMSS', 'equatorial', 6, {imgFormat: 'fits'});
             var nvss = aladin2.createImageSurvey('NVSS', 'NVSS', 'http://alasky.u-strasbg.fr/NVSS/intensity/', 'equatorial', 5, {imgFormat: 'jpg'});
