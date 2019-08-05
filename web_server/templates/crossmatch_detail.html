@@ -130,6 +130,15 @@
  </div>
  {% endif %}
 
+ <div style="position: fixed; top: 0; left: 38%; z-index: 99; display: none;" id="sampConnectionAlert">
+<div class="alert alert-danger alert-dismissible fade show" role="alert">
+  <strong>SAMP connection failed.</strong> Check that a SAMP hub is running on your machine.
+  <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+    <span aria-hidden="true">&times;</span>
+  </button>
+</div>
+</div>
+
  <!-- <div class="card mb-3 mx-auto"> -->
   <!-- <h5 class="card-header bg-info mb-1 text-white">User Tag Assign Options</h5> -->
    <!-- <div class="card-body"> -->
@@ -299,6 +308,16 @@ Investigate: <a href="{% url 'crossmatch_detail' pk=image.pk querytype=type cros
     </div>
 
 <div class="card mb-3 mx-auto">
+ <h5 class="card-header bg-info mb-3 text-white">SAMP</h5>
+  <div class="card-body">
+    <p class="card-text">Broadcast the coordinates of this candidate to all SAMP clients e.g. TOPCAT, Aladin Desktop, DS9.</p>
+    <p class="card-text">Note that you must have a SAMP hub running on your local machine. Both Aladin Desktop and TOPCAT start a hub when opened. If the coordinate does not appear to be sending to your SAMP client, try resetting the connection.</p>
+    <button type="submit" class="btn btn-primary" id="sampSend">Broadcast Coordinate</button>
+    <button type="submit" class="btn btn-warning" id="sampReset">Reset Connection</button>
+  </div>
+</div>
+
+<div class="card mb-3 mx-auto">
  <h5 class="card-header bg-info mb-3 text-white">Key</h5>
   <div class="card-body">
     <!-- <h5 class="card-title">{{ image.name}} details</h5> -->
@@ -312,6 +331,51 @@ Investigate: <a href="{% url 'crossmatch_detail' pk=image.pk querytype=type cros
     </p>
   </div>
 </div>
+<script src="{% static 'js/samp.js' %}"></script>
+<script type="text/javascript">
+  function sampConnect() {
+    let connection = null;
+    let meta = {
+      "samp.description": "Transmit transient source candidate coordinates."
+    };
+
+    // attempt to restore an existing connection from sessionStorage
+    let storedConnection = sessionStorage.getItem("RACS_VAST_sampConnection");
+    if (storedConnection === null) {
+      // no stored connection, make a new one
+      let connector = new samp.Connector("RACS VAST Analysis", meta);
+      connector.register();
+      // wait for the user to accept the connection request. probably a better way to do this than with a timeout.
+      setTimeout(function() {
+        connection = connector.connection;
+        if (connection === undefined) {
+          // connection failed
+          $("#sampConnectionAlert").show();
+        } else {
+          sessionStorage.setItem("RACS_VAST_sampConnection", JSON.stringify(connection.regInfo));
+        }
+      }, 5000);
+    } else {
+      // restore the stored connection, but this doesn't guarantee it's a valid connection! 
+      connection = new samp.Connection(JSON.parse(storedConnection));
+    }
+    return new Promise(resolve => resolve(connection));
+  };
+  $('#sampSend').click(async function (e) {
+    let connection = await sampConnect();
+    let ra = "{{crossmatch_source.ra}}";
+    let dec = "{{crossmatch_source.dec}}";
+    let msg = new samp.Message("coord.pointAt.sky", {
+        "ra": ra,
+        "dec": dec
+    });
+    connection.notifyAll([msg]);
+  });
+  $('#sampReset').click(async function (e) {
+    sessionStorage.removeItem("RACS_VAST_sampConnection");
+    let connection = await sampConnect();
+  });
+</script>
 <script type="text/javascript">
 window.setTimeout(function () {
     $(".alert-success").fadeTo(500, 0).slideUp(600, function () {
