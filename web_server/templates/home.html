@@ -1,6 +1,12 @@
 {% extends 'base.html' %}
 {% load units %}
 {% load render_table from django_tables2 %}
+{% load querystring from django_tables2 %}
+{% load static %}
+
+{% block stylesheet %}
+<link rel="stylesheet" href="{% static 'css/complete.css' %}">
+{% endblock %}
 
 {% block breadcrumb %}
   <li class="breadcrumb-item active">Images Home</li>
@@ -11,8 +17,14 @@
     {% block content %}
     <div class='container'>
     <div class="row ">
+        <div class="col text-left">
+            <font color="green"> GREEN</font> = complete. <font color="red"> RED</font> = Incomplete.
+        </div>
     <div class="col text-center">
-        <a href="{% url 'search' %}" class="btn btn-info mx-auto">User Tag Search</a>
+        <a href="{% url 'search' %}" class="btn btn-info mx-auto">User Tag Search</a> 
+    </div>
+    <div class="col text-right">
+          <a href="{% querystring '_export'='csv' %}" class="btn btn-success mx-auto">CSV</a>
     </div>
     </div>
     </div>

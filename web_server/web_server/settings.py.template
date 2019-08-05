@@ -39,6 +39,10 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'accounts',
     'images',
+    'django_tables2',
+    'keyboard_shortcuts',
+    'django_comments',
+    'comment_app'
 ]
 
 MIDDLEWARE = [
@@ -127,6 +131,7 @@ STATIC_URL = '/static/'
 
 STATICFILES_DIRS = [
     os.path.join(BASE_DIR, 'static'),
+#    /path/to/RACS/HiPS
 ]
 
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
@@ -135,3 +140,51 @@ MEDIA_URL = '/media/'
 LOGOUT_REDIRECT_URL = 'home'
 LOGIN_REDIRECT_URL = 'home'
 LOGIN_URL = 'login'
+
+DJANGO_TABLES2_TEMPLATE = 'django_tables2/bootstrap4.html'
+
+TEMPLATE_CONTEXT_PROCESSORS = (
+    "django.core.context_processors.auth",
+    "django.core.context_processors.debug",
+    "django.core.context_processors.i18n",
+    "django.core.context_processors.media",
+    "django.core.context_processors.request",
+)
+
+HOTKEYS = [
+            {'keys': 'i',  # go home
+            'link': '?assign=true&usertag=investigate&userreason=investigate&hotkey=true'},
+            {'keys': 'x',  # go home
+            'link': 'assign=true&?usertag=help&userreason=not%20sure&hotkey=true'},
+            {'keys': 'm',  # go home
+            'link': '?assign=true&usertag=ignore&userreason=is%20match&hotkey=true'},
+            {'keys': 'n',  # go home
+            'link': '?assign=true&usertag=ignore&userreason=non-detection&hotkey=true'},
+            {'keys': 'e',  # go home
+            'link': '?assign=true&usertag=ignore&userreason=extended&hotkey=true'},
+            {'keys': 'b',  # go home
+            'link': '?assign=true&usertag=ignore&userreason=bright%20source&hotkey=true'},
+            {'keys': 'd',  # go home
+            'link': '?assign=true&usertag=ignore&userreason=double&hotkey=true'},
+            {'keys': 'f',  # go home
+            'link': '?assign=true&usertag=problem&userreason=edge%20of%20field&hotkey=true'},
+            {'keys': 'c',  # go home
+            'link': '?assign=true&usertag=problem&userreason=convolved%20flux%20error&hotkey=true'},
+            {'keys': 'a',  # go home
+            'link': '?assign=true&usertag=problem&userreason=catalogue%20artefact&hotkey=true'},
+            {'keys': 'q',  # go home
+            'link': '?assign=true&usertag=problem&userreason=askap%20artefact&hotkey=true'},
+            {'keys': 's',  # go home
+            'link': '?assign=true&usertag=problem&userreason=src.%20ext.%20error&hotkey=true'},
+            {'keys': 't',  # go home
+            'link': '?assign=true&usertag=problem&userreason=too%20noisy&hotkey=true'},
+            {'keys': 'RIGHT ARROW',  # go home
+            'link': '?go_to=next'},
+            {'keys': 'LEFT ARROW',  # go home
+            'link': '?go_to=previous'},
+        ]
+SPECIAL_DISABLED = True
+
+SITE_ID = 1
+
+COMMENTS_APP = 'comment_app'

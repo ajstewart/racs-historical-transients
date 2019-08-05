@@ -1,6 +1,8 @@
 from django import template
 from django.utils.safestring import mark_safe
 import math
+from astropy import units as u
+from astropy.coordinates import SkyCoord
 
 register = template.Library()
 
@@ -11,6 +13,15 @@ SECONDS_IN_DAY = 24 * SECONDS_IN_HOUR
 RADIANS_IN_CIRCLE = 2 * math.pi
 ASEC_IN_AMIN = 60
 ASEC_IN_DEGREE = 60**2
+
+@register.filter
+def deg_to_gal(radec):
+    """
+    convert deg to galactic coordinates 
+    """
+    c = SkyCoord(radec.replace("_", " "))
+    
+    return c.galactic.to_string()
 
 @register.filter
 def deg_to_hms(deg):

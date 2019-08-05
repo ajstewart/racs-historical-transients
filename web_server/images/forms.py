@@ -9,14 +9,13 @@ users = list(User.objects.values())
 
 users = [("all", "all")]+[(i["username"],i["username"]) for i in sorted(users)]
 
-tag_options=[("help", "Help"),
+tag_options=[("investigate", "Investigate"),
+("help", "Help"),
 ("ignore", "Ignore"),
-("investigate", "Investigate"),
 ("problem", "Problem")]
 
-transient_options=[("sumssnomatch", "No ASKAP match to Catalog"),
-("askapnotseen", "No Catalog match to ASKAP"),
-("largeratio", "Large flux ratio")]
+transient_options=[
+{"transients", "Transients"}]
 
 class TagForm(forms.ModelForm):
     class Meta:

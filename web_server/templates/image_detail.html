@@ -1,6 +1,7 @@
 {% extends 'base.html' %}
 {% load static %}
 {% load units %}
+{% load comments %}
 
 {% block breadcrumb %}
  <li class="breadcrumb-item"><a href="{% url 'home' %}">Images</a></li>
@@ -9,15 +10,51 @@
 
 
 {% block content %}
+
+ {% if claim_attempt and claimed_success %}
+  <div style="position: fixed; top: 0; right: 0; z-index: 99">
+ <div class="alert alert-success alert-dismissible fade show" role="alert">
+   <strong>Image successfully claimed!</strong>
+   <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+     <span aria-hidden="true">&times;</span>
+   </button>
+ </div>
+</div>
+ {% endif %}
+ 
+ {% if claim_attempt and not claimed_success %}
+  <div style="position: fixed; top: 0; right: 0; z-index: 99">
+ <div class="alert alert-danger alert-dismissible fade show" role="alert">
+   <strong>Image claim failed!</strong>
+   <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+     <span aria-hidden="true">&times;</span>
+   </button>
+ </div>
+</div>
+ {% endif %}
+
+<div class="container">
+  <div class="row">
+    <div class="col text-center">
+{% if image.claimed_by == "Unclaimed" and user.is_authenticated %}
+<a href="{% url 'image_detail_claim' image.pk %}" class="btn btn-success mx-auto">Claim Image</a></p>
+{% else %}
+<h5>Image claimed by <b>{{ image.claimed_by }}</b>.</h5></p>
+    {% if user.is_staff or user.get_username == image.claimed_by %}
+    <a href="{% url 'image_detail_reset' image.pk %}" class="btn btn-success mx-auto">Unclaim Image</a></p>
+    {% endif %}
+{% endif %}
+    </div>
+     </div>
 <div class="card mb-3 mx-auto">
- <h5 class="card-header bg-secondary mg-1 text-white">Crossmatch Outputs</h5>
+ <h5 class="card-header bg-secondary mg-1 text-white">Transient Search Outputs</h5>
   <div class="card-body">
-    <!-- <h5 class="card-title">{{ image.name}} details</h5> -->
     <p class="card-text">
-        <a href="{% url 'noaskapmatchtocatalog' image.pk %}" class="btn btn-primary">No ASKAP Match to Catalog ({{ image.transients_noaskapmatchtocatalog_total }})</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-        <a href="{% url 'nocatalogmatchtoaskap' image.pk %}" class="btn btn-primary mx-auto">No Catalog Match to ASKAP ({{ image.transients_nocatalogmatchtoaskap_total }})</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-        <a href="{% url 'largeratio' image.pk %}" class="btn btn-primary mx-auto">Large Flux Ratio ({{ image.transients_largeratio_total }})</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-        <a href="{% url 'goodmatch' image.pk %}" class="btn btn-primary mx-auto">Good Matches ({{ image.transients_goodmatches_total }})</a></p>
+            <div class="col text-center">
+        <a href="{% url 'transients' image.pk 'candidates' %}" class="btn btn-success mx-auto">Transients Candidates Only ({{ image.transients_master_candidates_total }})</a>
+        <a href="{% url 'transients' image.pk 'flagged' %}" class="btn btn-danger mx-auto">Transients Flagged Candidates ({{ image.transients_master_flagged_total }})</a>
+        <a href="{% url 'transients' image.pk 'all' %}" class="btn btn-primary mx-auto">View all Crossmatch Output ({{ image.transients_master_total }})</a>
+    </div>
   </div>
 </div>
 
@@ -25,13 +62,16 @@
  <h5 class="card-header bg-info mb-3 text-white">Image Details</h5>
   <div class="card-body">
     <!-- <h5 class="card-title">{{ image.name}} details</h5> -->
-    <p class="card-text"><b>Right Ascension:</b> {{image.ra|deg_to_hms}} ({{image.ra}}d) &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 
+    <p class="card-text">
+        <b>Image Location:</b> {{image.url}} </p>
+        <b>Image Location (Non-convolved):</b> {{image.url_2}} </p>
+        <b>Right Ascension:</b> {{image.ra|deg_to_hms}} ({{image.ra}}d) &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 
         <b>Number of ASKAP Sources:</b> {{image.number_askap_sources}}&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 
         <b>RMS Estimate:</b> {{image.rms|jy_to_mjy|floatformat:3}} mJy<br>
     <b>Declination:</b> {{image.dec|deg_to_dms}} ({{image.dec}}d) &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 
         <b>Number of SUMSS Sources:</b> {{image.number_sumss_sources}}&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 
 		<b>Number of NVSS Sources:</b> {{image.number_nvss_sources}}<br></p>
-        <b>Catalogues Matched to:</b> {{ image.matched_to }}
+        <b>Catalogues Matched to:</b> {{ image.matched_to }}&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="{% url 'image_detail' pk=image.pk %}#comments">Go to comments.</a>
   </div>
 </div>
 
@@ -69,11 +109,46 @@
     <img src="{% static processing_options.flux_ratios_from_centre %}" class="mx-auto d-block" width="90%" height="90%"/></p></a>
     <a href="{% static processing_options.askap_overlay %}" >
     <img src="{% static processing_options.askap_overlay %}" class="mx-auto d-block" width="90%" height="90%"/></a>
+    {% if image.matched_to == "SUMSS" or image.matched_to == "SUMSS & NVSS" %}
     <a href="{% static processing_options.sumss_overlay %}" >
     <img src="{% static processing_options.sumss_overlay %}" class="mx-auto d-block" width="90%" height="90%"/></a></p>
-    <a href="{% static processing_options.nvss_overlay %}" >
-    <img src="{% static processing_options.nvss_overlay %}" class="mx-auto d-block" width="90%" height="90%"/></a></p>
+    {% endif %}
+    {% if image.matched_to == "NVSS" or image.matched_to == "SUMSS & NVSS" %}
+        <a href="{% static processing_options.nvss_overlay %}" >
+        <img src="{% static processing_options.nvss_overlay %}" class="mx-auto d-block" width="90%" height="90%"/></a></p>
+    {% endif %}
   </div>
 </div>
+
+
+<h3>Comments</h3>
+<a name="comments"></a>
+{% render_comment_list for image %}
+{% if user.is_authenticated %}
+    {% get_comment_form for image as form %}
+    <form action="{% comment_form_target %}" method="POST">
+    {% csrf_token %}
+    {{ form.comment }}
+    {{ form.content_type }}
+    {{ form.object_pk }}
+    {{ form.timestamp }}
+    {{ form.security_hash }}
+    <input type="hidden" name="next" value="{% url 'image_detail' pk=image.pk %}" /></p>
+    <input type="submit" value="Add comment" id="id_submit" />
+    </form>
+{% else %}
+    <p>Please <a href="{% url 'login' %}">log in</a> to leave a comment.</p>
+{% endif %}
+
+<script type="text/javascript">
+window.setTimeout(function () {
+    $(".alert-success").fadeTo(500, 0).slideUp(500, function () {
+        $(this).remove();
+    });
+    $(".alert-danger").fadeTo(500, 0).slideUp(500, function () {
+        $(this).remove();
+    });
+}, 2000);
+</script>
 {% endblock %}
 

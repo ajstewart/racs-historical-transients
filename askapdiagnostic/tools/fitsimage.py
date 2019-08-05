@@ -88,8 +88,10 @@ class askapimage(object):
             self.bmin = float(self.header["BMIN"])
             self.bpa = float(self.header["BPA"])
             self.logger.info("Beam = {:.2f}\" x {:.2f}\" ({:.2f} deg)".format(self.bmaj*3600., self.bmin*3600., self.bpa))
+            self._beam_loaded = True
         except:
             self.logger.warning("Beam information could not be determined.")
+            self._beam_loaded = False
          
     def load_all(self):
         self.load_fits_header()
@@ -364,9 +366,8 @@ class askapimage(object):
             transients_noaskapmatchtocatalog_candidates=0,
             transients_nocatalogmatchtoaskap_total=0,
             transients_nocatalogmatchtoaskap_candidates=0,
-            transients_largeratio_total=0,
-            transients_largeratio_candidates=0,
-            transients_goodmatches_total=0):
+            transients_goodmatches_total=0,
+            transients_master_total=0, transients_master_candidates_total=0, transients_master_flagged_total=0, image_2 = "N/A"):
         # image_id=1
         unique_tag = str(uuid.uuid4())
         engine = sqlalchemy.create_engine('{}://{}@{}:{}/{}'.format(db_engine, db_username, db_host, db_port, db_database))
@@ -378,22 +379,11 @@ class askapimage(object):
         else:
             thisimagename=self.imagename
         tempdf=pd.DataFrame([[unique_tag, thisimagename, description, self.centre.ra.degree, 
-            self.centre.dec.degree, datestamp, self.image]+[user,self.total_askap_sources, self.total_sumss_sources, self.rms, self.total_nvss_sources,
-            transients_noaskapmatchtocatalog_total,
-            transients_noaskapmatchtocatalog_candidates,
-            transients_nocatalogmatchtoaskap_total,
-            transients_nocatalogmatchtoaskap_candidates,
-            transients_largeratio_total,
-            transients_largeratio_candidates,
-            transients_goodmatches_total, self.matched_to]], columns=["unique_tag", "name", "description", 
-                "ra", "dec", "runtime", "url"]+["runby", "number_askap_sources", "number_sumss_sources", "rms", "number_nvss_sources"]+["transients_noaskapmatchtocatalog_total",
-            "transients_noaskapmatchtocatalog_candidates",
-            "transients_nocatalogmatchtoaskap_total",
-            "transients_nocatalogmatchtoaskap_candidates",
-            "transients_largeratio_total",
-            "transients_largeratio_candidates",
-            "transients_goodmatches_total",
-            "matched_to"])
+            self.centre.dec.degree, datestamp, self.image]+[user,self.total_askap_sources, self.total_sumss_sources, self.rms, self.total_nvss_sources, 
+                transients_master_total, self.matched_to, transients_master_candidates_total, transients_master_flagged_total,
+            "Unclaimed", image_2, 0]], columns=["unique_tag", "name", "description", 
+                "ra", "dec", "runtime", "url"]+["runby", "number_askap_sources", "number_sumss_sources", "rms", "number_nvss_sources"]+["transients_master_total",
+            "matched_to", "transients_master_candidates_total", "transients_master_flagged_total", "claimed_by", "url_2", "number_candidates_checked"])
         tempdf.to_sql("images_image", engine, if_exists="append", index=False)
         
         #get the id
@@ -486,23 +476,28 @@ class askapimage(object):
         return med
 
     def get_rms_clipping(self, max_iter=10, sigma=4):
-        fln=fits.open(self.image)
-        rawdata=np.nan_to_num(fln[0].data)
-        angle=fln[0].header['crval1']
-        bscale=fln[0].header['bscale']
-        rawdata=rawdata.squeeze()
-        rawdata=rawdata*bscale
-        while len(rawdata) < 20:
-            rawdata = rawdata[0]
-        X,Y = np.shape(rawdata)
-        # rawdata = rawdata[Y/6:5*Y/6,X/6:5*X/6]
-        rawdata = rawdata[2*Y/6:4*Y/6,2*X/6:4*X/6]
-        orig_raw = rawdata
-        med, std, mask = self._Median_clip(rawdata, full_output=True, ftol=0.0, max_iter=max_iter, sigma=sigma)
-        rawdata[mask==False] = med
-        self.logger.info("{0} estimate rms: {1} Jy".format(self.imagename,std))
-        fln.close()
-        self.rms = std
+        try:
+            fln=fits.open(self.image)
+            rawdata=np.nan_to_num(fln[0].data)
+            angle=fln[0].header['crval1']
+            bscale=fln[0].header['bscale']
+            rawdata=rawdata.squeeze()
+            rawdata=rawdata*bscale
+            while len(rawdata) < 20:
+                rawdata = rawdata[0]
+            X,Y = np.shape(rawdata)
+            # rawdata = rawdata[Y/6:5*Y/6,X/6:5*X/6]
+            rawdata = rawdata[2*Y/6:4*Y/6,2*X/6:4*X/6]
+            orig_raw = rawdata
+            med, std, mask = self._Median_clip(rawdata, full_output=True, ftol=0.0, max_iter=max_iter, sigma=sigma)
+            rawdata[mask==False] = med
+            self.logger.info("{0} estimate rms: {1} Jy".format(self.imagename,std))
+            fln.close()
+            self.rms = std
+        except:
+            std = 0.00025
+        if (std == 0.0) or (std == np.nan):
+            std = 0.00025
         return std
         
     def get_local_rms_clipping(self, ra, dec, max_iter=10, sigma=4, num_pixels=50):

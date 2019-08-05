@@ -13,7 +13,7 @@ Including another URLconf
     1. Import the include() function: from django.conf.urls import url, include
     2. Add a URL to urlpatterns:  url(r'^blog/', include('blog.urls'))
 """
-from django.conf.urls import url
+from django.conf.urls import url, include
 from django.contrib import admin
 from django.contrib.auth import views as auth_views
 
@@ -28,15 +28,14 @@ urlpatterns = [
     url(r'^login/$', auth_views.LoginView.as_view(template_name='login.html'), name='login'),
     url(r'^logout/$', auth_views.LogoutView.as_view(), name='logout'),
     url(r'^search/$', views.query_queries, name='search'),
+    url(r'^comments/', include('django_comments.urls')),
     url(r'^search/results/transient_type=(?P<transient_type>[\w\-]+)&user_tag=(?P<user_tag>[\w\-]+)&user=(?P<user>[\w\-]+)$', views.search_results, name='search_results'),
     url(r'^image/(?P<pk>\d+)/$', views.image_detail, name='image_detail'),
-    url(r'^image/(?P<pk>\d+)/noaskapmatchtocatalog/$', views.sumssnomatch, name='noaskapmatchtocatalog'),
-    url(r'^image/(?P<pk>\d+)/largeratio/$', views.largeratio, name='largeratio'),
-    url(r'^image/(?P<pk>\d+)/nocatalogmatchtoaskap/$', views.askapnotseen, name='nocatalogmatchtoaskap'),
-    url(r'^image/(?P<pk>\d+)/goodmatch/$', views.goodmatch, name='goodmatch'),
-    url(r'^image/(?P<pk>\d+)/(?P<querytype>[\w\-]+)/quickview/$', views.crossmatch_quickview, name='crossmatch_quickview'),
-    url(r'^image/(?P<pk>\d+)/(?P<querytype>[\w\-]+)/(?P<cross_id>\d+)/$', views.crossmatch_detail, name='crossmatch_detail'),
-    url(r'^image/(?P<pk>\d+)/(?P<querytype>[\w\-]+)/(?P<cross_id>\d+)/confirm/$', views.crossmatch_commit, name='crossmatch_commit'),
+    url(r'^image/(?P<pk>\d+)/claim/$', views.image_detail_claim, name='image_detail_claim'),
+    url(r'^image/(?P<pk>\d+)/claim_reset/$', views.image_detail_reset, name='image_detail_reset'),
+    url(r'^image/(?P<pk>\d+)/transients/(?P<transient_filter>[\w\-]+)/$', views.transients, name='transients'),
+    url(r'^image/(?P<pk>\d+)/(?P<querytype>[\w\-]+)/(?P<transient_filter>[\w\-]+)/quickview/$', views.crossmatch_quickview, name='crossmatch_quickview'),
+    url(r'^image/(?P<pk>\d+)/(?P<querytype>[\w\-]+)/view_source/(?P<cross_id>\d+)/$', views.crossmatch_detail, name='crossmatch_detail'),
     url(r'^settings/password/$', auth_views.PasswordChangeView.as_view(template_name='password_change.html'),
         name='password_change'),
     url(r'^settings/password/done/$', auth_views.PasswordChangeDoneView.as_view(template_name='password_change_done.html'),
