@@ -5,6 +5,7 @@
 {% load render_table from django_tables2 %}
 {% load querystring from django_tables2 %}
 {% load comments %}
+{% load crispy_forms_tags %}
 
 {% block morehead %}
     
@@ -394,13 +395,13 @@ window.setTimeout(function () {
     {% get_comment_form for crossmatch_source as form %}
     <form action="{% comment_form_target %}" method="POST">
     {% csrf_token %}
-    {{ form.comment }}
+    {{ form.comment|as_crispy_field }}
     {{ form.content_type }}
     {{ form.object_pk }}
     {{ form.timestamp }}
     {{ form.security_hash }}
     <input type="hidden" name="next" value="{% url 'crossmatch_detail' pk=image.pk querytype=type cross_id=crossmatch_source.id %}" /></p>
-    <input type="submit" value="Add comment" id="id_submit" />
+    <button type="submit" value="Add comment" class="btn btn-primary" id="id_submit">Add Comment</button>
     </form>
 {% else %}
     <p>Please <a href="{% url 'login' %}">log in</a> to leave a comment.</p>

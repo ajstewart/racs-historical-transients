@@ -78,7 +78,7 @@ class Transients(models.Model):
     askap_non_conv_d2d = models.DecimalField(max_digits=20, decimal_places=12, default=0)
     askap_rms = models.DecimalField(max_digits=20, decimal_places=12, default=0)
     askap_rms_2 = models.DecimalField(max_digits=20, decimal_places=12, default=0)
-    d2d_askap_centre = models.DecimalField(max_digits=20, decimal_places=12, default=0)
+    d2d_askap_centre = models.DecimalField("Distance to ASKAP Image Centre", max_digits=20, decimal_places=12, default=0)
     ratio = models.DecimalField(max_digits=20, decimal_places=12, default=0)
     ratio_e = models.DecimalField(max_digits=20, decimal_places=12, default=0)
     ratio_catalog_flux = models.DecimalField(max_digits=20, decimal_places=12, default=0)

@@ -1,0 +1,61 @@
+{% extends 'base.html' %}
+
+{% load static %}
+{% load crispy_forms_tags %}
+{% load render_table from django_tables2 %}
+{% load querystring from django_tables2 %}
+
+    {% block breadcrumb %}
+        <li class="breadcrumb-item"><a href="{% url 'home' %}">Images</a></li>
+        <li class="breadcrumb-item active ">Query</li>
+    {% endblock %}
+
+{% block content %}
+<div class="card bg-light">
+    <div class="card-body">
+  <form method="get">
+    <div class="form-row">
+        <div class="form-group col-md-2 mb-0">
+          {{ filter.form.transient_type|as_crispy_field }}
+        </div>
+         <div class="form-group col-md-5 mb-0">
+           {{ filter.form.ratio__gt|as_crispy_field }}
+         </div>
+         <div class="form-group col-md-5 mb-0">
+           {{ filter.form.d2d__gt|as_crispy_field }}
+         </div>
+       </div>
+       <div class="form-row">
+           <div class="form-group col-md-3 mb-0">
+             {{ filter.form.pipelinetag|as_crispy_field }}
+           </div>
+           <div class="form-group col-md-3 mb-0">
+             {{ filter.form.usertag|as_crispy_field }}
+           </div>
+         <div class="form-group col-md-3 mb-0">
+           {{ filter.form.inflated_convolved_flux|as_crispy_field }}
+         </div>
+         <div class="form-group col-md-3 mb-0">
+           {{ filter.form.survey|as_crispy_field }}
+         </div>
+       </div>
+    <button type="submit" class="btn btn-primary">Search</button>
+  </form>
+     </div>
+  </div>
+</p>
+      <div class="container">
+        <div class="row">
+          <div class="col-md-auto text-left">
+  </div>
+       <div class="col text-right">
+       <a href="{% querystring '_export'='csv' %}" class="btn btn-success mx-auto">CSV</a></p>
+  </div>
+   </div>
+   <div class="col text-center">
+    </div>
+    </div>
+{% endblock %}
+   {% block table %}
+ {% render_table table %}
+  {% endblock %}

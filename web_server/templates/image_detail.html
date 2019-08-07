@@ -2,6 +2,7 @@
 {% load static %}
 {% load units %}
 {% load comments %}
+{% load crispy_forms_tags %}
 
 {% block breadcrumb %}
  <li class="breadcrumb-item"><a href="{% url 'home' %}">Images</a></li>
@@ -128,13 +129,13 @@
     {% get_comment_form for image as form %}
     <form action="{% comment_form_target %}" method="POST">
     {% csrf_token %}
-    {{ form.comment }}
+    {{ form.comment|as_crispy_field }}
     {{ form.content_type }}
     {{ form.object_pk }}
     {{ form.timestamp }}
     {{ form.security_hash }}
     <input type="hidden" name="next" value="{% url 'image_detail' pk=image.pk %}" /></p>
-    <input type="submit" value="Add comment" id="id_submit" />
+    <button type="submit" value="Add comment" class="btn btn-primary" id="id_submit">Add Comment</button>
     </form>
 {% else %}
     <p>Please <a href="{% url 'login' %}">log in</a> to leave a comment.</p>

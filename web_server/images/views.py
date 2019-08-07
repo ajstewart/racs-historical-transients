@@ -13,6 +13,7 @@ from django.http import HttpResponse
 from .models import Image, Processingsettings, Query, Transients
 from .tables import ImageTable, CrossmatchDetailFluxTable, NearestSourceDetailFluxTable, TransientTable, TransientTableAll, CrossmatchDetailTable
 from .forms import TagForm
+from .filters import TransientFilter
 
 def home(request):
     images = Image.objects.all().order_by("id")
@@ -326,3 +327,17 @@ def turn_on_hotkeys(request):
     
 def turn_off_hotkeys(request):
     request.session['hotkeys']='false'  
+    
+def transient_query(request):
+    transients = Transients.objects.all()
+    transients_filter = TransientFilter(request.GET, queryset=transients)
+    table = TransientTable(transients_filter.qs)
+    
+    RequestConfig(request).configure(table)
+    export_format = request.GET.get('_export', None)
+
+    if TableExport.is_valid_format(export_format):
+        exporter = TableExport(export_format, table)
+        return exporter.response('query_result.{}'.format(export_format))
+    
+    return render(request, 'transients_list.html', {'filter': transients_filter, 'table':table})

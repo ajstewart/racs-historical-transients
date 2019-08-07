@@ -28,6 +28,7 @@ urlpatterns = [
     url(r'^login/$', auth_views.LoginView.as_view(template_name='login.html'), name='login'),
     url(r'^logout/$', auth_views.LogoutView.as_view(), name='logout'),
     url(r'^search/$', views.query_queries, name='search'),
+    url(r'^query/$', views.transient_query, name='query'),
     url(r'^comments/', include('django_comments.urls')),
     url(r'^search/results/transient_type=(?P<transient_type>[\w\-]+)&user_tag=(?P<user_tag>[\w\-]+)&user=(?P<user>[\w\-]+)$', views.search_results, name='search_results'),
     url(r'^image/(?P<pk>\d+)/$', views.image_detail, name='image_detail'),
