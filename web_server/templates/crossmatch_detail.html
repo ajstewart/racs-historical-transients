@@ -487,7 +487,11 @@ window.setTimeout(function () {
     {{ form.object_pk }}
     {{ form.timestamp }}
     {{ form.security_hash }}
+    {% if query %}
+    <input type="hidden" name="next" value="{% url 'crossmatch_detail_query' cross_id=crossmatch_source.id %}" /></p>    
+    {% else %}
     <input type="hidden" name="next" value="{% url 'crossmatch_detail' pk=image.pk querytype=type cross_id=crossmatch_source.id %}" /></p>
+    {% endif %}
     <button type="submit" value="Add comment" class="btn btn-primary" id="id_submit">Add Comment</button>
     </form>
 {% else %}
