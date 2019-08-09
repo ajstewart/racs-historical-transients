@@ -67,8 +67,11 @@
 </p>
       <div class="container">
         <div class="row">
-          <div class="col-md-auto text-left">
+          <div class="col text-left">
                   <font color="green"> GREEN</font> = Checked by a user.
+        </div>
+         <div class="col text-center">
+         <h5> {{ filter.qs.count }} results. </h5>
         </div>
        <div class="col text-right">
        <a href="{% querystring '_export'='csv' %}" class="btn btn-success mx-auto">CSV</a>
