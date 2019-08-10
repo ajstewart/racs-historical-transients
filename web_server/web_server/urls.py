@@ -30,6 +30,7 @@ urlpatterns = [
     url(r'^search/$', views.query_queries, name='search'),
     url(r'^comments/', include('django_comments.urls')),
     url(r'^query/$', views.transient_query, name='query'),
+    url(r'^query/quickview/$', views.crossmatch_quickview_query, name='query_quickview'),
     url(r'^query/view_source/(?P<cross_id>\d+)/$', views.crossmatch_detail_query, name='crossmatch_detail_query'),
     url(r'^search/results/transient_type=(?P<transient_type>[\w\-]+)&user_tag=(?P<user_tag>[\w\-]+)&user=(?P<user>[\w\-]+)$', views.search_results, name='search_results'),
     url(r'^image/(?P<pk>\d+)/$', views.image_detail, name='image_detail'),

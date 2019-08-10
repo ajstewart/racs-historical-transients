@@ -68,6 +68,7 @@ class ImageTable(tables.Table):
     
 class CrossmatchDetailTable(tables.Table):
     id = tables.Column(verbose_name= 'ID')
+    image_id = tables.LinkColumn('image_detail', args=[A('image_id'),], orderable=True, verbose_name= 'Img. ID')
     master_name = tables.Column(verbose_name = 'Name')
     ra = RAColumn(verbose_name="RA")
     dec = DecColumn(verbose_name="Dec")
@@ -79,7 +80,7 @@ class CrossmatchDetailTable(tables.Table):
     class Meta:
         model = Transients
         template_name = 'django_tables2/bootstrap4.html'
-        fields = ("id","master_name", "ra", "dec", "d2d_askap_centre", "survey", "catalog_mosaic", "transient_type")
+        fields = ("id","image_id", "master_name", "ra", "dec", "d2d_askap_centre", "survey", "catalog_mosaic", "transient_type")
         attrs = {"th":{"bgcolor":"#EBEDEF"}}      
     
 class CrossmatchDetailFluxTable(tables.Table):
@@ -133,12 +134,13 @@ class AssocFluxTable(tables.Table):
     askap_scale_flux = RMSColumn(verbose_name= 'Scaled ASKAP Int. Flux (mJy)')
     catalog_iflux = RMSColumn(verbose_name= 'Cat. Int. Flux (mJy)')
     ratio = FloatColumn(verbose_name= 'ASKAP / Cat Int. Flux Ratio')
+    d2d_askap_centre = FloatColumn(verbose_name = "Distance from ASKAP Centre (deg)")
     survey = CapitalColumn(verbose_name= 'Survey Used')
 
     class Meta:
         model = Transients
         template_name = 'django_tables2/bootstrap4.html'
-        fields = ("id","image_id", "master_name", "askap_iflux", "askap_scale_flux", "catalog_iflux", "ratio", "survey")
+        fields = ("id","image_id", "master_name", "askap_iflux", "askap_scale_flux", "catalog_iflux", "ratio","d2d_askap_centre", "survey")
         attrs = {"th":{"bgcolor":"#EBEDEF"}}  
         
         

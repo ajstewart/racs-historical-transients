@@ -16,6 +16,8 @@ from .tables import ImageTable, CrossmatchDetailFluxTable, NearestSourceDetailFl
 from .forms import TagForm
 from .filters import TransientFilter
 
+
+
 def home(request):
     images = Image.objects.all().order_by("id")
     table = ImageTable(images)
@@ -332,6 +334,15 @@ def crossmatch_quickview(request,pk,querytype,transient_filter):
     total = len(list(allsources.values_list('id', flat=True)))
     return render(request, 'crossmatch_quickview.html', {"crossmatch_sources":allsources,"image":image, "querytype":querytype, "title":title_to_use, "total":total, "html":html[querytype], 
         "subquery_type":subquery_type, "transient_filter":transient_filter})
+
+def crossmatch_quickview_query(request):
+    try:
+        crossmatch_sources = [Transients.objects.get(id=id) for id in request.session['query_ids']]
+    except:
+        crossmatch_sources = []
+
+    total = len(crossmatch_sources)
+    return render(request, 'crossmatch_quickview.html', {"crossmatch_sources":crossmatch_sources, "total":total, "query":True})
 
 def turn_on_hotkeys(request):
     request.session['hotkeys']='true'

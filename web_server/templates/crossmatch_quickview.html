@@ -3,16 +3,26 @@
 {% load units %}
 
 {% block breadcrumb %}
+{% if query %}
+<li class="breadcrumb-item"><a href="{% url 'home' %}">Images</a></li>
+<li class="breadcrumb-item"><a href="{% url 'query'%}">Query</a></li>
+<li class="breadcrumb-item active ">Quickview</li>
+{% else %}
 <li class="breadcrumb-item"><a href="{% url 'home' %}">Images</a></li>
 <li class="breadcrumb-item"><a href="{% url 'image_detail' image.pk %}">{{ image.name }}</a></li>
 <li class="breadcrumb-item active ">Flagged {{ title }}</li>
+{% endif %}
 {% endblock %}
 
 {% block content %}
 <div class="container">
 <div class="row">
     <div class="col text-center">
+{% if query %}      
+<a href="{% url 'query' %}" class="btn btn-primary mx-auto">Back to Query</a>
+{% else %}
 <a href="{% url 'transients' image.pk transient_filter %}" class="btn btn-primary mx-auto">Back to {{ title }}</a>
+{% endif %}
 </div>
 </div>
 <p></p>
@@ -28,9 +38,15 @@ There are <b>{{ total }}</b> sources listed below.
 </div>
 <div class="col text-center">
 {% for e in crossmatch_sources %}
+{% if query %}
+<b>{{ e.pipelinetag }} </b> {{ e.master_name }} ({{ e.survey }}) ({{ e.transient_type }})
+     <a href="{% url 'crossmatch_detail_query' e.id %}" >
+     <img src="{% static e.ploturl %}" class="mx-auto d-block" width="95%" height="95%"/></a>
+{% else %}
 <b>{{ e.pipelinetag }} </b> {{ e.master_name }} ({{ e.survey }}) ({{ e.transient_type }})
      <a href="{% url 'crossmatch_detail' image.pk 'transients' e.id %}" >
      <img src="{% static e.ploturl %}" class="mx-auto d-block" width="95%" height="95%"/></a>
+{% endif %}
 {% endfor %}
 </div>
 </div>

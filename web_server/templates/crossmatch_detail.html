@@ -56,12 +56,12 @@
          {% if prev_id != -1 %}
       <a href="{% url 'crossmatch_detail_query' cross_id=prev_id %}" class="btn btn-primary mx-auto">Previous Source</a>
       {% else %}
-      <a href="{% url 'query' %}" class="btn btn-secondary mx-auto">Back to Query Page</a>
+      <a href="{% url 'query' %}" class="btn btn-secondary mx-auto">Back to Query</a>
           {% endif %}
           {% if next_id != -1 %}
           <a href="{% url 'crossmatch_detail_query' cross_id=next_id %}" class="btn btn-primary mx-auto">Next Source</a>
           {% else %}
-          <a href="{% url 'query' %}" class="btn btn-secondary mx-auto">Back to Query Page</a>
+          <a href="{% url 'query' %}" class="btn btn-secondary mx-auto">Back to Querye</a>
           {% endif %}
          {% else %}
          {% if crossmatch_source.id > min_id %}
@@ -78,9 +78,9 @@
      </div>
      <div class="col text-right">
          {% if query %}
-     {{ this_index }} / {{ total }}         
+    <b> {{ this_index }} / {{ total }}         </b>
          {% else %}
-     {% if crossmatch_source.id|subtract:min_id|add:1 > image.transients_master_candidates_total %} <b>Beyond candidate cutoff &nbsp;&nbsp;&nbsp;&nbsp;</b> {% endif %}{{ crossmatch_source.id|subtract:min_id|add:1 }} / {{ total }}
+     {% if crossmatch_source.id|subtract:min_id|add:1 > image.transients_master_candidates_total %} <b>Beyond candidate cutoff &nbsp;&nbsp;&nbsp;&nbsp;</b> {% endif %}<b>{{ crossmatch_source.id|subtract:min_id|add:1 }} / {{ total }}</b>
      {% endif %}
      
  </div>
@@ -328,7 +328,7 @@ Investigate: <a href="{% url 'crossmatch_detail' pk=image.pk querytype=type cros
 <div class="container">
     <div class="row">
         <div class="col text-center">
-            <h5>Nearest Good Match Sources</h5>
+            <h5>Nearest Good Match Sources (in same image)</h5>
        {% render_table nearest_sources_table %} 
     </div>
     </div>
@@ -493,7 +493,7 @@ window.setTimeout(function () {
     <input type="hidden" name="next" value="{% url 'crossmatch_detail' pk=image.pk querytype=type cross_id=crossmatch_source.id %}" /></p>
     {% endif %}
     <button type="submit" value="Add comment" class="btn btn-primary" id="id_submit">Add Comment</button>
-    </form>
+    </form></p>
 {% else %}
     <p>Please <a href="{% url 'login' %}">log in</a> to leave a comment.</p>
 {% endif %}

@@ -6,6 +6,7 @@ from crispy_forms.bootstrap import InlineField
 from django import forms
 from django_filters.filters import Filter
 from decimal import Decimal
+from django.contrib.auth.models import User
 
 class MyRangeWidget(RangeWidget):
     def __init__(self, from_attrs=None, to_attrs=None, attrs=None):
@@ -86,6 +87,8 @@ class TransientFilter(django_filters.FilterSet):
             
             return queryset.extra(where=["q3c_radial_query(ra, dec, {:.6f}, {:.6f}, {:.6f})".format(ra,dec,radius)])
     
+    source_id = django_filters.NumberFilter(name="id", label="Source ID")
+    
     d2d__gt = django_filters.RangeFilter(name = 'd2d_askap_centre', widget=MyRangeWidget(from_attrs={'placeholder': 'Min'}, to_attrs={'placeholder':'Max'}))
     ratio__gt = django_filters.RangeFilter(name = 'ratio', widget=MyRangeWidget(from_attrs={'placeholder': 'Min'}, to_attrs={'placeholder':'Max'}))
     
@@ -94,6 +97,13 @@ class TransientFilter(django_filters.FilterSet):
     
     pipelinetag_choices = (
         ('Candidate', 'Candidate'),
+        ('Convolved flux error', 'Convolved flux error'),
+        ('Edge of ASKAP image', 'Edge of ASKAP image'),
+        ('Extended source', 'Extended source'),
+        ('Large island source', 'Large island source'),
+        ('Likely artefact (bright source)', 'Likely artefact (bright source)'),
+        ('Likely diffuse/extended', 'Likely diffuse/extended'),
+        ('Likely double', 'Likely double/multi source'),
         )
     
     pipelinetag = django_filters.ChoiceFilter(name = 'pipelinetag', choices=pipelinetag_choices)
@@ -105,6 +115,11 @@ class TransientFilter(django_filters.FilterSet):
     
     inflated_convolved_flux = django_filters.ChoiceFilter(name = 'inflated_convolved_flux', choices=convolved_error_choices)
     
+    users = list(User.objects.values())
+
+    users = [(i["username"],i["username"]) for i in sorted(users)]+[("N/A", "Unchecked")]
+    
+    checkedby = django_filters.ChoiceFilter(name = 'checkedby', choices=users)
     
     transient_type_choices = (
         ('Good match', 'Good match'),
@@ -123,9 +138,15 @@ class TransientFilter(django_filters.FilterSet):
     
     usertag_choices = (
         ('investigate', 'Investigate'),
+        ('help', 'Help'),
+        ('problem', 'Problem'),
+        ('ignore', 'Ignore'),
         )
     
     usertag = django_filters.ChoiceFilter(name = 'usertag', choices=usertag_choices)
+    
+    ra__gt = django_filters.RangeFilter(name = 'ra', widget=MyRangeWidget(from_attrs={'placeholder': 'Min (deg)'}, to_attrs={'placeholder':'Max (deg)'}), label="Right Ascension")
+    dec__gt = django_filters.RangeFilter(name = 'dec', widget=MyRangeWidget(from_attrs={'placeholder': 'Min (deg)'}, to_attrs={'placeholder':'Max (deg)'}), label="Declination")
     
     cone_search = ConeSearchFilter(field_name = 'cone_search', widget=ConeSearchWidget(), method="cone_search_filter", label="Cone Search")
     
