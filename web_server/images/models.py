@@ -2,6 +2,9 @@
 from __future__ import unicode_literals
 
 from django.db import models
+from django.contrib.auth.models import User
+from django.db.models.signals import post_save
+from django.dispatch import receiver
 
 # Create your models here.
 
@@ -78,23 +81,23 @@ class Transients(models.Model):
     askap_non_conv_d2d = models.DecimalField(max_digits=20, decimal_places=12, default=0)
     askap_rms = models.DecimalField(max_digits=20, decimal_places=12, default=0)
     askap_rms_2 = models.DecimalField(max_digits=20, decimal_places=12, default=0)
-    d2d_askap_centre = models.DecimalField(max_digits=20, decimal_places=12, default=0)
-    ratio = models.DecimalField(max_digits=20, decimal_places=12, default=0)
+    d2d_askap_centre = models.DecimalField("Distance to ASKAP Image Centre", max_digits=20, decimal_places=12, default=0)
+    ratio = models.DecimalField("Flux Ratio", max_digits=20, decimal_places=12, default=0)
     ratio_e = models.DecimalField(max_digits=20, decimal_places=12, default=0)
     ratio_catalog_flux = models.DecimalField(max_digits=20, decimal_places=12, default=0)
     ratio_catalog_flux_err = models.DecimalField(max_digits=20, decimal_places=12, default=0)
     ratio_askap_flux = models.DecimalField(max_digits=20, decimal_places=12, default=0)
     ratio_askap_flux_err = models.DecimalField(max_digits=20, decimal_places=12, default=0)
     ploturl = models.CharField(max_length=200, unique=False, default="plot")
-    pipelinetag = models.CharField(max_length=50, unique=False, default="N/A")
-    usertag = models.CharField(max_length=30, unique=False, default="N/A")
-    userreason = models.CharField(max_length=30, unique=False, default="N/A")
-    checkedby = models.CharField(max_length=20, unique=False, default="N/A")
+    pipelinetag = models.CharField("Pipeline Tag", max_length=50, unique=False, default="N/A")
+    usertag = models.CharField("User Tag", max_length=30, unique=False, default="N/A")
+    userreason = models.CharField("User Reason", max_length=30, unique=False, default="N/A")
+    checkedby = models.CharField("Checked By", max_length=20, unique=False, default="N/A")
     survey = models.CharField(max_length=10, unique=False, default="N/A")
     nearest_sources = models.CharField(max_length=250, unique=False, default="")
     transient_type = models.CharField(max_length=50, unique=False, default="")
     aegean_rms_used = models.CharField(max_length=6, unique=False, default="False")
-    inflated_convolved_flux = models.CharField(max_length=6, unique=False, default="False")
+    inflated_convolved_flux = models.CharField("Flux Convolved Error", max_length=6, unique=False, default="False")
         
     def __str__(self):
         return self.sumss_name
@@ -103,7 +106,16 @@ class Query(models.Model):
     transient_type = models.CharField(max_length=50)
     user_tag = models.CharField(max_length=50)
     user = models.CharField(max_length=50)
+    
+class Profile(models.Model):
+    user = models.OneToOneField(User, on_delete=models.CASCADE)
+    last_query = models.TextField(max_length=200, blank=True)
 
-    # def get_absolute_url(self):
-    #     return reverse("queries:detail", kwargs={"id": self.id})
-        #return "/queries/%s/" %(self.id)
+@receiver(post_save, sender=User)
+def create_user_profile(sender, instance, created, **kwargs):
+    if created:
+        Profile.objects.create(user=instance)
+
+@receiver(post_save, sender=User)
+def save_user_profile(sender, instance, **kwargs):
+    instance.profile.save()

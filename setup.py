@@ -1,7 +1,7 @@
 from setuptools import setup, find_packages
 
 setup(name='askap-image-diagnostic',
-      version='0.8.1',
+      version='0.8.2',
       description='Perform analysis tasks on ASKAP images.',
       url='http://github.com/ajstewart/askap-image-diagnostic',
       author='Adam Stewart',
@@ -23,7 +23,9 @@ setup(name='askap-image-diagnostic',
                         'sqlalchemy',
                         'psycopg2',
                         'tablib',
-                        'django-contrib-comments'
+                        'django-contrib-comments',
+                        'django-filter==1.1',
+                        'django-crispy-forms',
                         ],
       scripts=["bin/processASKAPimage.py"],
       dependency_links=['https://github.com/lofar-astron/PyBDSF/tarball/master#egg=bdsf-1.9.0'],

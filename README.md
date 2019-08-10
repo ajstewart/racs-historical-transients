@@ -1,6 +1,9 @@
 # askap-image-diagnostic
 A module to perform diagnostic analysis on ASKAP images using the SUMSS catalogue. Creates a crossmatch catalogue for SUMSS -> ASKAP sources and also produces diagnostic plots. Also includes the ability to create postage stamps of each crossmatch and to search for transients from either catalogue.
 
+## Dependancies
+The only non-python module dependancy (all should be installed from pip install) required is the postgres plugin Q3C: https://github.com/segasai/q3c. However this is only required for the website.
+
 ## Installation
 I recommend to install the module to a new python environment using, for example, conda or virtualenv.
 
@@ -20,6 +23,8 @@ This script was intended to be run on the ada machine which has a installation o
 ```createdb <db name>``` e.g. ```createdb racs``` (if you get a denied message contact the system administrator)
 
 This will create an empty database with the chosen name. Make sure to note down the database settings (port, user, name) for use with the pipeline options. If the pipeline is run without first initilising the tables then the tables will be newly created. The easiest way to initilise the tables is by setting up the [website](#Installation of the Website).
+
+Remember that if you wish to use the website to also install Q3C and go through the initialisation steps described on https://github.com/segasai/q3c (the steps so that queries can be run).
 
 ### Installation of the Website
 Included in the repository is `web_server` which is a basic website built using Django to allow the user to explore the results in a convienient way and for other users to give feedback on the crossmatching.

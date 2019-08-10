@@ -68,6 +68,7 @@ class ImageTable(tables.Table):
     
 class CrossmatchDetailTable(tables.Table):
     id = tables.Column(verbose_name= 'ID')
+    image_id = tables.LinkColumn('image_detail', args=[A('image_id'),], orderable=True, verbose_name= 'Img. ID')
     master_name = tables.Column(verbose_name = 'Name')
     ra = RAColumn(verbose_name="RA")
     dec = DecColumn(verbose_name="Dec")
@@ -79,7 +80,7 @@ class CrossmatchDetailTable(tables.Table):
     class Meta:
         model = Transients
         template_name = 'django_tables2/bootstrap4.html'
-        fields = ("id","master_name", "ra", "dec", "d2d_askap_centre", "survey", "catalog_mosaic", "transient_type")
+        fields = ("id","image_id", "master_name", "ra", "dec", "d2d_askap_centre", "survey", "catalog_mosaic", "transient_type")
         attrs = {"th":{"bgcolor":"#EBEDEF"}}      
     
 class CrossmatchDetailFluxTable(tables.Table):
@@ -122,6 +123,24 @@ class NearestSourceDetailFluxTable(tables.Table):
         model = Transients
         template_name = 'django_tables2/bootstrap4.html'
         fields = ("id","master_name", "askap_iflux", "askap_scale_flux", "catalog_iflux", "ratio", "survey")
+        attrs = {"th":{"bgcolor":"#EBEDEF"}}  
+        
+        
+class AssocFluxTable(tables.Table):
+    id = tables.Column(verbose_name= 'ID')
+    image_id = tables.LinkColumn('image_detail', args=[A('image_id'),], orderable=True, verbose_name= 'Img. ID')
+    master_name = tables.LinkColumn('crossmatch_detail', args=[A('image_id'), "transients", A('id')], orderable=True, verbose_name= 'Name')
+    askap_iflux = RMSColumn(verbose_name= 'ASKAP Int. Flux (mJy)')
+    askap_scale_flux = RMSColumn(verbose_name= 'Scaled ASKAP Int. Flux (mJy)')
+    catalog_iflux = RMSColumn(verbose_name= 'Cat. Int. Flux (mJy)')
+    ratio = FloatColumn(verbose_name= 'ASKAP / Cat Int. Flux Ratio')
+    d2d_askap_centre = FloatColumn(verbose_name = "Distance from ASKAP Centre (deg)")
+    survey = CapitalColumn(verbose_name= 'Survey Used')
+
+    class Meta:
+        model = Transients
+        template_name = 'django_tables2/bootstrap4.html'
+        fields = ("id","image_id", "master_name", "askap_iflux", "askap_scale_flux", "catalog_iflux", "ratio","d2d_askap_centre", "survey")
         attrs = {"th":{"bgcolor":"#EBEDEF"}}  
         
         
@@ -195,4 +214,40 @@ class TransientTableAll(tables.Table):
         attrs = {"th":{"bgcolor":"#EBEDEF"}}  
         row_attrs = {
                 'highlight': lambda record: 'true' if (record.ratio >= 2.0 and record.pipelinetag == "Candidate") else 'false' 
+                }
+
+class TransientQueryTable(tables.Table):
+    export_formats = ['csv',]
+    id = tables.Column(verbose_name= 'ID')
+    image_id = tables.LinkColumn('image_detail', args=[A('image_id'),], orderable=True, verbose_name= 'Img. ID')
+    master_name = tables.LinkColumn('crossmatch_detail_query', args=[A('id')], orderable=True, verbose_name= 'Name')
+    ra = RAColumn(attrs={"td":{"style":"white-space:nowrap;"}}, verbose_name= 'RA' )
+    dec = DecColumn(attrs={"td":{"style":"white-space:nowrap;"}}, verbose_name= 'Dec')
+    ratio = FloatColumn(verbose_name='Freq. Scaled Ratio')
+    askap_iflux = RMSColumn(verbose_name= 'ASKAP Int. Flux (mJy)')
+    # askap_snr = tables.Column(verbose_name= 'Local ASKAP SNR')
+    catalog_iflux = RMSColumn(verbose_name= 'Cat. Int. Flux (mJy)')
+    # scaled_askap_snr = tables.Column(verbose_name= 'Scaled Catalog SNR')
+    d2d_askap_centre = FloatColumn(verbose_name="Dist. from ASKAP Centre (deg)")
+    survey = CapitalColumn(verbose_name= 'Ref Survey')
+    transient_type = tables.Column(verbose_name= 'Type')
+    pipelinetag = tables.Column(verbose_name= 'Pipeline Tag')
+    usertag = tables.Column(verbose_name= 'User Tag')
+    userreason = tables.Column(verbose_name= 'User Reason')
+    checkedby = tables.Column(verbose_name= 'Checked By')
+    askap_image = tables.Column()
+    catalog_mosaic = tables.Column()
+    
+    def before_render(self, request):
+        self.columns.hide("d2d_askap_centre")
+        self.columns.hide("askap_image")
+        self.columns.hide("catalog_mosaic")
+    
+    class Meta:
+        model = Transients
+        template_name = 'django_tables2/bootstrap4.html'
+        fields = ("id","image_id","master_name", "ra", "dec", "askap_iflux","catalog_iflux", "ratio", "d2d_askap_centre", "survey", "transient_type", "pipelinetag", "usertag", "userreason", "checkedby")
+        attrs = {"th":{"bgcolor":"#EBEDEF"}}
+        row_attrs = {
+                'highlight': lambda record: 'true' if (record.checkedby != "N/A") else 'false' 
                 }
