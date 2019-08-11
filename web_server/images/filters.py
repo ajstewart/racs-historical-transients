@@ -34,21 +34,7 @@ class ConeSearchWidget(forms.widgets.MultiWidget):
             forms.widgets.Select(attrs={"placeholder":"Radius", "style":"margin:5px"}, choices = _CHOICES)
             )
         super(ConeSearchWidget, self).__init__(_widgets, attrs)
-        
-# class SortByWidget(forms.widgets.MultiWidget):
-#     def __init__(self, attrs=None, dt=None, mode=0):
-#
-#         _CHOICES = (
-#         ('ratio', 'Ratio'),
-#         ('askap_iflux', 'ASKAP Integrated Flux'),
-#         ('catalog_iflux', 'Catalogue Integrated Flux'),
-#         )
-#
-#
-#         _widgets = (
-#             forms.widgets.Select(attrs={"style":"margin:5px"}, choices = _CHOICES)
-#             )
-#         super(SortByWidget, self).__init__(_widgets, attrs)
+
 
 class ConeSearchFilter(Filter):
     # field_class = forms.DecimalField
