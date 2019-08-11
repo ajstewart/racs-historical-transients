@@ -34,12 +34,26 @@ class ConeSearchWidget(forms.widgets.MultiWidget):
             forms.widgets.Select(attrs={"placeholder":"Radius", "style":"margin:5px"}, choices = _CHOICES)
             )
         super(ConeSearchWidget, self).__init__(_widgets, attrs)
+        
+# class SortByWidget(forms.widgets.MultiWidget):
+#     def __init__(self, attrs=None, dt=None, mode=0):
+#
+#         _CHOICES = (
+#         ('ratio', 'Ratio'),
+#         ('askap_iflux', 'ASKAP Integrated Flux'),
+#         ('catalog_iflux', 'Catalogue Integrated Flux'),
+#         )
+#
+#
+#         _widgets = (
+#             forms.widgets.Select(attrs={"style":"margin:5px"}, choices = _CHOICES)
+#             )
+#         super(SortByWidget, self).__init__(_widgets, attrs)
 
 class ConeSearchFilter(Filter):
     # field_class = forms.DecimalField
 
     def filter(self, qs, value):
-        print value
 
         return super()
 
@@ -87,6 +101,13 @@ class TransientFilter(django_filters.FilterSet):
             
             return queryset.extra(where=["q3c_radial_query(ra, dec, {:.6f}, {:.6f}, {:.6f})".format(ra,dec,radius)])
     
+    def sort_by_filter(self, queryset, name, value):
+        print value
+        if value=='' or value==None:
+            return queryset
+        else:
+            return queryset.order_by(value)
+    
     source_id = django_filters.NumberFilter(name="id", label="Source ID")
     
     d2d__gt = django_filters.RangeFilter(name = 'd2d_askap_centre', widget=MyRangeWidget(from_attrs={'placeholder': 'Min'}, to_attrs={'placeholder':'Max'}))
@@ -130,8 +151,8 @@ class TransientFilter(django_filters.FilterSet):
     transient_type = django_filters.MultipleChoiceFilter(choices=transient_type_choices, widget=forms.CheckboxSelectMultiple)
     
     survey_choices = (
-        ('SUMSS', 'SUMSS'),
-        ('NVSS', 'NVSS'),
+        ('sumss', 'SUMSS'),
+        ('nvss', 'NVSS'),
         )
     
     survey = django_filters.MultipleChoiceFilter(choices=survey_choices, widget=forms.CheckboxSelectMultiple)
@@ -149,6 +170,18 @@ class TransientFilter(django_filters.FilterSet):
     dec__gt = django_filters.RangeFilter(name = 'dec', widget=MyRangeWidget(from_attrs={'placeholder': 'Min (deg)'}, to_attrs={'placeholder':'Max (deg)'}), label="Declination")
     
     cone_search = ConeSearchFilter(field_name = 'cone_search', widget=ConeSearchWidget(), method="cone_search_filter", label="Cone Search")
+    
+    sortby_choices = (
+    ('', '---------'),
+    ('ratio', 'Ratio (asc)'),
+    ('-ratio', 'Ratio (desc)'),
+    ('askap_iflux', 'ASKAP Int. Flux (asc)'),
+    ('-askap_iflux', 'ASKAP Int. Flux (desc)'),
+    ('catalog_iflux', 'Catalogue Int. Flux (asc)'),
+    ('-catalog_iflux', 'Catalogue Int. Flux (desc)'),
+    )
+    
+    sort_by = ConeSearchFilter(field_name = 'sort_by', widget=forms.widgets.Select(choices=sortby_choices), method="sort_by_filter", label="Sort By")
     
     class Meta:
         model = Transients
