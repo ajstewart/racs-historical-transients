@@ -61,7 +61,7 @@
           {% if next_id != -1 %}
           <a href="{% url 'crossmatch_detail_query' cross_id=next_id %}" class="btn btn-primary mx-auto">Next Source</a>
           {% else %}
-          <a href="{% url 'query' %}" class="btn btn-secondary mx-auto">Back to Querye</a>
+          <a href="{% url 'query' %}" class="btn btn-secondary mx-auto">Back to Query</a>
           {% endif %}
          {% else %}
          {% if crossmatch_source.id > min_id %}
@@ -368,7 +368,7 @@ Investigate: <a href="{% url 'crossmatch_detail' pk=image.pk querytype=type cros
             var aladin2 = A.aladin('#aladin-lite-div-2');
             aladin2.setZoom(0.36);
             aladin2.gotoPosition({{ crossmatch_source.ra }}, {{ crossmatch_source.dec }});
-            var racs = aladin2.createImageSurvey('RACS', 'RACS', "{% static 'racsHiPSlow' %}", 'equatorial', 6, {imgFormat: 'png'});
+            var racs = aladin2.createImageSurvey('RACS', 'RACS', "{% static 'racs_hips' %}", 'equatorial', 6, {imgFormat: 'png'});
             var gleam = aladin2.createImageSurvey('GLEAM_colored', 'GLEAM_colored', 'http://ict.icrar.org/store/gleam/gleam_color/', 'equatorial', 5, {imgFormat: 'png'});
             var sumss = aladin2.createImageSurvey('SUMSS', 'SUMSS', 'http://alasky.u-strasbg.fr/SUMSS', 'equatorial', 6, {imgFormat: 'fits'});
             var nvss = aladin2.createImageSurvey('NVSS', 'NVSS', 'http://alasky.u-strasbg.fr/NVSS/intensity/', 'equatorial', 5, {imgFormat: 'jpg'});
@@ -495,7 +495,7 @@ window.setTimeout(function () {
     <button type="submit" value="Add comment" class="btn btn-primary" id="id_submit">Add Comment</button>
     </form></p>
 {% else %}
-    <p>Please <a href="{% url 'login' %}">log in</a> to leave a comment.</p>
+    <p>Please <a href="{% url 'login' %}?next={{request.path}}">log in</a> to leave a comment.</p>
 {% endif %}
 
 

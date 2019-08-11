@@ -42,7 +42,9 @@ INSTALLED_APPS = [
     'django_tables2',
     'keyboard_shortcuts',
     'django_comments',
-    'comment_app'
+    'comment_app',
+    'django_filters',
+    'crispy_forms'
 ]
 
 MIDDLEWARE = [
@@ -188,3 +190,5 @@ SPECIAL_DISABLED = True
 SITE_ID = 1
 
 COMMENTS_APP = 'comment_app'
+
+CRISPY_TEMPLATE_PACK = 'bootstrap4'
