@@ -306,7 +306,6 @@ class crossmatch(object):
                 aegean_results = self.force_extract_aegean(aegean_to_extract_df, askap_image.image)
                 # preconv_df_have_match.join(aegean_to_extract_df, rsuffix="aegean_convolved")
                 preconv_df_have_match = self._merge_forced_aegean(preconv_df_have_match, aegean_results, tag="aegean_convolved")
-                
                 self.logger.info("{} no match sources have a match in the pre-convolved image.".format(len(preconv_df_have_match.index)))
                 preconv_matches_names = preconv_df_have_match["master_name"].tolist()
                 #Now need to update the crossmatched ASKAP values to that of the non-convolved catalog
@@ -563,7 +562,7 @@ class crossmatch(object):
         not_matched_askap_sources=self.comp_catalog.df[~self.comp_catalog.df.name.isin(matched_askap_sources)].reset_index(drop=True)
         if sumss and clean_for_sumss:
             self.logger.info("Removing sources above the SUMSS boundary ({} deg)".format(max_sumss))
-            not_matched_askap_sources=not_matched_askap_sources[not_matched_askap_sources["dec"]<=(max_sumss+(45./3600.))].reset_index(drop=True)
+            not_matched_askap_sources=not_matched_askap_sources[not_matched_askap_sources["dec"]<=(max_sumss)].reset_index(drop=True)
         # Now get those sources with a SNR ratio above the user defined threshold #Note March 4 - switch to 5.0, too many candidates at 4.5. March 13 - Added user option.
         mask=[]
         snrs=[]
@@ -631,7 +630,8 @@ class crossmatch(object):
                 new_not_matched_askap_sources_should_see.update(not_matched_askap_sources_should_see_subset)
             else:
                 new_not_matched_askap_sources_should_see.update(not_matched_askap_sources_should_see_subset)
-                
+        
+               
         if len(not_matched_askap_sources_should_see.index)>0:
             tojoin = new_not_matched_askap_sources_should_see.filter([c for c in new_not_matched_askap_sources_should_see.columns if c not in not_matched_askap_sources_should_see.columns])
             not_matched_askap_sources_should_see = not_matched_askap_sources_should_see.join(tojoin)
@@ -640,6 +640,9 @@ class crossmatch(object):
         # not_matched_askap_sources_should_see = self.measure_catalog_image_peak_fluxes(not_matched_askap_sources_should_see)
         not_matched_askap_sources_should_see=self.measure_askap_image_local_rms(not_matched_askap_sources_should_see, askap_img_wcs, askap_img_header, askap_img_data, using_pre_conv,
             preconv_askap_img_wcs, preconv_askap_img_header, preconv_askap_img_data, askap_only=True)
+        
+        #check that no nan sources made it through from the aegean extraction (means that the SUMSS 'source' is out of range)
+        not_matched_askap_sources_should_see = not_matched_askap_sources_should_see[~not_matched_askap_sources_should_see["aegean_catalog_int_flux"].isna()].reset_index(drop=True)
         
         #Perform checks for these 'transients'
         #1. Doubles
@@ -714,6 +717,9 @@ class crossmatch(object):
         flagged_mask = ((self.transients_master_df["pipelinetag"]!="Candidate") & (self.transients_master_df["master_ratio"]>=2.0))
         self.transients_master_candidates_total = len(self.transients_master_df[candidate_mask].index)
         self.transients_master_flagged_total = len(self.transients_master_df[flagged_mask].index)
+        
+        #Check for null entries and mark as failed:
+        self.validate_master_table()
         
         self.transients_master_df.to_csv("transients_master.csv")
         self.logger.info("Written master transient table as 'transients_master.csv'.")
@@ -919,6 +925,17 @@ class crossmatch(object):
                 self.transients_master_df.at[i, "aegean_rms_used"] = "True"
             
         self.logger.info("Transient ratios calculated")
+    
+    def validate_master_table(self):
+        #Here we want to check if any ratios are null meaning the source has failed to be extracted by Aegean
+        null_indexes = self.transients_master_df[self.transients_master_df["master_ratio"].isnull()].index.tolist()
+        if len(null_indexes)>0:
+            self.logger.info("Some ratios failed, marking as 'Failed'.")
+            for i in null_indexes:
+                self.transients_master_df.at[i, "pipelinetag"]="Failed"
+        else:
+            self.logger.info("No ratio failures.")
+            return
     
     def _calculate_ratio_error(self, ratio, x, dx, y, dy):
         return np.abs(ratio) * np.sqrt( ((dx/x)*(dx/x)) + ((dy/y)*(dy/y)))
@@ -1169,11 +1186,13 @@ class crossmatch(object):
         aegean_match_catalog = SkyCoord(ra=aegean_results["{}_ra".format(tag)].tolist()*u.degree, dec=aegean_results["{}_dec".format(tag)].tolist()*u.degree)
         idx, d2d, d3d = df_match_catalog.match_to_catalog_sky(aegean_match_catalog)
         if missing:
+            self.logger.debug(d2d)
             indexes_missing=[df.index[i] for i,val in enumerate(d2d) if val.arcsec > 1.0]
+            self.logger.debug(indexes_missing)
             for i in indexes_missing:
                 temp = pd.Series([np.nan for j in aegean_results.columns], index=aegean_results.columns)
                 temp.name = aegean_results.index[-1]+1
-                aegean_results.append(temp,sort=False)
+                aegean_results=aegean_results.append(temp,sort=False)
         else:
             indexes_missing = []
         #generate a dict to form the new index:
@@ -1181,6 +1200,8 @@ class crossmatch(object):
         for i,val in enumerate(idx):
             if df.index[i] not in indexes_missing:
                 indexes_map[val]=df.index[i]
+        self.logger.debug(indexes_map)
+        self.logger.debug(indexes_missing)
         new_index = [indexes_map[i] for i in sorted(indexes_map)] + indexes_missing
         aegean_results.index=new_index
         newdf = df.join(aegean_results)
@@ -1199,7 +1220,6 @@ class crossmatch(object):
         self.transients_master_df["checkedby"]="N/A"
         self.transients_master_df["askap_image"]=askap_image
         self.transients_master_df["askap_image_2"]=askap_image_2
-        
             
         # db_col_names_order = ["image_id", #need to add
         #                 # "match_id", #need to add
@@ -1294,7 +1314,24 @@ class crossmatch(object):
         to_write = to_write.sort_values(by=["pipelinetag","ratio"], ascending=[True, False])
         new_type_vals = {"goodmatch":"Good match", "nocatalogmatch":"No catalog match", "noaskapmatch":"No askap match"}
         to_write["transient_type"]=[new_type_vals[i] for i in to_write["transient_type"].values]
-        values = {"catalog_name":"N/A", "askap_name":"N/A", "askap_non_conv_d2d":0.0}
+        values = {"catalog_name":"N/A", "askap_name":"N/A", "askap_non_conv_d2d":0.0,
+                    "catalog_iflux":-1.0, #done
+                    "catalog_iflux_e":-1.0, #done
+                    "askap_iflux":-1.0, #need to add
+                    "askap_iflux_e":-1.0, #need to add
+                    "askap_scale_flux":-1.0, #need to add
+                    "askap_scale_flux_e":-1.0, #need to add
+                    "askap_non_conv_flux":-1.0,
+                    "askap_non_conv_flux_e":-1.0,
+                    "askap_non_conv_scaled_flux":-1.0,
+                    "askap_non_conv_scaled_flux_e":-1.0,
+                    "ratio_catalog_flux":-1.0,
+                    "ratio_catalog_flux_err":-1.0,
+                    "ratio_askap_flux":-1.0,
+                    "ratio_askap_flux_err":-1.0,
+                    "ratio":-1.0,
+                    "ratio_e":-1.0
+                    }
         to_write.fillna(value=values, inplace=True)
         to_write.to_sql("images_transients", engine, if_exists="append", index=False)
         

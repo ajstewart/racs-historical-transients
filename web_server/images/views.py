@@ -196,6 +196,7 @@ def crossmatch_detail(request,pk,querytype,cross_id):
     url_to_use = html[querytype]
     simbad_query="http://simbad.u-strasbg.fr/simbad/sim-coo?CooEpoch=2000&Coord={}d{}d&Radius.unit=arcmin&CooEqui=2000&CooFrame=FK5&Radius=10".format(crossmatch_source.ra, crossmatch_source.dec)
     ned_query="https://ned.ipac.caltech.edu/conesearch?search_type=Near%20Position%20Search&coordinates={}d%20{}d&radius=2.0&in_csys=Equatorial&in_equinox=J2000.0&out_csys=Equatorial&out_equinox=J2000.0&hconst=67.8&omegam=0.308&omegav=0.692&wmap=4&corr_z=1".format(crossmatch_source.ra, crossmatch_source.dec)
+    follow_up_page = "http://ada.physics.usyd.edu.au:8015/docs/ratio_query/{}_{}_followup.html".format(crossmatch_source.image_id, crossmatch_source.id)
     
     #Check if an assign button has been used.
     try:
@@ -212,7 +213,7 @@ def crossmatch_detail(request,pk,querytype,cross_id):
             return render(request, 'crossmatch_detail.html', {'crossmatch_source':crossmatch_source, 'image':image, 'type':querytype, 
                                                                 'title':title_to_use, 'type_url':url_to_use, 'max_id':max_id, 'min_id':min_id, 'total':total, "saved":False, "updated":False, "conflict":False,
                                                             'simbad_query':simbad_query, 'ned_query':ned_query, 'detail_table':detail_table, "ratio_table":ratio_table, 'nearest_sources_table':nearest_sources_table,
-                                                            'query':False, 'possible_assoc_table':possible_assoc_table},)
+                                                            'query':False, 'possible_assoc_table':possible_assoc_table, 'follow_up_page':follow_up_page},)
         else: 
             if username!=image.claimed_by:
                 if user.is_staff:
@@ -221,7 +222,7 @@ def crossmatch_detail(request,pk,querytype,cross_id):
                     return render(request, 'crossmatch_detail.html', {'crossmatch_source':crossmatch_source, 'image':image, 'type':querytype, 
                                                                     'title':title_to_use, 'type_url':url_to_use, 'max_id':max_id, 'min_id':min_id, 'total':total, "saved":False, "updated":False, "conflict":False,
                                                                 'simbad_query':simbad_query, 'ned_query':ned_query, 'detail_table':detail_table, "ratio_table":ratio_table, 'nearest_sources_table':nearest_sources_table,
-                                                                'query':False, 'possible_assoc_table':possible_assoc_table},)
+                                                                'query':False, 'possible_assoc_table':possible_assoc_table, 'follow_up_page':follow_up_page},)
             
             if crossmatch_source.checkedby.lower()=="n/a":
                 crossmatch_source.checkedby=username
@@ -300,7 +301,7 @@ def crossmatch_detail(request,pk,querytype,cross_id):
                                                                 'title':title_to_use, 'type_url':url_to_use, 'max_id':max_id, 'min_id':min_id, 'total':total, "saved":saved, "updated":updated, "conflict":conflict,
                                                             'simbad_query':simbad_query, 'ned_query':ned_query, 'detail_table':detail_table, "ratio_table":ratio_table, 'nearest_sources_table':nearest_sources_table, 
                                                             "hotkey_assign":True, "hotkey_prev_id":prev_id, "hotkey_usertag":hotkey_usertag, "hotkey_userreason":hotkey_userreason, "hotkey_updated":hotkey_updated,
-                                                            'query':False, 'possible_assoc_table':possible_assoc_table},)
+                                                            'query':False, 'possible_assoc_table':possible_assoc_table, 'follow_up_page':follow_up_page},)
     except:
         pass
 
@@ -308,7 +309,7 @@ def crossmatch_detail(request,pk,querytype,cross_id):
     return render(request, 'crossmatch_detail.html', {'crossmatch_source':crossmatch_source, 'image':image, 'type':querytype, 
                                                         'title':title_to_use, 'type_url':url_to_use, 'max_id':max_id, 'min_id':min_id, 'total':total, "saved":saved, "updated":updated, "conflict":conflict,
                                                     'simbad_query':simbad_query, 'ned_query':ned_query, 'detail_table':detail_table, "ratio_table":ratio_table, 'nearest_sources_table':nearest_sources_table,
-                                                    'query':False, 'possible_assoc_table':possible_assoc_table},)
+                                                    'query':False, 'possible_assoc_table':possible_assoc_table, 'follow_up_page':follow_up_page},)
 
 
 def crossmatch_quickview(request,pk,querytype,transient_filter):
@@ -455,6 +456,7 @@ def crossmatch_detail_query(request,cross_id):
     url_to_use = "transients"
     simbad_query="http://simbad.u-strasbg.fr/simbad/sim-coo?CooEpoch=2000&Coord={}d{}d&Radius.unit=arcmin&CooEqui=2000&CooFrame=FK5&Radius=10".format(crossmatch_source.ra, crossmatch_source.dec)
     ned_query="https://ned.ipac.caltech.edu/conesearch?search_type=Near%20Position%20Search&coordinates={}d%20{}d&radius=2.0&in_csys=Equatorial&in_equinox=J2000.0&out_csys=Equatorial&out_equinox=J2000.0&hconst=67.8&omegam=0.308&omegav=0.692&wmap=4&corr_z=1".format(crossmatch_source.ra, crossmatch_source.dec)
+    follow_up_page = "http://ada.physics.usyd.edu.au:8015/docs/ratio_query/{}_{}_followup.html".format(crossmatch_source.image_id, crossmatch_source.id)
     
     #Check if an assign button has been used.
     try:
@@ -471,7 +473,7 @@ def crossmatch_detail_query(request,cross_id):
             return render(request, 'crossmatch_detail.html', {'crossmatch_source':crossmatch_source, 'image':image, 'type':"transients", 
                                                                 'title':title_to_use, 'type_url':url_to_use, 'next_id':next_id, 'prev_id':prev_id, 'this_index':this_index+1, 'total':total, "saved":False, "updated":False, "conflict":False,
                                                             'simbad_query':simbad_query, 'ned_query':ned_query, 'detail_table':detail_table, "ratio_table":ratio_table, 'nearest_sources_table':nearest_sources_table,
-                                                        'query':True, 'possible_assoc_table':possible_assoc_table},)
+                                                        'query':True, 'possible_assoc_table':possible_assoc_table, 'follow_up_page':follow_up_page},)
         else: 
 
             if crossmatch_source.checkedby.lower()=="n/a":
@@ -495,7 +497,7 @@ def crossmatch_detail_query(request,cross_id):
                         return render(request, 'crossmatch_detail.html', {'crossmatch_source':crossmatch_source, 'image':image, 'type':"transients", 
                                                                             'title':title_to_use, 'type_url':url_to_use, 'next_id':next_id, 'prev_id':prev_id, 'this_index':this_index+1, 'total':total, "saved":saved, "updated":updated, "conflict":conflict,
                                                                         'simbad_query':simbad_query, 'ned_query':ned_query, 'detail_table':detail_table, "ratio_table":ratio_table, 'nearest_sources_table':nearest_sources_table,
-                                                                        'query':True, 'possible_assoc_table':possible_assoc_table},)
+                                                                        'query':True, 'possible_assoc_table':possible_assoc_table, 'follow_up_page':follow_up_page},)
             elif crossmatch_source.checkedby == username:
                 crossmatch_source.checkedby=username
                 crossmatch_source.usertag=usertag
@@ -516,7 +518,7 @@ def crossmatch_detail_query(request,cross_id):
                         return render(request, 'crossmatch_detail.html', {'crossmatch_source':crossmatch_source, 'image':image, 'type':"transients", 
                                                                             'title':title_to_use, 'type_url':url_to_use, 'next_id':next_id, 'prev_id':prev_id, 'this_index':this_index+1, 'total':total, "saved":saved, "updated":updated, "conflict":conflict,
                                                                         'simbad_query':simbad_query, 'ned_query':ned_query, 'detail_table':detail_table, "ratio_table":ratio_table, 'nearest_sources_table':nearest_sources_table,
-                                                                        'query':True, 'possible_assoc_table':possible_assoc_table},)
+                                                                        'query':True, 'possible_assoc_table':possible_assoc_table, 'follow_up_page':follow_up_page},)
             else:
                 if user.is_staff:
                     crossmatch_source.checkedby=username
@@ -539,7 +541,7 @@ def crossmatch_detail_query(request,cross_id):
                             return render(request, 'crossmatch_detail.html', {'crossmatch_source':crossmatch_source, 'image':image, 'type':"transients", 
                                                                                 'title':title_to_use, 'type_url':url_to_use, 'next_id':next_id, 'prev_id':prev_id, 'this_index':this_index+1, 'total':total, "saved":saved, "updated":updated, "conflict":conflict,
                                                                             'simbad_query':simbad_query, 'ned_query':ned_query, 'detail_table':detail_table, "ratio_table":ratio_table, 'nearest_sources_table':nearest_sources_table,
-                                                                            'query':True, 'possible_assoc_table':possible_assoc_table},)
+                                                                            'query':True, 'possible_assoc_table':possible_assoc_table, 'follow_up_page':follow_up_page},)
                 else:
                     saved=False
                     updated=False
@@ -561,14 +563,14 @@ def crossmatch_detail_query(request,cross_id):
                 hotkey_updated=True
             else:
                 hotkey_updated=False
-            prev_crossmatch_source = Transients.objects.get(image_id=image.id, id=prev_id)
+            prev_crossmatch_source = Transients.objects.get(id=prev_id)
             hotkey_usertag = prev_crossmatch_source.usertag
             hotkey_userreason = prev_crossmatch_source.userreason
             return render(request, 'crossmatch_detail.html', {'crossmatch_source':crossmatch_source, 'image':image, 'type':"transients", 
                                                                 'title':title_to_use, 'type_url':url_to_use, 'next_id':next_id, 'prev_id':prev_id, 'this_index':this_index+1, 'total':total, "saved":saved, "updated":updated, "conflict":conflict,
                                                             'simbad_query':simbad_query, 'ned_query':ned_query, 'detail_table':detail_table, "ratio_table":ratio_table, 'nearest_sources_table':nearest_sources_table, 
                                                             "hotkey_assign":True, "hotkey_prev_id":prev_id, "hotkey_usertag":hotkey_usertag, "hotkey_userreason":hotkey_userreason, "hotkey_updated":hotkey_updated,
-                                                            'query':True, 'possible_assoc_table':possible_assoc_table},)
+                                                            'query':True, 'possible_assoc_table':possible_assoc_table, 'follow_up_page':follow_up_page},)
     except:
         pass
 
@@ -576,4 +578,4 @@ def crossmatch_detail_query(request,cross_id):
     return render(request, 'crossmatch_detail.html', {'crossmatch_source':crossmatch_source, 'image':image, 'type':"transients", 
                                                         'title':title_to_use, 'type_url':url_to_use, 'next_id':next_id, 'prev_id':prev_id, 'this_index':this_index+1, 'total':total, "saved":saved, "updated":updated, "conflict":conflict,
                                                     'simbad_query':simbad_query, 'ned_query':ned_query, 'detail_table':detail_table, "ratio_table":ratio_table, 'nearest_sources_table':nearest_sources_table,
-                                                    'query':True, 'possible_assoc_table':possible_assoc_table},)
+                                                    'query':True, 'possible_assoc_table':possible_assoc_table, 'follow_up_page':follow_up_page},)

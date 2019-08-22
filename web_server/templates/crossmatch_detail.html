@@ -77,6 +77,9 @@
           {% endif %}
      </div>
      <div class="col text-right">
+         {% if crossmatch_source.usertag == 'investigate' %}
+         <a href="{{ follow_up_page }}" class="btn btn-info mx-auto" target="_blank">Follow Up Page</a>&nbsp;&nbsp;
+         {% endif %}
          {% if query %}
     <b> {{ this_index }} / {{ total }}         </b>
          {% else %}
@@ -368,7 +371,7 @@ Investigate: <a href="{% url 'crossmatch_detail' pk=image.pk querytype=type cros
             var aladin2 = A.aladin('#aladin-lite-div-2');
             aladin2.setZoom(0.36);
             aladin2.gotoPosition({{ crossmatch_source.ra }}, {{ crossmatch_source.dec }});
-            var racs = aladin2.createImageSurvey('RACS', 'RACS', "{% static 'racs_hips' %}", 'equatorial', 6, {imgFormat: 'png'});
+            var racs = aladin2.createImageSurvey('RACS', 'RACS', "{% static 'racsHiPS1' %}", 'equatorial', 8, {imgFormat: 'png'});
             var gleam = aladin2.createImageSurvey('GLEAM_colored', 'GLEAM_colored', 'http://ict.icrar.org/store/gleam/gleam_color/', 'equatorial', 5, {imgFormat: 'png'});
             var sumss = aladin2.createImageSurvey('SUMSS', 'SUMSS', 'http://alasky.u-strasbg.fr/SUMSS', 'equatorial', 6, {imgFormat: 'fits'});
             var nvss = aladin2.createImageSurvey('NVSS', 'NVSS', 'http://alasky.u-strasbg.fr/NVSS/intensity/', 'equatorial', 5, {imgFormat: 'jpg'});

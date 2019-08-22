@@ -50,10 +50,10 @@ def flux_ratio_image_view(df, title="Flux ratio plot", save=True, base_filename=
     
     plt.draw()
     
-    labels = [int(item.get_text()) for item in ax.get_xticklabels()]
+    labels = [float(item.get_text()) for item in ax.get_xticklabels()]
     # logger.info("Labels: {}".format(labels))
     
-    labels = [str(item-360) if item >= 360 else str(item) for item in labels]
+    labels = [str(item-360.0) if item >= 360.0 else str(item) for item in labels]
     
     ax.set_xticklabels(labels)
     

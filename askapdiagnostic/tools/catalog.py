@@ -198,7 +198,7 @@ class Catalog(object):
         self.logger.info("Fluxes scaled to {} catalogue frequency ({} MHz)".format(label, this_freq/1.e6))
         
     def _add_sumss_mosaic_info(self, sumss_mosaic_dir):
-        missing = ['J0712M28', 'J0848M28', 'J1648M28', 'J1704M28', 'J1840M28', 'J0744M28', 'J0800M28', 'J0816M28', 'J0832M28', 'J1824M28']
+        missing = []
         if self.survey_name.lower()!="sumss":
             self.logger.error("Catalog is not defined as a SUMSS catalog. Cannot add SUMSS mosaic directory information.")
             return
@@ -281,27 +281,27 @@ class Catalog(object):
                 # print askap_target.to_string('hmsdms')    
             
             if not check_result:
-                self.logger.warning("Coordinates out of range for closest image (Coord: {} Image: {}).".format(target.to_string("hmsdms"), image))
+                self.logger.debug("Coordinates out of range for closest image (Coord: {} Image: {}).".format(target.to_string("hmsdms"), image))
                 if attempts>1:
-                    self.logger.warning("Will try for {} more attempts to find an image.".format(attempts-1))
+                    self.logger.debug("Will try for {} more attempts to find an image.".format(attempts-1))
                     found=False
                     for i in backup_indexes:
                         this_image = images_data.iloc[i]["image"]
                         check_result = self._image_check(ra, dec, this_image, sumss_mosaic_dir=sumss_mosaic_dir, nvss_mosaic_dir=nvss_mosaic_dir)
                         if check_result:
-                            self.logger.info("Match found!")
+                            self.logger.debug("Match found!")
                             image = this_image
-                            self.logger.info("New image: {}".format(image))
+                            self.logger.debug("New image: {}".format(image))
                             min_index = i
                             found=True
                             break
                         else:
                             continue
                     if not found:
-                        self.logger.error("No other suitable image was found.")
-                        self.logger.error("No more attempts to be made. Image for {} will be out of range".format(target.to_string('hmsdms')))
+                        self.logger.debug("No other suitable image was found.")
+                        self.logger.debug("No more attempts to be made. Image for {} will be out of range".format(target.to_string('hmsdms')))
                 else:
-                    self.error("No more attempts to be made. Image for {} will be out of range".format(target.to_string('hmsdms')))
+                    self.debug("No more attempts to be made. Image for {} will be out of range".format(target.to_string('hmsdms')))
                     
         rms = images_data.iloc[min_index]["rms"]
         # print image
@@ -338,6 +338,7 @@ class Catalog(object):
         return np.isnan(data_selection).any()
     
     def find_matching_catalog_image(self, sumss_mosaic_dir="", nvss_mosaic_dir="", sumss=True, nvss=False, dualmode=False):
+        self.logger.info("Searching and checking for matching catalogue images.")
         if sumss:
             try:
                 self.logger.info("Loading SUMSS image data.")

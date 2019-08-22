@@ -454,14 +454,14 @@ class askapimage(object):
                 condition = (arr < med-std*sigma) + (arr > med+std*sigma)
             arr = np.ma.masked_where(condition, arr)
             ncount_new = arr.count(axis)
-            med = np.median(arr, axis=axis)
-            std = np.std(arr, axis=axis)
             if np.any(ncount-ncount_new > xtol*ncount):
                 self.logger.warning("xtol reached {}; breaking at iteration {}".format(1-1.*ncount_new/ncount, niter+1))
                 break
             if np.any(ncount_old-ncount_new < ftol*ncount_old):
                 self.logger.warning("ftol reached {}; breaking at iteration {}".format(1-1.*ncount_new/ncount_old, niter+1) )
                 break
+            med = np.median(arr, axis=axis)
+            std = np.std(arr, axis=axis)
         if full_output:
             if isinstance(arr.mask, np.bool_):
                 mask = np.ones(arr.shape, dtype=bool)
