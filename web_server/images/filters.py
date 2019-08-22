@@ -107,6 +107,7 @@ class TransientFilter(django_filters.FilterSet):
         ('Convolved flux error', 'Convolved flux error'),
         ('Edge of ASKAP image', 'Edge of ASKAP image'),
         ('Extended source', 'Extended source'),
+        ('Failed', 'Failed'),
         ('Large island source', 'Large island source'),
         ('Likely artefact (bright source)', 'Likely artefact (bright source)'),
         ('Likely diffuse/extended', 'Likely diffuse/extended'),

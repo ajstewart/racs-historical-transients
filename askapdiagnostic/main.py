@@ -234,6 +234,7 @@ def main():
         "nvss_ext_thresh":1.2,
         "use_all_fits":False,
         "write_ann":False,
+        "produce_overlays":True,
         "boundary_value":"nan",
         "diagnostic_max_separation":5.0,
         "transient_max_separation":45.0,
@@ -258,6 +259,9 @@ def main():
         }
         
     if args.conf_file:
+        if not utils.checkfile(args.conf_file):
+            print "Config file {} not found!".format(args.conf_file)
+            sys.exit()
         config = ConfigParser.SafeConfigParser()
         config.optionxform = str
         config.read([args.conf_file])
@@ -309,6 +313,7 @@ def main():
     #Option below provides framework for future source finder support, only aegaen for now.
     parser.add_argument("--use-all-fits", type=str2bool, help="Use all the fits from Aegean ignoring all flags. Default only those with flag '0' are used.")
     parser.add_argument("--write-ann", type=str2bool, help="Create kvis annotation files of the catalogues.")
+    parser.add_argument("--produce-overlays", type=str2bool, help="Create overlay figures of the sources on the ASKAP image.")
     parser.add_argument("--boundary-value", type=str, choices=["nan", "zero"], help="Define whether the out-of-bounds value in the ASKAP FITS is 'nan' or 'zero'.")
     # parser.add_argument("--crossmatch-base", type=str, help="Define the base catalogue in the cross matching (currently not supported).", default="sumss")
     parser.add_argument("--diagnostic-max-separation", type=str2float, help="Maximum crossmatch distance (in arcsec) to be consdiered when creating the diagnostic plots.")
@@ -765,29 +770,32 @@ def main():
         
         #Produce two plots of the image with overlay of ASKAP and SUMSS sources
         theimg.plots={}
-        # theimg.plots["sumss_overlay"]="N/A"
-        # theimg.plots["nvss_overlay"]="N/A"
-        # theimg.plots["askap_overlay"]="N/A"
-        if args.remove_extended:
-            if sumss:
-                theimg.plots["sumss_overlay"]=theimg.create_overlay_plot(sumss_touse.df, overlay_cat_label="SUMSS Sources", overlay_cat_2=sumss_catalog.sumss_ext_cat, overlay_cat_label_2="SUMSS Extended Sources", sumss=True)
+        if args.produce_overlays:
+            if args.remove_extended:
+                if sumss:
+                    theimg.plots["sumss_overlay"]=theimg.create_overlay_plot(sumss_touse.df, overlay_cat_label="SUMSS Sources", overlay_cat_2=sumss_catalog.sumss_ext_cat, overlay_cat_label_2="SUMSS Extended Sources", sumss=True)
+                else:
+                    theimg.plots["sumss_overlay"]="N/A"
+                if nvss:
+                    theimg.plots["nvss_overlay"]=theimg.create_overlay_plot(nvss_touse.df, overlay_cat_label="NVSS Sources", overlay_cat_2=nvss_catalog.nvss_ext_cat, overlay_cat_label_2="NVSS Extended Sources", sumss=False, nvss=True)
+                else:
+                    theimg.plots["nvss_overlay"]="N/A"
+                theimg.plots["askap_overlay"]=theimg.create_overlay_plot(askap_touse.df, overlay_cat_label="ASKAP Extracted Sources", overlay_cat_2=askap_catalog.askap_ext_cat, overlay_cat_label_2="ASKAP Extended Extracted Sources")
             else:
-                theimg.plots["sumss_overlay"]="N/A"
-            if nvss:
-                theimg.plots["nvss_overlay"]=theimg.create_overlay_plot(nvss_touse.df, overlay_cat_label="NVSS Sources", overlay_cat_2=nvss_catalog.nvss_ext_cat, overlay_cat_label_2="NVSS Extended Sources", sumss=False, nvss=True)
-            else:
-                theimg.plots["nvss_overlay"]="N/A"
-            theimg.plots["askap_overlay"]=theimg.create_overlay_plot(askap_touse.df, overlay_cat_label="ASKAP Extracted Sources", overlay_cat_2=askap_catalog.askap_ext_cat, overlay_cat_label_2="ASKAP Extended Extracted Sources")
+                if sumss:
+                    theimg.plots["sumss_overlay"]=theimg.create_overlay_plot(sumss_touse.df, overlay_cat_label="SUMSS Sources", sumss=True)
+                else:
+                    theimg.plots["sumss_overlay"]="N/A"
+                if nvss:
+                    theimg.plots["nvss_overlay"]=theimg.create_overlay_plot(nvss_touse.df, overlay_cat_label="NVSS Sources", sumss=False, nvss=True)
+                else:
+                    theimg.plots["nvss_overlay"]="N/A"
+                theimg.plots["askap_overlay"]=theimg.create_overlay_plot(askap_touse.df, overlay_cat_label="ASKAP Extracted Sources")
         else:
-            if sumss:
-                theimg.plots["sumss_overlay"]=theimg.create_overlay_plot(sumss_touse.df, overlay_cat_label="SUMSS Sources", sumss=True)
-            else:
-                theimg.plots["sumss_overlay"]="N/A"
-            if nvss:
-                theimg.plots["nvss_overlay"]=theimg.create_overlay_plot(nvss_touse.df, overlay_cat_label="NVSS Sources", sumss=False, nvss=True)
-            else:
-                theimg.plots["nvss_overlay"]="N/A"
-            theimg.plots["askap_overlay"]=theimg.create_overlay_plot(askap_touse.df, overlay_cat_label="ASKAP Extracted Sources")
+            theimg.plots["sumss_overlay"]="N/A"
+            theimg.plots["nvss_overlay"]="N/A"
+            theimg.plots["askap_overlay"]="N/A"
+                
 
             
         #Add the respective image to the ASKAP catalog for later
