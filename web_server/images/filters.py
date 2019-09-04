@@ -153,6 +153,24 @@ class TransientFilter(django_filters.FilterSet):
     
     usertag = django_filters.ChoiceFilter(name = 'usertag', choices=usertag_choices)
     
+    userreason_choices = (
+        ('askap artefact', 'ASKAP artefact'),
+        ('bright source', 'Bright source'),
+        ('catalogue artefact', 'Catalogue artefact'),
+        ('convolved flux error', 'Convolved flux error'),
+        ('edge of field', 'Edge of field'),
+        ('extended', 'Extended'),
+        ('is match', 'Is match'),
+        ('investigate', 'Investigate'),
+        ('multiple', 'Multiple'),
+        ('non-detection', 'Non-detection'),
+        ('not sure', 'Not sure'),
+        ('src. ext. error', 'Source extraction error'),
+        ('too noisy', 'Too noisy'),
+        )
+    
+    userreason = django_filters.ChoiceFilter(name = 'userreason', choices=userreason_choices)
+    
     ra__gt = django_filters.RangeFilter(name = 'ra', widget=MyRangeWidget(from_attrs={'placeholder': 'Min (deg)'}, to_attrs={'placeholder':'Max (deg)'}), label="Right Ascension")
     dec__gt = django_filters.RangeFilter(name = 'dec', widget=MyRangeWidget(from_attrs={'placeholder': 'Min (deg)'}, to_attrs={'placeholder':'Max (deg)'}), label="Declination")
     

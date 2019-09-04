@@ -877,7 +877,10 @@ class crossmatch(object):
                 ratio_error = self._calculate_ratio_error(ratio, flux_to_use, err_to_use,
                     other_flux_to_use, other_error_to_use)
                 if convolve and (row["type"] in convolve_check) and (row["pipelinetag"]=="Candidate") and (ratio >= 2.0):
-                    non_convolve_ratio = scaled_askap_flux_to_use_2 / other_flux_to_use
+                    try:
+                        non_convolve_ratio = scaled_askap_flux_to_use_2 / other_flux_to_use
+                    except:
+                        non_convolve_ratio = 2.0
                     if non_convolve_ratio < 2.0:
                         inflated_var = "True"
                     else:
@@ -889,7 +892,10 @@ class crossmatch(object):
                 ratio_error = self._calculate_ratio_error(ratio, other_flux_to_use, other_error_to_use,
                     flux_to_use, err_to_use)
                 if convolve and (row["type"] in convolve_check) and (row["pipelinetag"]=="Candidate") and (ratio >= 2.0):
-                    non_convolve_ratio =  other_flux_to_use / scaled_askap_flux_to_use_2
+                    try:
+                        non_convolve_ratio =  other_flux_to_use / scaled_askap_flux_to_use_2
+                    except:
+                        non_convolve_ratio = 2.0
                     if non_convolve_ratio < 2.0:
                         inflated_var = "True"
                     else:

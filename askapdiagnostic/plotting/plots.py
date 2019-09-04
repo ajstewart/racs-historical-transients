@@ -8,6 +8,8 @@ import numpy as np
 from matplotlib import patches
 from matplotlib.lines import Line2D
 import aplpy
+from astropy.wcs import WCS
+from astropy.io import fits
 from astropy.coordinates import SkyCoord
 from astropy import units as u
 import pandas as pd
@@ -15,26 +17,20 @@ import pandas as pd
 logger = logging.getLogger(__name__)
 
 
-def flux_ratio_image_view(df, title="Flux ratio plot", save=True, base_filename="image", basecat="sumss", ratio_col="askap_sumss_int_flux_ratio"):
-    # filter_df=df[df["d2d"]<=maxsep].reset_index(drop=True)
-    # ratios=filter_df["askap_int_flux"]/(filter_df["sumss_St"]/1.e3).values
-    #sloppy check for now - needs addressing
+def flux_ratio_image_view_astropy(df, fitsimage, title="Flux ratio plot", save=True, base_filename="image", basecat="sumss", ratio_col="askap_sumss_int_flux_ratio"):
+    with fits.open(fitsimage) as hdu:
+        header = hdu[0].header
+           
+    #Remove crazy ratios - likely errors.
     mask=[True if i < 5. else False for i in df[ratio_col]]
+    wcs = WCS(header, naxis=2)
     fig = plt.figure(figsize=(10, 8))
-    ax = fig.add_subplot(111)
-    #check for 360 deg boundary
-    ra_values=df["askap_ra"].values[mask]
-    # print ra_values
-    if np.min(ra_values) < 2 and np.max(ra_values) > 358:
-        new_ra_values = []
-        for ra in ra_values:
-            if ra >= 0.0 and ra < 180.:
-                new_ra_values.append(ra + 360.)
-            else:
-                new_ra_values.append(ra)
-        ra_values = new_ra_values
+    ax = fig.add_subplot(111,projection=wcs)
     
-    ratio_plot=ax.scatter(ra_values, df["askap_dec"].values[mask], c=df[ratio_col][mask], cmap="Reds", marker="o")
+    ratio_plot=ax.scatter(df["askap_ra"].values[mask], df["askap_dec"].values[mask], c=df[ratio_col][mask], cmap="Reds", marker="o", transform=ax.get_transform('world'))
+    ax.coords[0].set_axislabel('Right Ascension (J2000)')
+    ax.coords[1].set_axislabel('Declination (J2000)')
+    ax.coords[0].set_major_formatter('dd:mm:ss')
     cb=plt.colorbar(ratio_plot, ax=ax)
     if "sumss" in ratio_col and "nvss" in ratio_col:
         cb.set_label("ASKAP / SUMSS & NVSS flux ratio")
@@ -42,20 +38,8 @@ def flux_ratio_image_view(df, title="Flux ratio plot", save=True, base_filename=
         cb.set_label("ASKAP / SUMSS flux ratio")
     else:
         cb.set_label("ASKAP / NVSS flux ratio")
-    plt.xlabel("RA (deg)")
-    plt.ylabel("Dec (deg)")
-    plt.gca().invert_xaxis()
     
     plt.title(title)
-    
-    plt.draw()
-    
-    labels = [float(item.get_text()) for item in ax.get_xticklabels()]
-    # logger.info("Labels: {}".format(labels))
-    
-    labels = [str(item-360.0) if item >= 360.0 else str(item) for item in labels]
-    
-    ax.set_xticklabels(labels)
     
     filename="{}_flux_ratio_image_view.png".format(base_filename)
     
@@ -63,8 +47,7 @@ def flux_ratio_image_view(df, title="Flux ratio plot", save=True, base_filename=
         plt.savefig(filename, bbox_inches="tight")
         logger.info("Figure {} saved.".format(filename))
     plt.close()
-    return filename
-    
+    return filename    
     
 def position_offset(df, title="Position offset plot", save=True, base_filename="image", bmaj=45., bmin=45., pa=0.0, basecat="sumss", 
         ra_offset_col="askap_sumss_ra_offset", dec_offset_col="askap_sumss_dec_offset", dualmode=False):
@@ -246,7 +229,7 @@ def flux_ratios_distance_from_centre(df, max_sep, title="Flux ratio", save=True,
         ax.scatter(to_plot_sumss["askap_distance_from_centre"], to_plot_sumss[ratio_col], label="SUMSS to ASKAP Crossmatch < {}\"".format(max_sep))
         ax.scatter(to_plot_nvss["askap_distance_from_centre"], to_plot_nvss[ratio_col], label="NVSS to ASKAP Crossmatch < {}\"".format(max_sep))
     else:
-        theplot = ax.scatter(to_plot["askap_distance_from_centre"], to_plot[ratio_col], label="{} to ASKAP Crossmatch < {}\"".format(basecat.upper(), max_sep),c=np.log10(df["askap_int_flux"]*1.e3), cmap="plasma")
+        theplot = ax.scatter(to_plot["askap_distance_from_centre"], to_plot[ratio_col], label="{} to ASKAP Crossmatch < {}\"".format(basecat.upper(), max_sep),c=np.log10(to_plot["askap_int_flux"]*1.e3), cmap="plasma")
         cb=plt.colorbar(theplot, ax=ax)
         cb.set_label("log ASKAP Int. Flux (mJy)")
     median_flux_ratio=to_plot[ratio_col].median()
