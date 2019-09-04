@@ -945,7 +945,7 @@ def main():
         plot_titles["flux_ratios_from_centre"]=theimg.imagename
         plot_titles["flux_ratios"]=theimg.imagename
             
-        theimg.plots["flux_ratio_image_view"]=plots.flux_ratio_image_view(plotting_df, title=plot_titles["flux_ratio_image_view"], base_filename=theimg.imagename.replace(".fits", ""), basecat=basecat,
+        theimg.plots["flux_ratio_image_view"]=plots.flux_ratio_image_view_astropy(plotting_df, theimg.image, title=plot_titles["flux_ratio_image_view"], base_filename=theimg.imagename.replace(".fits", ""), basecat=basecat,
             ratio_col="askap_{}_int_flux_ratio".format(tag))
         theimg.plots["position_offset"]=plots.position_offset(plotting_df, title=plot_titles["position_offset"], base_filename=theimg.imagename.replace(".fits", ""),
             bmaj=theimg.bmaj*3600., bmin=theimg.bmin*3600., pa=theimg.bpa, basecat=basecat, ra_offset_col="askap_{}_ra_offset".format(tag), 
