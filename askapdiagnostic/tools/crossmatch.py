@@ -414,8 +414,8 @@ class crossmatch(object):
                 pipeline_tags.append("Likely bright extended structure")
             
             #Check if the source would actually be seen in the local rms
-            #Due to the excessive RMS in the convolved case, we use non-convovled if available
-            elif row["master_scaled_catalog_iflux"]*1.e-3/row["aegean_convolved_local_rms"] < 5.0:
+
+            elif row["aegean_convolved_local_rms"]!=0.0 and row["master_scaled_catalog_iflux"]*1.e-3/row["aegean_convolved_local_rms"] < 5.0:
                 pipeline_tags.append("Local RMS too high")
                 
             elif row["survey_used"]=="sumss":
