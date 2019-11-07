@@ -69,7 +69,10 @@ class askapimage(object):
     
     def load_fits_data(self):
         with fits.open(self.image) as hdul:
-            self.data = hdul[0].data
+            try:
+                self.data = hdul[0].data[0,0,:,:]
+            except:
+                self.data = hdul[0].data
         
     def load_fits_header(self):
         with fits.open(self.image) as hdul:
@@ -96,7 +99,10 @@ class askapimage(object):
     def load_all(self):
         self.load_fits_header()
         with fits.open(self.image) as hdul:
-            self.data = hdul[0].data
+            try:
+                self.data = hdul[0].data[0,0,:,:]
+            except:
+                self.data = hdul[0].data
             self.wcs = wcs.WCS(self.header, naxis=2)
             self.load_position_dimensions()
             
@@ -417,7 +423,7 @@ class askapimage(object):
         tempdf.to_sql("images_processingsettings", engine, if_exists="append", index=False)
         
     def create_overlay_plot(self, overlay_cat, overlay_cat_label="sources", overlay_cat_2=None, overlay_cat_label_2=None, sumss=False, nvss=False):
-        thename=plots.image_sources_overlay(self.image, self.imagename, overlay_cat, overlay_cat_label=overlay_cat_label, overlay_cat_2=overlay_cat_2, overlay_cat_label_2=overlay_cat_label_2, sumss=sumss, nvss=nvss)
+        thename=plots.image_sources_overlay(self.data, self.wcs, self.imagename, overlay_cat, overlay_cat_label=overlay_cat_label, overlay_cat_2=overlay_cat_2, overlay_cat_label_2=overlay_cat_label_2, sumss=sumss, nvss=nvss)
         return thename
         
     def _Median_clip(self, arr, sigma=3, max_iter=3, ftol=0.01, xtol=0.05, full_output=False, axis=None):

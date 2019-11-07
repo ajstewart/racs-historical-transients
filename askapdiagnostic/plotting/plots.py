@@ -6,12 +6,17 @@ import logging
 import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib import patches
+from matplotlib.patches import Ellipse
+from matplotlib.collections import PatchCollection
 from matplotlib.lines import Line2D
+import matplotlib.axes as maxes
+from mpl_toolkits.axes_grid1 import make_axes_locatable
 import aplpy
 from astropy.wcs import WCS
 from astropy.io import fits
 from astropy.coordinates import SkyCoord
 from astropy import units as u
+from astropy.visualization import ZScaleInterval,ImageNormalize, LinearStretch, PercentileInterval
 import pandas as pd
 
 logger = logging.getLogger(__name__)
@@ -28,9 +33,12 @@ def flux_ratio_image_view_astropy(df, fitsimage, title="Flux ratio plot", save=T
     ax = fig.add_subplot(111,projection=wcs)
     
     ratio_plot=ax.scatter(df["askap_ra"].values[mask], df["askap_dec"].values[mask], c=df[ratio_col][mask], cmap="Reds", marker="o", transform=ax.get_transform('world'))
-    ax.coords[0].set_axislabel('Right Ascension (J2000)')
-    ax.coords[1].set_axislabel('Declination (J2000)')
-    ax.coords[0].set_major_formatter('dd:mm:ss')
+    lon = ax.coords[0]
+    lat = ax.coords[1]
+    lon.set_axislabel("Right Ascension (J2000)")
+    lat.set_axislabel("Declination (J2000)")
+    lon.set_major_formatter("hh:mm:ss")
+    lat.set_major_formatter("dd:mm:ss")
     cb=plt.colorbar(ratio_plot, ax=ax)
     if "sumss" in ratio_col and "nvss" in ratio_col:
         cb.set_label("ASKAP / SUMSS & NVSS flux ratio")
@@ -257,43 +265,86 @@ def flux_ratios_distance_from_centre(df, max_sep, title="Flux ratio", save=True,
     return filename
     
   
-def image_sources_overlay(imagetoplot, imagename, overlay_cat, overlay_cat_label="sources", overlay_cat_2=pd.DataFrame(), overlay_cat_label_2="None", sumss=False, nvss=False):
+def image_sources_overlay(image_data, image_wcs, imagename, overlay_cat, overlay_cat_label="sources", overlay_cat_2=pd.DataFrame(), overlay_cat_label_2="None", sumss=False, nvss=False):
     fig = plt.figure(figsize=(12, 12))
-    ax=aplpy.FITSFigure(imagetoplot, figure=fig)
-    ax.show_grayscale()
+    ax = fig.add_subplot(111,projection=image_wcs)
+    
+    palette = matplotlib.cm.get_cmap('gray_r')
+    palette.set_bad('w', 1.0)
+    palette.set_over('k', 1.0)
+    palette.set_under('w', 1.0)
+    
+    # masked_array = np.ma.masked_where(np.isnan(image_data),image_data)
+    img_norms = ImageNormalize(image_data, interval=PercentileInterval(99.9), stretch=LinearStretch(), clip=False)
+
         # panels[key].show_contour(images[n-1], colors='red', levels=[3.*12e-6, 4.*12.e-6, 8.*12.e-6, 16*12.e-6])
-    ax.set_theme('publication')
-    ax.show_colorbar()
+    im = ax.imshow(image_data, norm=img_norms, cmap=palette)
+    
+    divider = make_axes_locatable(ax)
+    cax = divider.append_axes("right", size="3%", pad=0.05, axes_class=maxes.Axes)
+    
+    cb = fig.colorbar(im, cax=cax)
+    cb.set_label('Jy')
+
+    ax.set_autoscale_on(False)
     
     if not sumss and not nvss:
         ra = "ra"
         dec = "dec"
-        a="a"
-        b="b"
-        pa="pa"
+        a = "a"
+        b = "b"
+        pa = "pa"
         plotname=imagename.replace(".fits", "_askap_source_overlay.png")
     else:
         ra = "_RAJ2000"
         dec = "_DEJ2000"
-        a="MajAxis"
-        b="MinAxis"
-        pa="PA"
+        a = "MajAxis"
+        b = "MinAxis"
+        pa = "PA"
         if sumss:
             plotname=imagename.replace(".fits", "_sumss_source_overlay.png")
         else:
             plotname=imagename.replace(".fits", "_nvss_source_overlay.png")
-
-    ax.show_ellipses(overlay_cat[ra],overlay_cat[dec],overlay_cat[b]/3600., overlay_cat[a]/3600., angle=overlay_cat[pa], layer="Sources1", color="#1f77b4")
+    ww = overlay_cat[a].astype(float)/3600.
+    hh = overlay_cat[b].astype(float)/3600.
+    aa = overlay_cat[pa].astype(float)
+    x = overlay_cat[ra].astype(float)
+    y = overlay_cat[dec].astype(float)
+    if not sumss and not nvss:
+        patches = [Ellipse((x[i], y[i]), ww[i]*1.1, hh[i]*1.1, 90.+(180.-aa[i])) for i in range(len(x))]
+    else:
+        patches = [Ellipse((x[i], y[i]), ww[i]*1.1, hh[i]*1.1, aa[i]) for i in range(len(x))]
+    collection = PatchCollection(patches, facecolor="None", edgecolor="#1f77b4", linestyle="--", linewidth=2, transform=ax.get_transform('world'))
+    ax.add_collection(collection, autolim=False)
     custom_lines = [Line2D([0], [0], color='#1f77b4'),]
     labels=[overlay_cat_label]
     if not overlay_cat_2.empty:
-        ax.show_ellipses(overlay_cat_2[ra],overlay_cat_2[dec],overlay_cat_2[b]/3600., overlay_cat_2[a]/3600., angle=overlay_cat_2[pa], layer="Sources2", color='#d62728')
+        ww = overlay_cat_2[a].astype(float)/3600.
+        hh = overlay_cat_2[b].astype(float)/3600.
+        aa = overlay_cat_2[pa].astype(float)
+        x = overlay_cat_2[ra].astype(float)
+        y = overlay_cat_2[dec].astype(float)
+        if not sumss and not nvss:
+            patches = [Ellipse((x[i], y[i]), ww[i]*1.1, hh[i]*1.1, 90.+(180.-aa[i])) for i in range(len(x))]
+        else:
+            patches = [Ellipse((x[i], y[i]), ww[i]*1.1, hh[i]*1.1, aa[i]) for i in range(len(x))]
+        collection = PatchCollection(patches, facecolor="None", edgecolor='#d62728', linestyle="--", linewidth=2, transform=ax.get_transform('world'))
+        ax.add_collection(collection, autolim=False)
         custom_lines+=[Line2D([0], [0], color='#d62728'),]
         labels+=[overlay_cat_label_2]
     
-    ax._ax1.legend(custom_lines, labels)
+    ax.legend(custom_lines, labels)
+    
+    lon = ax.coords[0]
+    lat = ax.coords[1]
+    lon.set_axislabel("Right Ascension (J2000)")
+    lat.set_axislabel("Declination (J2000)")
+    lon.set_major_formatter("hh:mm:ss")
+    lat.set_major_formatter("dd:mm:ss")
     
     fig.savefig(plotname, bbox_inches="tight", dpi=300)
+    
+    plt.close()
     
     return plotname
     
