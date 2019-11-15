@@ -225,6 +225,7 @@ class TransientQueryTable(tables.Table):
     dec = DecColumn(attrs={"td":{"style":"white-space:nowrap;"}}, verbose_name= 'Dec')
     ratio = FloatColumn(verbose_name='Freq. Scaled Ratio')
     askap_iflux = RMSColumn(verbose_name= 'ASKAP Int. Flux (mJy)')
+    askap_non_conv_flux = RMSColumn(verbose_name= 'ASKAP Raw Int. Flux (mJy)')
     # askap_snr = tables.Column(verbose_name= 'Local ASKAP SNR')
     catalog_iflux = RMSColumn(verbose_name= 'Cat. Int. Flux (mJy)')
     # scaled_askap_snr = tables.Column(verbose_name= 'Scaled Catalog SNR')
@@ -242,6 +243,7 @@ class TransientQueryTable(tables.Table):
         self.columns.hide("d2d_askap_centre")
         self.columns.hide("askap_image")
         self.columns.hide("catalog_mosaic")
+        self.columns.hide("askap_non_conv_flux")
     
     class Meta:
         model = Transients
