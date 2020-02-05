@@ -7,7 +7,7 @@ import numpy as np
 import pkg_resources
 import pandas as pd
 import os
-from askapdiagnostic.tools.fitsimage import askapimage
+from racstransients.tools.fitsimage import askapimage
 
 class Catalog(object):
     """docstring for survey"""

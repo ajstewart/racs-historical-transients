@@ -2,11 +2,11 @@
 
 import argparse
 import logging
-from askapdiagnostic.tools import utils
-from askapdiagnostic.tools.fitsimage import askapimage
-from askapdiagnostic.tools.crossmatch import crossmatch
-from askapdiagnostic.tools.catalog import Catalog
-from askapdiagnostic.plotting import plots
+from racstransients.tools import utils
+from racstransients.tools.fitsimage import askapimage
+from racstransients.tools.crossmatch import crossmatch
+from racstransients.tools.catalog import Catalog
+from racstransients.plotting import plots
 import datetime
 import os
 import pandas as pd

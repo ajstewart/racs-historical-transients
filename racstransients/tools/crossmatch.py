@@ -6,11 +6,11 @@ import logging
 import aplpy
 from astropy.coordinates import SkyCoord
 from astropy import units as u
-from askapdiagnostic.tools.fitsimage import askapimage
+from racstransients.tools.fitsimage import askapimage
 import matplotlib.pyplot as plt
 import os
 from matplotlib.lines import Line2D
-from askapdiagnostic.plotting import postage_stamps
+from racstransients.plotting import postage_stamps
 import sqlalchemy
 import psycopg2
 import pkg_resources

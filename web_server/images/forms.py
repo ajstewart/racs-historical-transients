@@ -5,7 +5,10 @@ from .models import Query
 
 from django.contrib.auth.models import User
 
-users = list(User.objects.values())
+try:
+    users = list(User.objects.values())
+except:
+    users = []
 
 users = [("all", "all")]+[(i["username"],i["username"]) for i in sorted(users)]
 

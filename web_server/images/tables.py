@@ -3,7 +3,7 @@
 import django_tables2 as tables
 from .models import Image, Transients
 from django_tables2.utils import A
-from templatetags import units
+from images.templatetags import units
 
 class RAColumn(tables.Column):
     def render(self, value):

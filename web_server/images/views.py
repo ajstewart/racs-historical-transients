@@ -209,7 +209,7 @@ def crossmatch_detail(request,pk,querytype,cross_id):
         username = user.get_username()
     
         #Have to be logged in to submit a category and to own the image
-        if not user.is_authenticated():
+        if not user.is_authenticated:
             return render(request, 'crossmatch_detail.html', {'crossmatch_source':crossmatch_source, 'image':image, 'type':querytype, 
                                                                 'title':title_to_use, 'type_url':url_to_use, 'max_id':max_id, 'min_id':min_id, 'total':total, "saved":False, "updated":False, "conflict":False,
                                                             'simbad_query':simbad_query, 'ned_query':ned_query, 'detail_table':detail_table, "ratio_table":ratio_table, 'nearest_sources_table':nearest_sources_table,
@@ -364,7 +364,7 @@ def transient_query(request):
     user_id = user.id
 
     #Have to be logged in to submit a category and to own the image
-    if user.is_authenticated():
+    if user.is_authenticated:
         the_url = request.build_absolute_uri()
         if "?" in the_url:
             query_string = the_url.split("?")
@@ -469,7 +469,7 @@ def crossmatch_detail_query(request,cross_id):
         username = user.get_username()
     
         #Have to be logged in to submit a category and to own the image
-        if not user.is_authenticated():
+        if not user.is_authenticated:
             return render(request, 'crossmatch_detail.html', {'crossmatch_source':crossmatch_source, 'image':image, 'type':"transients", 
                                                                 'title':title_to_use, 'type_url':url_to_use, 'next_id':next_id, 'prev_id':prev_id, 'this_index':this_index+1, 'total':total, "saved":False, "updated":False, "conflict":False,
                                                             'simbad_query':simbad_query, 'ned_query':ned_query, 'detail_table':detail_table, "ratio_table":ratio_table, 'nearest_sources_table':nearest_sources_table,

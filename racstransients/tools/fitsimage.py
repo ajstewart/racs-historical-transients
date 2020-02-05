@@ -13,9 +13,9 @@ import pandas as pd
 import datetime
 import sqlalchemy
 import psycopg2
-from askapdiagnostic.plotting import plots
-from askapdiagnostic.tools import utils
-import bdsf
+from racstransients.plotting import plots
+from racstransients.tools import utils
+# import bdsf
 import uuid
 
 class askapimage(object):

@@ -88,19 +88,19 @@ class TransientFilter(django_filters.FilterSet):
             return queryset.extra(where=["q3c_radial_query(ra, dec, {:.6f}, {:.6f}, {:.6f})".format(ra,dec,radius)])
     
     def sort_by_filter(self, queryset, name, value):
-        print value
+        print(value)
         if value=='' or value==None:
             return queryset
         else:
             return queryset.order_by(value)
     
-    source_id = django_filters.NumberFilter(name="id", label="Source ID")
+    source_id = django_filters.NumberFilter(field_name ="id", label="Source ID")
     
-    d2d__gt = django_filters.RangeFilter(name = 'd2d_askap_centre', widget=MyRangeWidget(from_attrs={'placeholder': 'Min'}, to_attrs={'placeholder':'Max'}))
-    ratio__gt = django_filters.RangeFilter(name = 'ratio', widget=MyRangeWidget(from_attrs={'placeholder': 'Min'}, to_attrs={'placeholder':'Max'}))
+    d2d__gt = django_filters.RangeFilter(field_name = 'd2d_askap_centre', widget=MyRangeWidget(from_attrs={'placeholder': 'Min'}, to_attrs={'placeholder':'Max'}))
+    ratio__gt = django_filters.RangeFilter(field_name = 'ratio', widget=MyRangeWidget(from_attrs={'placeholder': 'Min'}, to_attrs={'placeholder':'Max'}))
     
-    askap_iflux__gt = MyRangeFilter(name = 'askap_iflux', widget=MyRangeWidget(from_attrs={'placeholder': 'Min (mJy)'}, to_attrs={'placeholder':'Max (mJy)'}), label="ASKAP Integrated Flux")
-    catalog_iflux__gt = MyRangeFilter(name = 'catalog_iflux', widget=MyRangeWidget(from_attrs={'placeholder': 'Min (mJy)'}, to_attrs={'placeholder':'Max (mJy)'}), label="Catalogue Integrated Flux")
+    askap_iflux__gt = MyRangeFilter(field_name = 'askap_iflux', widget=MyRangeWidget(from_attrs={'placeholder': 'Min (mJy)'}, to_attrs={'placeholder':'Max (mJy)'}), label="ASKAP Integrated Flux")
+    catalog_iflux__gt = MyRangeFilter(field_name = 'catalog_iflux', widget=MyRangeWidget(from_attrs={'placeholder': 'Min (mJy)'}, to_attrs={'placeholder':'Max (mJy)'}), label="Catalogue Integrated Flux")
     
     pipelinetag_choices = (
         ('Candidate', 'Candidate'),
@@ -114,20 +114,23 @@ class TransientFilter(django_filters.FilterSet):
         ('Likely double', 'Likely double/multi source'),
         )
     
-    pipelinetag = django_filters.ChoiceFilter(name = 'pipelinetag', choices=pipelinetag_choices)
+    pipelinetag = django_filters.ChoiceFilter(field_name = 'pipelinetag', choices=pipelinetag_choices)
     
     convolved_error_choices = (
         ('True', 'True'),
         ('False', 'False'),
         )
     
-    inflated_convolved_flux = django_filters.ChoiceFilter(name = 'inflated_convolved_flux', choices=convolved_error_choices)
+    inflated_convolved_flux = django_filters.ChoiceFilter(field_name = 'inflated_convolved_flux', choices=convolved_error_choices)
     
-    users = list(User.objects.values())
+    try:
+        users = list(User.objects.values())
+    except:
+        users = []
 
     users = [(i["username"],i["username"]) for i in sorted(users)]+[("N/A", "Unchecked")]
     
-    checkedby = django_filters.ChoiceFilter(name = 'checkedby', choices=users)
+    checkedby = django_filters.ChoiceFilter(field_name = 'checkedby', choices=users)
     
     transient_type_choices = (
         ('Good match', 'Good match'),
@@ -151,7 +154,7 @@ class TransientFilter(django_filters.FilterSet):
         ('ignore', 'Ignore'),
         )
     
-    usertag = django_filters.ChoiceFilter(name = 'usertag', choices=usertag_choices)
+    usertag = django_filters.ChoiceFilter(field_name = 'usertag', choices=usertag_choices)
     
     userreason_choices = (
         ('askap artefact', 'ASKAP artefact'),
@@ -169,10 +172,10 @@ class TransientFilter(django_filters.FilterSet):
         ('too noisy', 'Too noisy'),
         )
     
-    userreason = django_filters.ChoiceFilter(name = 'userreason', choices=userreason_choices)
+    userreason = django_filters.ChoiceFilter(field_name = 'userreason', choices=userreason_choices)
     
-    ra__gt = django_filters.RangeFilter(name = 'ra', widget=MyRangeWidget(from_attrs={'placeholder': 'Min (deg)'}, to_attrs={'placeholder':'Max (deg)'}), label="Right Ascension")
-    dec__gt = django_filters.RangeFilter(name = 'dec', widget=MyRangeWidget(from_attrs={'placeholder': 'Min (deg)'}, to_attrs={'placeholder':'Max (deg)'}), label="Declination")
+    ra__gt = django_filters.RangeFilter(field_name = 'ra', widget=MyRangeWidget(from_attrs={'placeholder': 'Min (deg)'}, to_attrs={'placeholder':'Max (deg)'}), label="Right Ascension")
+    dec__gt = django_filters.RangeFilter(field_name = 'dec', widget=MyRangeWidget(from_attrs={'placeholder': 'Min (deg)'}, to_attrs={'placeholder':'Max (deg)'}), label="Declination")
     
     cone_search = ConeSearchFilter(field_name = 'cone_search', widget=ConeSearchWidget(), method="cone_search_filter", label="Cone Search")
     
