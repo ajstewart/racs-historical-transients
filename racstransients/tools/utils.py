@@ -84,19 +84,19 @@ def createdir(name, clobber=False, cont=False):
 def createdir_print(name, clobber=False, cont=False):
     if os.path.isdir(name):
         if cont==True:
-            print "Continue = True!"
-            print "Working on directory without refreshing!"
+            print("Continue = True!")
+            print("Working on directory without refreshing!")
             return True
         if clobber==True:
-            print "Clobber = True!"
-            print "Previous output directory '{}' will be overwritten".format(name)
+            print("Clobber = True!")
+            print("Previous output directory '{}' will be overwritten".format(name))
             subprocess.call(["rm", "-rf", name])
         else:
-            print "Previous output directory '{0}' already exists and clobber set to {1}".format(name, clobber)
+            print("Previous output directory '{0}' already exists and clobber set to {1}".format(name, clobber))
             return False
     else:
         if cont==True:
-            print "Directory chosen to continue run {} does not exist!".format(name)
+            print("Directory chosen to continue run {} does not exist!".format(name))
             sys.exit()
     os.mkdir(name)
     return True
@@ -136,11 +136,11 @@ def checkfile_print(files):
     if isinstance(files,list):
         for i in files:
             if not os.path.isfile(i):
-                print "{} cannot be found".format(i)
+                print("{} cannot be found".format(i))
                 return False
     else:
         if not os.path.isfile(files):
-            print "{} cannot be found".format(files)
+            print("{} cannot be found".format(files))
             return False
     return True
 

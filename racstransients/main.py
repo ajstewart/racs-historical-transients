@@ -12,7 +12,7 @@ import os
 import pandas as pd
 import sys
 import subprocess
-import ConfigParser
+import configparser
 import getpass
 # from multiprocessing import Pool
 
@@ -31,7 +31,7 @@ def exit(logger):
     
 def source_finding(askapimg, sf, logger, options=None, save_diag_images=False):
     if options!=None:
-        config = ConfigParser.SafeConfigParser()
+        config = configparser.SafeConfigParser()
         config.optionxform = str
         config.read([options])
     if sf=="aegean":
@@ -260,9 +260,9 @@ def main():
         
     if args.conf_file:
         if not utils.checkfile(args.conf_file):
-            print "Config file {} not found!".format(args.conf_file)
+            print("Config file {} not found!".format(args.conf_file))
             sys.exit()
-        config = ConfigParser.SafeConfigParser()
+        config = configparser.SafeConfigParser()
         config.optionxform = str
         config.read([args.conf_file])
         for section in config.sections():

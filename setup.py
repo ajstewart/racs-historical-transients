@@ -27,7 +27,8 @@ setup(name='racstransients',
                         'django-filter',
                         'django-crispy-forms',
                         'django-rest-auth',
-                        'django-allauth'
+                        'django-allauth',
+                        'django-keyboard-shortcuts'
                         ],
       scripts=["bin/processASKAPimage.py"],
       dependency_links=[],
