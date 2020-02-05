@@ -1,7 +1,7 @@
 from setuptools import setup, find_packages
 
 setup(name='racstransients',
-      version='0.9.0',
+      version='1.0.0',
       description='Search RACS fields for historical transients.',
       url='http://github.com/ajstewart/askap-image-diagnostic',
       author='Adam Stewart',
