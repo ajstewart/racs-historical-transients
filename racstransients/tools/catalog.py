@@ -11,9 +11,12 @@ from racstransients.tools.fitsimage import askapimage
 
 class Catalog(object):
     """docstring for survey"""
-    def __init__(self, df, survey_name, ref_name, ra_col="_RAJ2000", dec_col="_DEJ2000", flux_col="St", frequency=846e6, add_name_col=False, logger=None):
+    def __init__(self, df, survey_name, ref_name, ra_col="_RAJ2000", dec_col="_DEJ2000", flux_col="St", 
+            frequency=846e6, add_name_col=False, logger=None, convert_from_selavy=False):
         self.logger = logger or logging.getLogger(__name__)
         self.df = df
+        if convert_from_selavy:
+            self.convert_selavy_to_aegean()
         self.survey_name=survey_name
         self.ref_name=ref_name
         self.ra_col=ra_col
@@ -25,6 +28,40 @@ class Catalog(object):
             self._add_name_col()
         super(Catalog, self).__init__()
 
+    def convert_selavy_to_aegean(self):
+        cols_map = {"island_id":"island",
+                    "component_id":"source",
+                    "rms_image":"local_rms",
+                    "ra_deg_cont":"ra",
+                    "ra_err":"err_ra",
+                    "dec_deg_cont":"dec",
+                    "dec_err":"err_dec",
+                    "flux_peak":"peak_flux",
+                    "flux_peak_err":"err_peak_flux",
+                    "flux_int":"int_flux",
+                    "flux_int_err":"err_int_flux",
+                    "maj_axis":"a",
+                    "maj_axis_err":"err_a",
+                    "min_axis":"b",
+                    "min_axis_err":"err_b",
+                    "pos_ang":"pa",
+                    "pos_ang_err":"err_pa",
+                    "maj_axis_deconv":"psf_a",
+                    "min_axis_deconv":"psf_b",
+                    "pos_ang_deconv":"psf_pa",
+                    "flag_c4":"flags"
+                    }
+
+        self.df["flux_peak_err"]=self.df["flux_peak_err"].astype(float)/1.e3
+        self.df["flux_int_err"]=self.df["flux_int_err"].astype(float)/1.e3
+        self.df["rms_image"]=self.df["rms_image"].astype(float)/1.e3
+        self.df["flux_int"]=self.df["flux_int"].astype(float)/1.e3
+        self.df["flux_peak"]=self.df["flux_peak"].astype(float)/1.e3
+        
+        self.df.rename(columns=cols_map, inplace=True)
+        
+        self.logger.info("Selavy conversion successful.")
+        
         
     def _gen_catalog_for_crossmatch(self):
         cat_ra=self.df[self.ra_col].values
@@ -267,7 +304,7 @@ class Catalog(object):
         else:
             return True
    
-    def _find_matching_image(self,ra, dec, centres, images_data, rms=False, check=False, attempts=3, sumss_mosaic_dir="", nvss_mosaic_dir=""):
+    def _find_matching_image(self,ra, dec, centres, images_data, rms=False, check=False, attempts=4, sumss_mosaic_dir="", nvss_mosaic_dir=""):
         target=SkyCoord(ra=ra*u.deg, dec=dec*u.deg)
         seps = target.separation(centres)
         min_index = np.argmin(seps.deg)
@@ -277,6 +314,7 @@ class Catalog(object):
         sorted_seps = sorted(seps.deg)
         backup_indexes = [list(seps.deg).index(i) for i in sorted_seps[1:attempts]]
         image = images_data.iloc[min_index]["image"]
+        self.logger.debug(image)
         if check:
             check_result = self._image_check(ra, dec, image, sumss_mosaic_dir=sumss_mosaic_dir, nvss_mosaic_dir=nvss_mosaic_dir)
                 # print image
@@ -289,6 +327,7 @@ class Catalog(object):
                     found=False
                     for i in backup_indexes:
                         this_image = images_data.iloc[i]["image"]
+                        self.logger.debug(this_image)
                         check_result = self._image_check(ra, dec, this_image, sumss_mosaic_dir=sumss_mosaic_dir, nvss_mosaic_dir=nvss_mosaic_dir)
                         if check_result:
                             self.logger.debug("Match found!")
@@ -329,10 +368,10 @@ class Catalog(object):
         row_idx = np.array([range(x-num_pixels, x+num_pixels+1)])
         col_idx = np.array([range(y-num_pixels, y+num_pixels+1)])
         try:
-            if sumss:
-                data_selection=img_data[row_idx[:, None], col_idx]
-            else:
-                data_selection=img_data[0,0,row_idx[:, None], col_idx]
+            # if sumss:
+            data_selection=img_data[row_idx[:, None], col_idx]
+            # else:
+                # data_selection=img_data[row_idx[:, None], col_idx]
         except:
             self.logger.debug("Measuring failed - returning nan.")
             data_selection=[np.nan]

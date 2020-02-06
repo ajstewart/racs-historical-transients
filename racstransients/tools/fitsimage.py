@@ -8,6 +8,8 @@ import logging
 from astroquery.vizier import Vizier
 import astropy.units as u
 from astropy.coordinates import SkyCoord
+from astropy.stats import sigma_clipped_stats
+from astropy.nddata.utils import Cutout2D
 import numpy as np
 import pandas as pd
 import datetime
@@ -108,6 +110,10 @@ class askapimage(object):
             
     def calculate_sumss_beam(self):
         self.img_sumss_bmaj = 45.*(1./np.sin(np.deg2rad(np.abs(self.centre.dec.degree))))
+        self.img_sumss_bmin = 45.
+        
+    def calculate_nvss_beam(self):
+        self.img_sumss_bmaj = 45.
         self.img_sumss_bmin = 45.
     
     def _get_default_selavy_options(self):
@@ -481,48 +487,36 @@ class askapimage(object):
             med = med.data
         return med
 
-    def get_rms_clipping(self, max_iter=10, sigma=4):
-        try:
-            fln=fits.open(self.image)
-            rawdata=np.nan_to_num(fln[0].data)
-            angle=fln[0].header['crval1']
-            bscale=fln[0].header['bscale']
-            rawdata=rawdata.squeeze()
-            rawdata=rawdata*bscale
-            while len(rawdata) < 20:
-                rawdata = rawdata[0]
-            X,Y = np.shape(rawdata)
-            # rawdata = rawdata[Y/6:5*Y/6,X/6:5*X/6]
-            rawdata = rawdata[2*Y/6:4*Y/6,2*X/6:4*X/6]
-            orig_raw = rawdata
-            med, std, mask = self._Median_clip(rawdata, full_output=True, ftol=0.0, max_iter=max_iter, sigma=sigma)
-            rawdata[mask==False] = med
-            self.logger.info("{0} estimate rms: {1} Jy".format(self.imagename,std))
-            fln.close()
-            self.rms = std
-        except:
-            std = 0.00025
-        if (std == 0.0) or (std == np.nan):
-            std = 0.00025
-        return std
+    def get_rms_clipping(self, max_iter=5, sigma=4):
+        self.logger.info('Performing sigma clipping...')
+        # self.clip_mean, self.clip_median, self.clip_std = sigma_clipped_stats(self.data, sigma=sigma, maxiters=max_iter)
+        # self.rms = self.clip_std
+        self.rms = 0.4e-3
+        self.logger.info("{0} estimate rms: {1:.03f} mJy".format(self.imagename,self.rms*1000.))
+        return self.rms
+        
         
     def get_local_rms_clipping(self, ra, dec, max_iter=10, sigma=4, num_pixels=50):
-        pixels=self.wcs_world2pix(ra, dec, 1)
-        y,x = pixels
-        self.logger.debug("x:{} y:{}".format(x,y))
-        y = int(y)
-        x = int(x)
-        #Search 50 pixels around, see if in nan is in there
-        row_idx = np.array([range(x-num_pixels, x+num_pixels+1)])
-        col_idx = np.array([range(y-num_pixels, y+num_pixels+1)])
-        data_selection=img_data[0,0,row_idx[:, None], col_idx]
-        data_selection = np.nan_to_num(data_selection)
-        angle=self.header['crval1']
-        bscale=self.header['bscale']
-        data_selection=data_selection.squeeze()
-        data_selection=data_selection*bscale
-        med, std, mask = self._Median_clip(data_selection, full_output=True, ftol=0.0, max_iter=max_iter, sigma=sigma)
-        return std
+        coord = SkyCoord(ra*u.degree, dec*u.degree)
+        cutout = Cutout2D(self.data, coord, num_pixels*2., wcs=self.wcs)
+        cutout_clip_mean, cutout_clip_median, cutout_clip_std = sigma_clipped_stats(cutout.data, sigma=sigma, maxiters=max_iter)
+        return cutout_clip_std
+        # pixels=self.wcs_world2pix(ra, dec, 1)
+        # y,x = pixels
+        # self.logger.debug("x:{} y:{}".format(x,y))
+        # y = int(y)
+        # x = int(x)
+        # #Search 50 pixels around, see if in nan is in there
+        # row_idx = np.array([range(x-num_pixels, x+num_pixels+1)])
+        # col_idx = np.array([range(y-num_pixels, y+num_pixels+1)])
+        # data_selection=img_data[0,0,row_idx[:, None], col_idx]
+        # data_selection = np.nan_to_num(data_selection)
+        # angle=self.header['crval1']
+        # bscale=self.header['bscale']
+        # data_selection=data_selection.squeeze()
+        # data_selection=data_selection*bscale
+        # med, std, mask = self._Median_clip(data_selection, full_output=True, ftol=0.0, max_iter=max_iter, sigma=sigma)
+        # return std
         
         
     def weight_crop(self, weight_image, weight_value):

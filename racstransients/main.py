@@ -348,7 +348,7 @@ def main():
     
     logname="askapdiagnostic-{}".format(launchtime)
     utils.setup_logging(logname, args.log_level, use_colorlog)
-    
+    logger.debug("Debug on")
     #get user running
     username=getpass.getuser()
         
@@ -565,9 +565,9 @@ def main():
                     logger.error("Source finding failed.")
                     exit(logger)
 
-            non_conv_askap_cat = pd.read_csv(non_convolved_src_cat, delimiter=",", engine="python")
+            non_conv_askap_cat = pd.read_fwf(non_convolved_src_cat, engine="python", skiprows=[1,])
             non_conv_askap_cat = Catalog(non_conv_askap_cat, "askap", "{}".format(theimg.imagename.replace(".fits", "_askap")), ra_col="ra", 
-                dec_col="dec", flux_col="int_flux", frequency=theimg.freq, add_name_col=True)
+                dec_col="dec", flux_col="int_flux", frequency=theimg.freq, add_name_col=True, convert_from_selavy=True)
             non_conv_askap_cat._add_askap_sn()
             if sumss:
                 non_conv_askap_cat.calculate_scaled_flux("sumss", to_catalog="sumss")
@@ -594,7 +594,7 @@ def main():
             
             #Load up the islands if provided - only need to load this, no other processing needed.
             if non_convolved_isl_cat != None:
-                non_convolved_isl_cat_df = pd.read_csv(non_convolved_isl_cat)
+                non_convolved_isl_cat_df = pd.read_fwf(non_convolved_isl_cat, skiprows=[1,])
             else:
                 non_convolved_isl_cat_df = pd.DataFrame([])
             
@@ -628,15 +628,16 @@ def main():
             sf_sigmas=[99.,99.]
 
         #Load the askap catalog into a new catalog object (but load it first to filter good sources)
-        askap_catalog=pd.read_csv(askap_cat_file, delimiter=",", engine="python")
+        askap_catalog=pd.read_fwf(askap_cat_file, engine="python", skiprows=[1,])
         aegean_total = len(askap_catalog.index)
         logger.info("Total number of ASKAP sources: {}".format(aegean_total))
         if not args.use_all_fits:
-            askap_catalog=askap_catalog[askap_catalog["flags"]==0].reset_index(drop=True)
+            askap_catalog=askap_catalog[askap_catalog["flag_c4"]==0].reset_index(drop=True)
             aegean_good_fits=len(askap_catalog.index)
             logger.info("Total number of good fit ASKAP sources found: {} ({} sources removed).".format(aegean_good_fits, aegean_total - aegean_good_fits))
         theimg.total_askap_sources = len(askap_catalog.index)
-        askap_catalog=Catalog(askap_catalog, "askap", "{}".format(theimg.imagename.replace(".fits", "_askap")), ra_col="ra", dec_col="dec", flux_col="int_flux", frequency=theimg.freq, add_name_col=True)
+        askap_catalog=Catalog(askap_catalog, "askap", "{}".format(theimg.imagename.replace(".fits", "_askap")), ra_col="ra", dec_col="dec", 
+            flux_col="int_flux", frequency=theimg.freq, add_name_col=True, convert_from_selavy=True)
         askap_catalog._add_askap_sn()
         askap_catalog.add_distance_from_pos(theimg.centre)
         askap_catalog.add_single_val_col("rms", theimg.rms)
@@ -651,7 +652,7 @@ def main():
                 
         #Load the askap convolved island file if available
         if askap_cat_islands_file != None:
-            askap_cat_islands_df = pd.read_csv(askap_cat_islands_file)
+            askap_cat_islands_df = pd.read_fwf(askap_cat_islands_file, skiprows=[1,])
         else:
             askap_cat_islands_df = pd.DataFrame([])
         
@@ -1034,6 +1035,7 @@ def main():
             else:
                 preconv_askap_img_wcs="None"
                 preconv_askap_img_data=[]
+                preconv_askap_img_header={}
             transient_crossmatch.transient_search(max_separation=args.transient_max_separation, askap_snr_thresh=askap_snr_thresh, large_flux_thresh=large_flux_ratio_thresh,
                 pre_conv_crossmatch=preconv_crossmatch_transient, image_beam_maj=theimg.bmaj*3600., image_beam_min=theimg.bmin*3600., image_beam_pa=theimg.bpa, dualmode=dualmode, sumss=sumss, nvss=nvss,
                 askap_img_wcs=theimg.wcs, askap_img_header=theimg.header, askap_img_data=theimg.data, preconv_askap_img_wcs=preconv_askap_img_wcs, preconv_askap_img_header=preconv_askap_img_header,
@@ -1071,7 +1073,7 @@ def main():
             # subprocess.call("mv *BAD*_sidebyside.jpg postage-stamps/bad/", shell=True)
         
         #Hack fix for now CHANGE!
-        theimg.rms=base_image_rms
+        # theimg.rms=base_image_rms
         # Database Entry
         theimg.matched_to = matched_to_tag
         # image_id=theimg.inject_db(datestamp=launchtime)
@@ -1125,16 +1127,16 @@ def main():
         
         if args.website_media_dir!="none":
             media_dir=os.path.join(args.website_media_dir, str(image_id))
-        else:
-            media_dir=os.path.join("..", "static", "media", "{}".format(image_id))
-        stamp_media_dir=os.path.join(media_dir, "stamps")
+        # else:
+            # media_dir=os.path.join("..", "static", "media", "{}".format(image_id))
+            stamp_media_dir=os.path.join(media_dir, "stamps")
         # os.makedirs(media_dir)
-        os.makedirs(stamp_media_dir)
-        subprocess.call("cp postage-stamps/*.jpg {}/".format(stamp_media_dir), shell=True)
+            os.makedirs(stamp_media_dir)
+            subprocess.call("cp postage-stamps/*.jpg {}/".format(stamp_media_dir), shell=True)
         # subprocess.call("cp postage-stamps/bad/*.jpg {}/".format(stamp_media_dir), shell=True)
         # if args.transients:
         #     subprocess.call("cp transients/askap-notseen/*.jpg {}/".format(stamp_media_dir), shell=True)
-        subprocess.call("cp *.png {}/".format(media_dir), shell=True)
+            subprocess.call("cp *.png {}/".format(media_dir), shell=True)
              
         os.chdir("..")
         

@@ -6,6 +6,8 @@ import logging
 import aplpy
 from astropy.coordinates import SkyCoord
 from astropy import units as u
+from astropy.stats import sigma_clipped_stats
+from astropy.nddata.utils import Cutout2D
 from racstransients.tools.fitsimage import askapimage
 import matplotlib.pyplot as plt
 import os
@@ -42,12 +44,12 @@ class crossmatch(object):
         newcolnames={}
         for c in self.matches.columns:
             newcolnames[c]="askap_{}".format(c)
-        self.matches=self.matches.rename(str, columns=newcolnames)
+        self.matches=self.matches.rename(columns=newcolnames)
         self.crossmatch_df = self.base_catalog.df.copy(deep=True)
         newcolnames={}
         for c in self.crossmatch_df.columns:
             newcolnames[c]="{}_{}".format(self.base_catalogue_name, c)
-        self.crossmatch_df=self.crossmatch_df.rename(str, columns=newcolnames)
+        self.crossmatch_df=self.crossmatch_df.rename(columns=newcolnames)
         self.crossmatch_df=self.crossmatch_df.join(self.matches)
         # for i in self.crossmatch_df.columns:
         #     print i
@@ -184,7 +186,8 @@ class crossmatch(object):
             if n_components >= threshold:
                 self.logger.info("Large island found for source {}".format(askap_name))
                 return True
-            elif len(non_convolved_isl_cat_df.index) == 0:
+            elif non_convolved_isl_cat_df is not None:
+                if len(non_convolved_isl_cat_df.index) == 0:
                     return False
             elif askap_only:
                 #We need to find the nearest non-convovled source to the convolved askap source
@@ -207,17 +210,20 @@ class crossmatch(object):
                 else:
                     return False
             else:
-                #Now need to get the closest match to the master source in the pre_conv_crossmatch
-                non_conv_match=pre_conv_crossmatch.crossmatch_df[pre_conv_crossmatch.crossmatch_df["master_name"]==master_name].iloc[0]
-                pre_conv_island=non_conv_match["askap_island"]
-                if non_conv_match["d2d"] > transient_sep:
-                    self.logger.debug("Closest preconvolved match for {} is not within acceptable range ({}). Returning False.".format(non_conv_match["master_name"], transient_sep))
-                    return False
-                n_components=non_convolved_isl_cat_df[non_convolved_isl_cat_df["island_id"]==pre_conv_island].iloc[0]["n_components"]
-                self.logger.debug("Second n_component {}".format(n_components))
-                if n_components >= threshold:
-                    self.logger.info("Large island found for source {}".format(askap_name))
-                    return True
+                if non_convolved_isl_cat_df is not None:
+                    #Now need to get the closest match to the master source in the pre_conv_crossmatch
+                    non_conv_match=pre_conv_crossmatch.crossmatch_df[pre_conv_crossmatch.crossmatch_df["master_name"]==master_name].iloc[0]
+                    pre_conv_island=non_conv_match["askap_island"]
+                    if non_conv_match["d2d"] > transient_sep:
+                        self.logger.debug("Closest preconvolved match for {} is not within acceptable range ({}). Returning False.".format(non_conv_match["master_name"], transient_sep))
+                        return False
+                    n_components=non_convolved_isl_cat_df[non_convolved_isl_cat_df["island_id"]==pre_conv_island].iloc[0]["n_components"]
+                    self.logger.debug("Second n_component {}".format(n_components))
+                    if n_components >= threshold:
+                        self.logger.info("Large island found for source {}".format(askap_name))
+                        return True
+                    else:
+                        return False
                 else:
                     return False
         
@@ -355,7 +361,7 @@ class crossmatch(object):
         no_matches = self._merge_forced_aegean(no_matches, aegean_results, tag="aegean_convolved")
         # no_matches.join(aegean_results, rsuffix="aegean")
         
-        if pre_conv_crossmatch != None:
+        if pre_conv_crossmatch is not None:
             aegean_to_extract_df["a"]=preconv_askap_image.bmaj*3600.
             aegean_to_extract_df["b"]=preconv_askap_image.bmin*3600.
             aegean_to_extract_df["pa"]=preconv_askap_image.bpa
@@ -363,6 +369,7 @@ class crossmatch(object):
             no_matches= self._merge_forced_aegean(no_matches, preconv_aegean_results, tag="aegean_preconvolved")
             # no_matches.join(aegean_results, rsuffix="aegean_preconv")
         
+        self.logger.info("Measuring ASKAP local rms...")
         # no_matches.to_csv("testing_no_matches.csv")
         #measure the peak flux at the position in the ASKAP image(s)
         # no_matches=self.measure_askap_image_peak_fluxes(no_matches, askap_img_wcs, askap_img_data, using_pre_conv, preconv_askap_img_wcs, preconv_askap_img_data)
@@ -601,6 +608,10 @@ class crossmatch(object):
         
         unique_mosaics = not_matched_askap_sources_should_see["catalog_Mosaic_path"].unique()
         for i,mos in enumerate(unique_mosaics):
+            if mos.split("/")[-1].startswith("J"):
+                this_nvss = False
+            else:
+                this_nvss = True
             self.logger.info("Source finding from mosaic {} ({}/{})".format(mos.split("/")[-1], i+1, len(unique_mosaics)))
             if mos.split("/")[-1]=="SKIP.FITS":
                 self.logger.warning("Missing SUMSS FITS mosaic. Skipping.")
@@ -608,10 +619,16 @@ class crossmatch(object):
             mosaic = askapimage(mos)
             mosaic.load_fits_header()
             if not mosaic._beam_loaded:
-                mosaic.calculate_sumss_beam()
-                mosaic.bmaj=mosaic.img_sumss_bmaj
-                mosaic.bmin=mosaic.img_sumss_bmin
-                mosaic.bpa=0.0
+                if this_nvss is False:
+                    mosaic.calculate_sumss_beam()
+                    mosaic.bmaj=mosaic.img_sumss_bmaj
+                    mosaic.bmin=mosaic.img_sumss_bmin
+                    mosaic.bpa=0.0
+                else:
+                    mosaic.calculate_nvss_beam()
+                    mosaic.bmaj=mosaic.img_sumss_bmaj
+                    mosaic.bmin=mosaic.img_sumss_bmin
+                    mosaic.bpa=0.0
                 
             aegean_to_extract_df = not_matched_askap_sources_should_see[not_matched_askap_sources_should_see["catalog_Mosaic_path"]==mos]
             aegean_to_extract_df = aegean_to_extract_df.filter(["ra", "dec", "peak_flux"])
@@ -619,7 +636,7 @@ class crossmatch(object):
             aegean_to_extract_df["a"]=mosaic.bmaj*3600.
             aegean_to_extract_df["b"]=mosaic.bmin*3600.
             aegean_to_extract_df["pa"]=mosaic.bpa
-            aegean_results = self.force_extract_aegean(aegean_to_extract_df, mos)
+            aegean_results = self.force_extract_aegean(aegean_to_extract_df, mos, nvss_beam=this_nvss)
             not_matched_askap_sources_should_see_subset = self._merge_forced_aegean(not_matched_askap_sources_should_see[not_matched_askap_sources_should_see["catalog_Mosaic_path"]==mos], 
                 aegean_results, tag="aegean_catalog", ra_col="ra", dec_col="dec")
             if i == 0:
@@ -954,61 +971,61 @@ class crossmatch(object):
          
     def _check_for_edge_case(self, ra, dec, img_wcs, img_data, num_pixels=50):
         #Works with ASKAP Image for now
-        pixels=img_wcs.wcs_world2pix(ra, dec, 1)
-        y,x = pixels
-        y = int(y)
-        x = int(x)
-        #Search 10 pixels around, see if in nan is in there
-        row_idx = np.array([range(x-num_pixels, x+num_pixels+1)])
-        col_idx = np.array([range(y-num_pixels, y+num_pixels+1)])
-        data_selection=img_data[0,0,row_idx[:, None], col_idx]
-        return np.isnan(data_selection).any()
+        coord = SkyCoord(ra*u.degree, dec*u.degree)
+        cutout = Cutout2D(img_data, coord, num_pixels*2., wcs=img_wcs)
+        
+        if np.isnan(cutout.data).any():
+            return True
+        
+        pixels = img_wcs.wcs_world2pix(ra, dec, 1)
+        
+        size = img_data.shape
+        
+        if pixels[0] > size[0]-num_pixels:
+            return True
+        
+        if pixels[1] > size[1]-num_pixels:
+            return True
+            
+        return False
         
     def _get_peak_flux(self, ra, dec, img_wcs, img_data, num_pixels=10, sumss=False):
         #Works with ASKAP Image for now
-        self.logger.debug(ra)
-        self.logger.debug(dec)
-        pixels=img_wcs.wcs_world2pix(ra, dec, 1)
-        y,x = pixels
-        self.logger.debug("x:{} y:{}".format(x,y))
-        y = int(y)
-        x = int(x)
-        #Search 10 pixels around, see if in nan is in there
-        row_idx = np.array([range(x-num_pixels, x+num_pixels+1)])
-        col_idx = np.array([range(y-num_pixels, y+num_pixels+1)])
-        try:
-            if sumss:
-                data_selection=img_data[row_idx[:, None], col_idx]
-            else:
-                data_selection=img_data[0,0,row_idx[:, None], col_idx]
-        except:
-            self.logger.error("Peak flux measuring failed - likely out of range.")
+        coord = SkyCoord(ra*u.degree, dec*u.degree)
+        cutout = Cutout2D(img_data, coord, num_pixels*2., wcs=img_wcs)
+        themax = np.max(cutout.data)
+        if themax == np.nan:
+            self.logger.error("Peak flux measuring returned nan - likely out of range.")
             self.logger.warning("Setting peak flux to 0.0")
-            data_selection=[0.0]
-        return np.max(data_selection)
+            return 0.0
+        return themax
         
-    def _get_local_rms(self, ra, dec, img_wcs, img_data, angle, bscale, num_pixels=300, sumss=False, max_iter=10, sigma=4):
+    def _get_local_rms(self, ra, dec, img_wcs, img_data, num_pixels=300, sumss=False, max_iter=10, sigma=4):
         #Works with ASKAP Image for now
-        pixels=img_wcs.wcs_world2pix(ra, dec, 1)
-        y,x = pixels
-        self.logger.debug("x:{} y:{}".format(x,y))
-        y = int(y)
-        x = int(x)
-        #Search 50 pixels around, see if in nan is in there
-        row_idx = np.array([range(x-num_pixels, x+num_pixels+1)])
-        col_idx = np.array([range(y-num_pixels, y+num_pixels+1)])
-        data_selection=img_data[0,0,row_idx[:, None], col_idx]
-        data_selection = np.nan_to_num(data_selection)
-        angle=angle
-        bscale=bscale
-        data_selection=data_selection.squeeze()
-        data_selection=data_selection*bscale
-        med, std, mask = self._Median_clip(data_selection, full_output=True, ftol=0.0, max_iter=max_iter, sigma=sigma)
+        coord = SkyCoord(ra*u.degree, dec*u.degree)
+        cutout = Cutout2D(img_data, coord, num_pixels*2., wcs=img_wcs)
+        cutout_clip_mean, cutout_clip_median, cutout_clip_std = sigma_clipped_stats(cutout.data, sigma=sigma, maxiters=max_iter)
+        # return cutout_clip_std
+        # pixels=img_wcs.wcs_world2pix(ra, dec, 1)
+        # y,x = pixels
+        # self.logger.debug("x:{} y:{}".format(x,y))
+        # y = int(y)
+        # x = int(x)
+        # #Search 50 pixels around, see if in nan is in there
+        # row_idx = np.array([range(x-num_pixels, x+num_pixels+1)])
+        # col_idx = np.array([range(y-num_pixels, y+num_pixels+1)])
+        # data_selection=img_data[0,0,row_idx[:, None], col_idx]
+        # data_selection = np.nan_to_num(data_selection)
+        # angle=angle
+        # bscale=bscale
+        # data_selection=data_selection.squeeze()
+        # data_selection=data_selection*bscale
+        # med, std, mask = self._Median_clip(data_selection, full_output=True, ftol=0.0, max_iter=max_iter, sigma=sigma)
         
-        if std == 0:
+        if cutout_clip_std == 0:
             self.logger.warning("Local RMS returned 0 or null. Setting to 1.0 mJy.")
-            std = 1.0e-3
-        return std
+            cutout_clip_std = 1.0e-3
+        return cutout_clip_std
     
     def _Median_clip(self, arr, sigma=3, max_iter=3, ftol=0.01, xtol=0.05, full_output=False, axis=None):
         """Median_clip(arr, sigma, max_iter=3, ftol=0.01, xtol=0.05, full_output=False, axis=None)
@@ -1095,9 +1112,9 @@ class crossmatch(object):
         askap_local_rms=[]
         preconv_askap_local_rms=[]
         for i, row in no_matches.iterrows():
-            askap_local_rms_val=self._get_local_rms(row[ra_col], row[dec_col], askap_img_wcs, askap_img_data, askap_img_header["crval1"], askap_img_header["bscale"])
+            askap_local_rms_val=self._get_local_rms(row[ra_col], row[dec_col], askap_img_wcs, askap_img_data)
             if using_pre_conv:
-                preconv_askap_local_rms_val=self._get_local_rms(row[ra_col], row[dec_col], preconv_askap_img_wcs, preconv_askap_img_data, preconv_askap_img_header["crval1"], preconv_askap_img_header["bscale"])
+                preconv_askap_local_rms_val=self._get_local_rms(row[ra_col], row[dec_col], preconv_askap_img_wcs, preconv_askap_img_data)
             else:
                 preconv_askap_local_rms_val=0.0
             askap_local_rms.append(askap_local_rms_val)
@@ -1155,7 +1172,7 @@ class crossmatch(object):
     #     df.join(results, rsuffix="pyse")
     #     return df
     
-    def force_extract_aegean(self, df, image):
+    def force_extract_aegean(self, df, image, nvss_beam=False):
         #Step 1 - create aegean file
         num_of_sources = len(df.index)
         aegean_coords_file = "aegean_coordinates_to_measure_{}.csv".format(image.split("/")[-1].replace(".fits", ""))
@@ -1167,6 +1184,8 @@ class crossmatch(object):
         #Step 2 Run Aegean
             
         command="aegean --cores 1 --priorized 1 --input {} --floodclip -1 --table {} {} --ratio 1".format(aegean_coords_file, aegean_output_file, image)
+        if nvss_beam:
+            command+=" --beam {0} {1} 0.0".format(45./3600.)
         subprocess.call(command, shell=True)
         
         #Step 3 read output
