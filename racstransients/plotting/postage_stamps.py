@@ -376,10 +376,10 @@ def produce_postage_stamps_new(row_dict, askap_data, askap_wcs, mos_data, mos_wc
     fig = plt.figure(figsize=(18, 8))
     
     target = SkyCoord(row_dict["master_ra"]*u.degree, row_dict["master_dec"]*u.degree)
-    askap_cutout = Cutout2D(askap_data, position=target, size=Angle(radius*2.*u.degree), wcs=askap_wcs)
-    mos_cutout = Cutout2D(mos_data, position=target, size=Angle(radius*2.*u.degree), wcs=mos_wcs)
+    askap_cutout = Cutout2D(askap_data, position=target, size=Angle(radius*2.*u.degree), wcs=askap_wcs, mode='partial')
+    mos_cutout = Cutout2D(mos_data, position=target, size=Angle(radius*2.*u.degree), wcs=mos_wcs, mode='partial')
     if convolve:
-        askap_nonconv_cutout = Cutout2D(askap_nonconv_data, position=target, size=Angle(radius*2.*u.degree), wcs=askap_nonconv_wcs)
+        askap_nonconv_cutout = Cutout2D(askap_nonconv_data, position=target, size=Angle(radius*2.*u.degree), wcs=askap_nonconv_wcs, mode='partial')
         
     askap_norm = ImageNormalize(askap_cutout.data, interval=ZScaleInterval(contrast=0.15))
     mos_norm = ImageNormalize(mos_cutout.data, interval=ZScaleInterval(contrast=0.15))
@@ -396,9 +396,9 @@ def produce_postage_stamps_new(row_dict, askap_data, askap_wcs, mos_data, mos_wc
     if convolve:
         panels[3].imshow(askap_nonconv_cutout.data,norm=askap_norm,cmap='gray_r')
         
-    asp = np.diff(panels[2].get_xlim())[0] / np.diff(panels[2].get_ylim())[0]
-    panels[2].set_aspect(asp)
-    panels[3].set_aspect(asp)
+    # asp = np.diff(panels[2].get_xlim())[0] / np.diff(panels[2].get_ylim())[0]
+    # panels[2].set_aspect(asp)
+    # panels[3].set_aspect(asp)
     
     
     for i in panels:
