@@ -251,6 +251,7 @@ def main():
         "db_inject":True,
         "db_engine":"postgresql",
         "db_username":"postgres",
+        "db_password":"postgres",
         "db_host":"localhost",
         "db_port":"5432",
         "db_database":"postgres",
@@ -1105,7 +1106,8 @@ def main():
                 image_2 = original_theimg.image
             else:
                 image_2 = "N/A"
-            image_id=theimg.inject_db(basecat=basecat, datestamp=launchtime, user=username, description=args.db_tag, db_engine=args.db_engine, db_username=args.db_username, db_host=args.db_host, 
+            image_id=theimg.inject_db(basecat=basecat, datestamp=launchtime, user=username, description=args.db_tag, db_engine=args.db_engine, db_username=args.db_username, 
+                db_host=args.db_host, db_password=args.db_password,
                 db_port=args.db_port, db_database=args.db_database, transients_noaskapmatchtocatalog_total=transients_noaskapmatchtocatalog_total,
                 transients_noaskapmatchtocatalog_candidates=transients_noaskapmatchtocatalog_candidates,
                 transients_nocatalogmatchtoaskap_total=transients_nocatalogmatchtoaskap_total,
@@ -1115,10 +1117,10 @@ def main():
                 transients_goodmatches_total=transients_goodmatches_total,
                 transients_master_total=transients_master_total,transients_master_candidates_total=transients_master_candidates_total, transients_master_flagged_total=transients_master_flagged_total, image_2 = image_2)
             theimg.inject_processing_db(image_id, full_output, askap_cat_file, sumss_source_cat, nvss_source_cat, args.askap_ext_thresh, 
-                args.sumss_ext_thresh, args.nvss_ext_thresh, args.transient_max_separation, sf_sigmas, db_engine=args.db_engine, db_username=args.db_username, db_host=args.db_host, 
+                args.sumss_ext_thresh, args.nvss_ext_thresh, args.transient_max_separation, sf_sigmas, db_engine=args.db_engine, db_username=args.db_username, db_password=args.db_password, db_host=args.db_host, 
                 db_port=args.db_port, db_database=args.db_database)
             if args.transients:
-                transient_crossmatch.inject_transients_db(image_id, sumss, nvss, db_engine=args.db_engine, db_username=args.db_username, db_host=args.db_host, 
+                transient_crossmatch.inject_transients_db(image_id, sumss, nvss, db_engine=args.db_engine, db_username=args.db_username, db_password=args.db_password, db_host=args.db_host, 
                     db_port=args.db_port, db_database=args.db_database, max_separation=args.transient_max_separation, dualmode=dualmode, basecat=basecat, askap_image = theimg.image,
                     askap_image_2 = image_2)
         # if args.transients:

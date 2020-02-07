@@ -374,7 +374,7 @@ class askapimage(object):
         self.logger.info("Wrote NVSS sources to {}.".format(name))
         
     def inject_db(self, basecat="sumss", datestamp=datetime.datetime.utcnow(), user="unknown", description="", db_engine="postgresql", 
-            db_username="postgres", db_host="localhost", db_port="5432", db_database="postgres", transients_noaskapmatchtocatalog_total=0,
+            db_username="postgres", db_password="postgres", db_host="localhost", db_port="5432", db_database="postgres", transients_noaskapmatchtocatalog_total=0,
             transients_noaskapmatchtocatalog_candidates=0,
             transients_nocatalogmatchtoaskap_total=0,
             transients_nocatalogmatchtoaskap_candidates=0,
@@ -382,7 +382,7 @@ class askapimage(object):
             transients_master_total=0, transients_master_candidates_total=0, transients_master_flagged_total=0, image_2 = "N/A"):
         # image_id=1
         unique_tag = str(uuid.uuid4())
-        engine = sqlalchemy.create_engine('{}://{}@{}:{}/{}'.format(db_engine, db_username, db_host, db_port, db_database))
+        engine = sqlalchemy.create_engine('{}://{}:{}@{}:{}/{}'.format(db_engine, db_username, db_password, db_host, db_port, db_database))
         #Better to control the order
         
         # conn = psycopg2.connect("host=localhost dbname=RACS user=aste7152 port=5434")
@@ -409,8 +409,8 @@ class askapimage(object):
         return image_id
         
     def inject_processing_db(self, image_id, output, askap_cat_file, sumss_source_cat, nvss_source_cat, askap_ext_thresh, sumss_ext_thresh, nvss_ext_thresh, max_separation, aegean_sigmas, db_engine="postgresql", 
-            db_username="postgres", db_host="localhost", db_port="5432", db_database="postgres"):
-        engine = sqlalchemy.create_engine('{}://{}@{}:{}/{}'.format(db_engine, db_username, db_host, db_port, db_database))
+            db_username="postgres", db_password="postgres", db_host="localhost", db_port="5432", db_database="postgres"):
+        engine = sqlalchemy.create_engine('{}://{}:{}@{}:{}/{}'.format(db_engine, db_username, db_password, db_host, db_port, db_database))
         if sumss_source_cat == None:
             sumss_source_cat="N/A"
         if nvss_source_cat == None:
