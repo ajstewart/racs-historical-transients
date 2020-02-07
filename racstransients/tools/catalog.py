@@ -466,7 +466,7 @@ class Catalog(object):
         newnames={}
         for i in cols_to_copy:
             newnames[i] = "non_conv_{}".format(i)
-        matches=matches.rename(str, columns=newnames)
+        matches=matches.rename(columns=newnames)
         # matches["non_conv_name"] = matches['non_conv_name'].astype(basestring)
         matches.index=range(len(matches.index))
         self.df=self.df.merge(matches, left_index=True, right_index=True, how="left")

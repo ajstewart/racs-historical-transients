@@ -543,7 +543,14 @@ class askapimage(object):
         
     def convolve2sumss(self, nvss=False):
         
-        convolve_outname = self.imagename.replace(".fits", ".convolve2sumss_casa.fits")
+        cwd=os.getcwd()
+        
+        if nvss:
+            survey="nvss"
+        else:
+            survey="sumss"
+        
+        convolve_outname = os.path.join(cwd, self.imagename.replace(".fits", ".convolve2{}_casa.fits".format(survey)))
         script="""#!/usr/bin/env python
 
 import sys
@@ -561,12 +568,12 @@ def convolve_img(fitsfile):
         sumss_beam = 45
     else:
         sumss_beam=calc_sumss_beam(float(dec))
-    outname=fitsfile.replace(".fits", ".convolve2sumss_casa.image")
+    outname='{3}'
     imsmooth(imagename=fitsfile, major="{{}}arcsec".format(sumss_beam), minor="45arcsec", pa="0deg", outfile=outname, targetres=True)
     exportfits(imagename=outname, fitsimage=outname.replace(".image", ".fits"))
     
 
-convolve_img("{1}")""".format(self.centre.dec.deg, self.image, nvss)
+convolve_img("{1}")""".format(self.centre.dec.deg, self.image, nvss, convolve_outname.replace(".fits", ".image"))
 
         with open("convolve2casa.py", "w") as f:
             f.write(script)

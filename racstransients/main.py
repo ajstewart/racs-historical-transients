@@ -557,18 +557,23 @@ def main():
             if non_convolved_src_cat != None:
                 logger.info("Loading provided pre-convolved source catalogue: {}".format(non_convolved_src_cat))
                 subprocess.call(["cp", non_convolved_src_cat, "."])
-                sf_sigmas=[99.,99.]
+                sf_sigmas = [99.,99.]
+                need_converting = True
             else:
                 logger.info("Running sourcefinder on pre-convolved image...")
+                need_converting = False
                 non_convolved_src_cat=theimg.imagename.replace(".fits", "_comp.csv")
                 sf_sigmas=source_finding(theimg, sf, logger, options=sf_option_file)
-                if not os.path.isfile(askap_no_conv_cat_file):
+                if not os.path.isfile(non_convolved_src_cat):
                     logger.error("Source finding failed.")
                     exit(logger)
 
-            non_conv_askap_cat = pd.read_fwf(non_convolved_src_cat, engine="python", skiprows=[1,])
+            if need_converting:
+                non_conv_askap_cat = pd.read_fwf(non_convolved_src_cat, engine="python", skiprows=[1,])
+            else:
+                non_conv_askap_cat = pd.read_csv(non_convolved_src_cat, engine="python", delimiter=",")
             non_conv_askap_cat = Catalog(non_conv_askap_cat, "askap", "{}".format(theimg.imagename.replace(".fits", "_askap")), ra_col="ra", 
-                dec_col="dec", flux_col="int_flux", frequency=theimg.freq, add_name_col=True, convert_from_selavy=True)
+                dec_col="dec", flux_col="int_flux", frequency=theimg.freq, add_name_col=True, convert_from_selavy=need_converting)
             non_conv_askap_cat._add_askap_sn()
             if sumss:
                 non_conv_askap_cat.calculate_scaled_flux("sumss", to_catalog="sumss")

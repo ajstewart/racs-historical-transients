@@ -818,7 +818,7 @@ class crossmatch(object):
                     askap_flux_to_use_2_err = row["askap_err_int_flux"]
                     scaled_askap_flux_to_use = row["aegean_convolved_int_flux_scaled"]
                     scaled_askap_flux_to_use_err = row["aegean_convolved_err_int_flux_scaled"]
-                    scaled_askap_flux_to_use_2 = row["askap_askap_scaled_to_sumss"]
+                    scaled_askap_flux_to_use_2 = row["askap_askap_scaled_to_{}".format(row.survey_used)]
                     scaled_askap_flux_to_use_2_err = 0.0
                                
                 else:

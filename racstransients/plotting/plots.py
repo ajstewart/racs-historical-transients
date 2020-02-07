@@ -169,7 +169,7 @@ def source_counts(askap_df, crossmatch_df, max_sep, sumss_cat=[], nvss_cat=[], t
     plt.xticks([1,2,3,4,5,6,7], ["Total ASKAP", "Expected ASKAP in SUMSS", "SUMSS Total", "SUMSS matched < {}\" (no extended)".format(max_sep),"Expected ASKAP in NVSS", "NVSS Total", "NVSS matched < {}\" (no extended)".format(max_sep)], rotation=45, ha="right")
     ax.set_ylabel("Number of Sources")
     for i,val in enumerate((total_askap_sources, num_askap_seen_in_sumss, num_sumss_sources, num_sumss_sources_matched, num_askap_seen_in_nvss,num_nvss_sources, num_nvss_sources_matched)):
-        ax.text((i+1-0.1), val+20, "{}".format(val),zorder=10)
+        ax.text((i+1-0.1), val+0.2, "{}".format(val),zorder=10)
     filename="{}_source_counts.png".format(base_filename)
     if save:
         plt.savefig(filename, bbox_inches="tight")
