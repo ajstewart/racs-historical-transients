@@ -141,13 +141,22 @@ def get_catalogue(image, catalogue, boundary_value, logger):
     logger.info("Written to disk as {}.".format(source_cat))       
     return source_cat, cat_df
     
-def determine_catalogues(image_dec, sumss_only, logger):
+def determine_catalogues(image_dec, sumss_only, nvss_only, logger):
     #Check if NVSS or SUMSS is required (or both)
+    if sumss_only and nvss_only:
+        logger.critical("'sumss-only' and 'nvss-only' has been selected, please choose one!")
+        sys.exit()
     if sumss_only:
         logger.warning("SUMSS only is selected! Will not use NVSS even if available.")
+    elif nvss_only:
+        logger.warning("NVSS only is selected! Will not use SUMSS even if available.")
     if image_dec <= -30.0:
-        basecat="sumss"
-        sumss=True
+        if nvss_only:
+            sumss=False
+            basecat="nvss"
+        else:
+            sumss=True
+            basecat="sumss"
         if image_dec <= -43:
             nvss=False
         else:
@@ -159,7 +168,8 @@ def determine_catalogues(image_dec, sumss_only, logger):
         if image_dec >= -27.0:
             sumss=False
         else:
-            sumss=True
+            if not nvss_only:
+                sumss=True
         if not sumss_only:
             basecat="nvss"
             nvss=True
@@ -214,6 +224,7 @@ def main():
         "nice":10,
         "clobber":False,
         "sumss_only":False,
+        "nvss_only":False,
         "weight_crop":False,
         "weight_crop_value":0.04,
         "weight_crop_image":"weights.fits",
@@ -286,6 +297,7 @@ def main():
     parser.add_argument("--nice", type=str2int, help="Set the 'nice' level of processes.")
     parser.add_argument("--clobber", type=str2bool, help="Overwrite output if already exists.")
     parser.add_argument("--sumss-only", type=str2bool, help="Only use SUMSS in the image analysis.")
+    parser.add_argument("--nvss-only", type=str2bool, help="Only use NVSS in the image analysis.")
     parser.add_argument("--weight-crop", type=str2bool, help="Crop image using the weights image.")
     parser.add_argument("--weight-crop-value", type=str2float, help="Define the minimum normalised value from the weights image to crop to.")
     parser.add_argument("--weight-crop-image", type=str, help="Define the weights image to use.")
@@ -335,6 +347,7 @@ def main():
     parser.add_argument("--db-inject", type=str2bool, help="Turn databse injection on or off.")
     parser.add_argument("--db-engine", type=str, help="Define the database engine.")
     parser.add_argument("--db-username", type=str, help="Define the username to use for the database")
+    parser.add_argument("--db-password", type=str, help="Define the password to use for the database")
     parser.add_argument("--db-host", type=str, help="Define the host for the databse.")
     parser.add_argument("--db-port", type=str, help="Define the port for the databse.")
     parser.add_argument("--db-database", type=str, help="Define the name of the database.")
@@ -434,7 +447,7 @@ def main():
             exit(logger)
         
         #Fetch what catalogues we will be using
-        sumss, nvss, dualmode, basecat, matched_to_tag = determine_catalogues(theimg.centre.dec.degree, args.sumss_only, logger)
+        sumss, nvss, dualmode, basecat, matched_to_tag = determine_catalogues(theimg.centre.dec.degree, args.sumss_only, args.nvss_only, logger)
 
         theimg.matched_to = matched_to_tag
 
@@ -744,6 +757,16 @@ def main():
             nvss_catalog.add_manual_sn(base_image_rms, "nvss_askap_snr", flux_col="nvss_scaled_to_askap", flux_scaling=1.e-3)
             nvss_catalog.add_nvss_sn(flux_scaling=1.e-3, use_image_rms=True)
             askap_catalog.add_nvss_sn(flux_col="askap_scaled_to_nvss", use_image_rms=True)
+            if args.nvss_only:
+                min_nvss = nvss_catalog.df["_DEJ2000"].min() 
+                if min_nvss <-39.0:
+                    logger.warning("ASKAP image near the NVSS border. Will check for ASKAP sources that are out of range when searching for transients.")
+                    clean_for_nvss=True
+                else:
+                    clean_for_nvss=False
+            else:
+                clean_for_nvss=False
+                min_nvss=0.0
         else:
             #Define empty ones for diagnostic plots
             nvss_catalog=[]
@@ -1046,7 +1069,7 @@ def main():
                 pre_conv_crossmatch=preconv_crossmatch_transient, image_beam_maj=theimg.bmaj*3600., image_beam_min=theimg.bmin*3600., image_beam_pa=theimg.bpa, dualmode=dualmode, sumss=sumss, nvss=nvss,
                 askap_img_wcs=theimg.wcs, askap_img_header=theimg.header, askap_img_data=theimg.data, preconv_askap_img_wcs=preconv_askap_img_wcs, preconv_askap_img_header=preconv_askap_img_header,
                 preconv_askap_img_data=preconv_askap_img_data,askap_cat_islands_df=askap_cat_islands_df, non_convolved_isl_cat_df=non_convolved_isl_cat_df,
-                askap_image=theimg, preconv_askap_image=original_theimg, clean_for_sumss=clean_for_sumss, max_sumss=max_sumss)
+                askap_image=theimg, preconv_askap_image=original_theimg, clean_for_sumss=clean_for_sumss, max_sumss=max_sumss, clean_for_nvss=clean_for_nvss, min_nvss=min_nvss)
             os.makedirs("transients/no-match")
             os.makedirs("transients/large-ratio")
             os.makedirs("transients/askap-notseen")

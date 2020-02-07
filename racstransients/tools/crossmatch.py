@@ -253,7 +253,8 @@ class crossmatch(object):
     
     def transient_search(self, max_separation=15.0, askap_snr_thresh=5.0, large_flux_thresh=3.0, pre_conv_crossmatch=None, image_beam_maj=45., image_beam_min=45., 
         image_beam_pa=0.0, dualmode=False, sumss=False, nvss=False, askap_img_wcs="None", askap_img_header={}, askap_img_data=[], preconv_askap_img_wcs="None", preconv_askap_img_header={},
-        preconv_askap_img_data=[], askap_cat_islands_df=[], non_convolved_isl_cat_df=[], askap_image="None", preconv_askap_image="None", clean_for_sumss=False, max_sumss=0.0):
+        preconv_askap_img_data=[], askap_cat_islands_df=[], non_convolved_isl_cat_df=[], askap_image="None", preconv_askap_image="None", clean_for_sumss=False, max_sumss=0.0,
+        clean_for_nvss=False, min_nvss=0.0):
         # Stage 1 - Define SUMSS sources with no match to ASKAP.
         # Stage 2 - Find those that have large flux ratios.
         # Stage 3 - Find ASKAP sources above the SUMSS threshold that have not been matched.
@@ -577,6 +578,9 @@ class crossmatch(object):
         if sumss and clean_for_sumss:
             self.logger.info("Removing sources above the SUMSS boundary ({} deg)".format(max_sumss))
             not_matched_askap_sources=not_matched_askap_sources[not_matched_askap_sources["dec"]<=(max_sumss)].reset_index(drop=True)
+        if nvss and clean_for_nvss:
+            self.logger.info("Removing sources below the NVSS boundary ({} deg)".format(min_sumss))
+            not_matched_askap_sources=not_matched_askap_sources[not_matched_askap_sources["dec"]>=(min_nvss)].reset_index(drop=True)
         # Now get those sources with a SNR ratio above the user defined threshold #Note March 4 - switch to 5.0, too many candidates at 4.5. March 13 - Added user option.
         mask=[]
         snrs=[]
