@@ -11,12 +11,12 @@ from matplotlib.collections import PatchCollection
 from matplotlib.lines import Line2D
 import matplotlib.axes as maxes
 from mpl_toolkits.axes_grid1 import make_axes_locatable
-import aplpy
 from astropy.wcs import WCS
 from astropy.io import fits
 from astropy.coordinates import SkyCoord
 from astropy import units as u
 from astropy.visualization import ZScaleInterval,ImageNormalize, LinearStretch, PercentileInterval
+from astropy.wcs.utils import proj_plane_pixel_scales
 import pandas as pd
 
 logger = logging.getLogger(__name__)
@@ -305,30 +305,44 @@ def image_sources_overlay(image_data, image_wcs, imagename, overlay_cat, overlay
             plotname=imagename.replace(".fits", "_sumss_source_overlay.png")
         else:
             plotname=imagename.replace(".fits", "_nvss_source_overlay.png")
+            
+    pix_scale = proj_plane_pixel_scales(image_wcs)
+    sx = pix_scale[0]
+    sy = pix_scale[1]
+    degrees_per_pixel = np.sqrt(sx * sy)
+    
     ww = overlay_cat[a].astype(float)/3600.
     hh = overlay_cat[b].astype(float)/3600.
+    ww /= degrees_per_pixel
+    hh /= degrees_per_pixel
     aa = overlay_cat[pa].astype(float)
     x = overlay_cat[ra].astype(float)
     y = overlay_cat[dec].astype(float)
-    if not sumss and not nvss:
-        patches = [Ellipse((x[i], y[i]), ww[i]*1.1, hh[i]*1.1, 90.+(180.-aa[i])) for i in range(len(x))]
-    else:
-        patches = [Ellipse((x[i], y[i]), ww[i]*1.1, hh[i]*1.1, aa[i]) for i in range(len(x))]
-    collection = PatchCollection(patches, facecolor="None", edgecolor="#1f77b4", linestyle="--", linewidth=2, transform=ax.get_transform('world'))
+    coordinates = np.column_stack((x, y))
+    coordinates = image_wcs.wcs_world2pix(coordinates, 0)
+    # if not sumss and not nvss:
+    patches = [Ellipse(coordinates[i], hh[i], ww[i], aa[i]) for i in range(len(x))]
+    # else:
+        # patches = [Ellipse((x[i], y[i]), ww[i]*1.1, hh[i]*1.1, aa[i]) for i in range(len(x))]
+    collection = PatchCollection(patches, facecolor="None", edgecolor="#1f77b4", linewidth=1.5)
     ax.add_collection(collection, autolim=False)
     custom_lines = [Line2D([0], [0], color='#1f77b4'),]
     labels=[overlay_cat_label]
     if not overlay_cat_2.empty:
         ww = overlay_cat_2[a].astype(float)/3600.
         hh = overlay_cat_2[b].astype(float)/3600.
+        ww /= degrees_per_pixel
+        hh /= degrees_per_pixel
         aa = overlay_cat_2[pa].astype(float)
         x = overlay_cat_2[ra].astype(float)
         y = overlay_cat_2[dec].astype(float)
-        if not sumss and not nvss:
-            patches = [Ellipse((x[i], y[i]), ww[i]*1.1, hh[i]*1.1, 90.+(180.-aa[i])) for i in range(len(x))]
-        else:
-            patches = [Ellipse((x[i], y[i]), ww[i]*1.1, hh[i]*1.1, aa[i]) for i in range(len(x))]
-        collection = PatchCollection(patches, facecolor="None", edgecolor='#d62728', linestyle="--", linewidth=2, transform=ax.get_transform('world'))
+        coordinates = np.column_stack((x, y))
+        coordinates = image_wcs.wcs_world2pix(coordinates, 0)
+        # if not sumss and not nvss:
+        patches = [Ellipse(coordinates[i], hh[i], ww[i], aa[i]) for i in range(len(x))]
+        # else:
+            # patches = [Ellipse((x[i], y[i]), ww[i]*1.1, hh[i]*1.1, aa[i]) for i in range(len(x))]
+        collection = PatchCollection(patches, facecolor="None", edgecolor='#d62728', linewidth=1.5)
         ax.add_collection(collection, autolim=False)
         custom_lines+=[Line2D([0], [0], color='#d62728'),]
         labels+=[overlay_cat_label_2]

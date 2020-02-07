@@ -7,7 +7,7 @@ import numpy as np
 import pkg_resources
 import pandas as pd
 import os
-from racstransients.tools.fitsimage import askapimage
+from racstransients.tools.fitsimage import Askapimage
 
 class Catalog(object):
     """docstring for survey"""
@@ -293,7 +293,7 @@ class Catalog(object):
             self.logger.error("Cannot perform image check as image type unrecongised.")
             return True
             
-        fits_image=askapimage(full_image)
+        fits_image=Askapimage(full_image)
         fits_image.load_wcs()
         fits_image.load_fits_data()
         naned=self._check_for_nan_image(ra, dec, fits_image.wcs, fits_image.data, sumss=sumss)

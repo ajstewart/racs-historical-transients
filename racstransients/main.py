@@ -3,7 +3,7 @@
 import argparse
 import logging
 from racstransients.tools import utils
-from racstransients.tools.fitsimage import askapimage
+from racstransients.tools.fitsimage import Askapimage
 from racstransients.tools.crossmatch import crossmatch
 from racstransients.tools.catalog import Catalog
 from racstransients.plotting import plots
@@ -426,7 +426,7 @@ def main():
             exit(logger)
         
         #Load in the image and read in the information ready.
-        theimg = askapimage(image, readinfo=True)
+        theimg = Askapimage(image, readinfo=True)
         
         if theimg.freq == None:
             logger.info("Setting image frequency to {} Hz.".format(args.frequency))
@@ -556,7 +556,7 @@ def main():
             logger.info("Will crop image using weights image: {}. To a value of {}.".format(args.weight_crop_image, args.weight_crop_value))
             weight_cropped_image=theimg.weight_crop(weight_image, args.weight_crop_value)
             original_theimg = theimg
-            theimg = askapimage(weight_cropped_image, readinfo=True)
+            theimg = Askapimage(weight_cropped_image, readinfo=True)
             theimg.original_name = original_theimg.imagename
             theimg.get_rms_clipping()
             
@@ -567,6 +567,7 @@ def main():
                 non_convolved = theimg.image
             else:
                 non_convolved = theimg.imagename
+                original_theimg = None
             if non_convolved_src_cat != None:
                 logger.info("Loading provided pre-convolved source catalogue: {}".format(non_convolved_src_cat))
                 subprocess.call(["cp", non_convolved_src_cat, "."])
@@ -617,7 +618,7 @@ def main():
             else:
                 non_convolved_isl_cat_df = pd.DataFrame([])
             
-            theimg = askapimage(convolved_image, readinfo=True)
+            theimg = Askapimage(convolved_image, readinfo=True)
             theimg.original_name = original_theimg.imagename
             theimg.non_convolved = non_convolved
             theimg.get_rms_clipping()
@@ -647,7 +648,12 @@ def main():
             sf_sigmas=[99.,99.]
 
         #Load the askap catalog into a new catalog object (but load it first to filter good sources)
-        askap_catalog=pd.read_fwf(askap_cat_file, engine="python", skiprows=[1,])
+        if source_find:
+            askap_catalog=pd.read_csv(askap_cat_file, engine="python")
+            need_converting = False
+        else:
+            askap_catalog=pd.read_fwf(askap_cat_file, engine="python", skiprows=[1,])
+            need_converting = True
         aegean_total = len(askap_catalog.index)
         logger.info("Total number of ASKAP sources: {}".format(aegean_total))
         if not args.use_all_fits:
@@ -656,7 +662,7 @@ def main():
             logger.info("Total number of good fit ASKAP sources found: {} ({} sources removed).".format(aegean_good_fits, aegean_total - aegean_good_fits))
         theimg.total_askap_sources = len(askap_catalog.index)
         askap_catalog=Catalog(askap_catalog, "askap", "{}".format(theimg.imagename.replace(".fits", "_askap")), ra_col="ra", dec_col="dec", 
-            flux_col="int_flux", frequency=theimg.freq, add_name_col=True, convert_from_selavy=True)
+            flux_col="int_flux", frequency=theimg.freq, add_name_col=True, convert_from_selavy=need_converting)
         askap_catalog._add_askap_sn()
         askap_catalog.add_distance_from_pos(theimg.centre)
         askap_catalog.add_single_val_col("rms", theimg.rms)
@@ -1080,8 +1086,9 @@ def main():
         
         if args.postage_stamps:
             logger.info("Starting postage stamp production.")
-            transient_crossmatch.produce_postage_stamps(postage_options, nprocs=1, max_separation=args.transient_max_separation, convolve=args.convolve, 
-                pre_convolve_image=theimg.non_convolved, preconolve_catalog=non_conv_askap_cat, dualmode=dualmode, basecat=basecat, transients=args.transients)
+            transient_crossmatch.produce_postage_stamps(theimg.data, theimg.wcs, "all", 5, radius=3./60., convolve=args.convolve,
+            askap_nonconv_image=original_theimg, askap_pre_convolve_catalog=non_conv_askap_cat, dualmode=dualmode, 
+            basecat=basecat)
             os.mkdir("postage-stamps")
  #            os.makedirs("postage-stamps/bad")
  #            if args.transients:

@@ -20,22 +20,24 @@ from racstransients.tools import utils
 # import bdsf
 import uuid
 
-class askapimage(object):
+class Askapimage(object):
     """docstring for fitsimage"""
     def __new__(cls,arg,readinfo=False,logger=None):
         if not os.path.isfile(arg):
             raise ValueError("Dataset does not seem to exist, check path!")
             return None
         else:
-            return super(askapimage, cls).__new__(cls)
+            return super(Askapimage, cls).__new__(cls)
             
     def __init__(self, arg, logger=None, readinfo=False):
-        super(askapimage, self).__init__()
+        super(Askapimage, self).__init__()
         self.logger = logger or logging.getLogger(__name__)
         self.image = arg
         self.imagename=self.image.split("/")[-1]
         self.original_name = None
         self.non_convolved = None
+        self.wcs = None
+        self.header = None
         if readinfo:
             self.load_all()
                 
@@ -50,10 +52,10 @@ class askapimage(object):
         # print(w.wcs.name)
 
     def load_position_dimensions(self):
-        if not self.wcs:
+        if self.wcs is None:
             self.load_wcs()
-        if not self.header:
-            self.load_header()
+        if self.header is None:
+            self.load_fits_header()
         self.size_x=self.header["NAXIS1"]
         self.size_y=self.header["NAXIS2"]
         central_coords=[[self.size_x/2.,self.size_y/2.]]

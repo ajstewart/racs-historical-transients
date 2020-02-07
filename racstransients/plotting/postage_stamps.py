@@ -7,8 +7,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib import patches
 from matplotlib.lines import Line2D
-import aplpy
 from astropy.coordinates import SkyCoord
+from astropy.nddata.utils import Cutout2D
 from astropy import units as u
 import multiprocessing as mp
 from functools import partial
@@ -17,6 +17,17 @@ import sys
 import pkg_resources
 import subprocess
 import pandas as pd
+from matplotlib import patches
+from matplotlib.patches import Ellipse
+from matplotlib.collections import PatchCollection
+from astropy.wcs import WCS
+from astropy.io import fits
+from astropy.coordinates import SkyCoord
+from astropy import units as u
+from astropy.coordinates import Angle
+from astropy.visualization import ZScaleInterval,ImageNormalize, LinearStretch, PercentileInterval
+from astropy.wcs.utils import proj_plane_pixel_scales
+from racstransients.tools.fitsimage import Askapimage
 
 logger = logging.getLogger(__name__)
 
@@ -197,36 +208,66 @@ def _get_extracted_rectangle_size(panel, ra, dec, shift):
     return ra_size, dec_size
     
 
-def crossmatch_stamps(crossmatch, askap_image, postage_options, nprocs, radius=13./60., max_separation=15., convolve=False,
-            askap_pre_convolve_image=None, askap_pre_convolve_catalog=None, dualmode=False, basecat="sumss", transients=False, transient_min_ratio=2.0):
+def filter_selavy_components(catalog, catalog_coords, src_coord, imsize):
+    #Filter out selavy components outside field of image
+    seps = src_coord.separation(catalog_coords)
+    mask = seps <= imsize/1.4 #I think cutout2d angle means the width of the image, not a radius hence /2
+    #drop the ones we don't need
+    return catalog[mask].reset_index(drop=True)
+
+def create_ellipses(df, wcs, color):
+    #build ellipse collection for ASKAP image that do not change
+    pix_scale = proj_plane_pixel_scales(wcs)
+    sx = pix_scale[0]
+    sy = pix_scale[1]
+    degrees_per_pixel = np.sqrt(sx * sy)
+    logger.debug(degrees_per_pixel)
+    
+    if "_RAJ2000" in df.columns:
+        ra = "_RAJ2000"
+        dec = "_DEJ2000"
+        a = "MajAxis"
+        b = "MinAxis"
+        pa = "PA"
+    else:
+        ra = "ra"
+        dec = "dec"
+        a = "a"
+        b = "b"
+        pa = "pa"
+    
+    ww = df[a].astype(float)/3600.
+    hh = df[b].astype(float)/3600.
+    ww /= degrees_per_pixel
+    hh /= degrees_per_pixel
+    aa = df[pa].astype(float)
+    x = df[ra].astype(float)
+    y = df[dec].astype(float)
+    coordinates = np.column_stack((x, y))
+    coordinates = wcs.wcs_world2pix(coordinates, 0)
+    
+    patches = [Ellipse(coordinates[i], hh[i], ww[i], aa[i]) for i in range(len(x))]
+    
+    collection = PatchCollection(patches, facecolor="None", edgecolor=color, linewidth=1.5)
+    
+    return collection
+
+def crossmatch_stamps(crossmatch, askap_data, askap_wcs, selection, nprocs, radius=13./60., convolve=False,
+            askap_nonconv_img=None, askap_pre_convolve_catalog=None, dualmode=False, 
+            basecat="sumss"):
 
     #Here we just need to plot from the transients master df based on the ratio - good and bad no longer exists
     
     
     #work out good and bad
-    if transients:
+    # if transients:
         #For now hardcode in limit
         # mean=crossmatch.transients_master_df["master_ratio"].mean()
         # std=crossmatch.transients_master_df["master_ratio"].std()
         # transient_min_ratio = mean + (1.0 *std)
-        df_to_plot = crossmatch.transients_master_df[crossmatch.transients_master_df["master_ratio"]>=transient_min_ratio]
-    else:
-        df_to_plot = crossmatch.transients_master_df
-    
-    # good_sources=good_df["master_name"].values
-    # bad_sources=bad_df["master_name"].values
-    
-    # if "all" in postage_options:
-    #     mode="all"
-    #     filter_names=[]
-    #     df = crossmatch.crossmatch_df
-    # elif postage_options==["transients",]:
-    #     mode="transients"
-    #     filter_names = crossmatch.transients_no_matches_df["master_name"].tolist() + crossmatch.transients_large_ratios_df["master_name"].tolist()
-    #     # df = crossmatch.crossmatch_df[crossmatch.crossmatch_df["master_name"].isin(filter_names)].reset_index(drop=True)
-    #     df = crossmatch.transients_no_matches_df.append(crossmatch.transients_large_ratios_df, ignore_index=True)
-    
-    
+        # df_to_plot = crossmatch.transients_master_df[crossmatch.transients_master_df["master_ratio"]>=transient_min_ratio]
+    # else:
+    df_to_plot = crossmatch.transients_master_df
     
     cat_extractions=crossmatch.base_catalog.df
     if dualmode:
@@ -235,88 +276,363 @@ def crossmatch_stamps(crossmatch, askap_image, postage_options, nprocs, radius=1
         cat2_extractions = "None"
     askap_extractions=crossmatch.comp_catalog.df
     
-    # We need to find the matching NVSS images. NOW ALREADY FOUND
-    # if dualmode or basecat=="nvss":
-    #     try:
-    #         logger.info("Loading NVSS image data.")
-    #         nvss_mosaic_data=pd.read_csv(pkg_resources.resource_filename(__name__, "../data/nvss_images_info.csv"))
-    #         nvss_centres = SkyCoord(ra=nvss_mosaic_data["center-ra"].values*u.deg, dec=nvss_mosaic_data["center-dec"].values*u.deg)
-    #     except:
-    #         logger.error("NVSS mosaic data cannot be found!")
-    #         return
-    #     logger.info("Finding NVSS images")
-    #     if dualmode:
-    #         for i, row in df.iterrows():
-    #             if row["survey_used"]=="nvss":
-    #                 # print _find_nearest_image(row["master_ra"], row["master_dec"], nvss_centres, nvss_mosaic_data)
-    #                 df.at[i, "sumss_Mosaic"] = _find_nearest_image(row["master_ra"], row["master_dec"], nvss_centres, nvss_mosaic_data)
-    #                 # crossmatch.crossmatch_df.at[i, "sumss_Mosaic"] = _find_nearest_image(row["master_ra"], row["master_dec"], nvss_centres, nvss_mosaic_data)
-    #     else:
-    #         mosaics = []
-    #         for i, row in df.iterrows():
-    #             if row["survey_used"]=="nvss":
-    #                 mosaics.append(_find_nearest_image(row["master_ra"], row["master_dec"], nvss_centres, nvss_mosaic_data))
-    #
-    #         df["nvss_Mosaic"] = mosaics
-    #
-    # else:
-    #     nvss_mosaic_data={}
-    #     nvss_centres=[]
+    #build ellipse collection for ASKAP image that do not change
+    # askap_collection = create_ellipses(askap_extractions, askap_wcs, "#1f77b4")
+#
+#     if convolve:
+#         askap_nonconv_collection = create_ellipses(askap_pre_convolve_catalog.df, askap_wcs, "#11BA1C")
+#         askap_nonconv_collection_2 = create_ellipses(askap_pre_convolve_catalog.df, askap_wcs, "#11BA1C")
+#         askap_collection_2 = create_ellipses(askap_extractions, askap_wcs, "#1f77b4")
+#     else:
+#         askap_nonconv_collection = None
+#         askap_nonconv_collection_2 = None
+#         askap_collection_2 = None
+#
+#     askap_catalog_collection = create_ellipses(cat_extractions, askap_wcs, "#d62728")
+    
+    #Get the unique mosaic files
+    fits_mosaics = df_to_plot["master_catalog_Mosaic_path"].unique()
+    
+    for mos in fits_mosaics:
+        #get the crossmatches
+        sub_to_plot = df_to_plot[df_to_plot.master_catalog_Mosaic_path == mos]
+        
+        looping_dicts = [row.to_dict() for i,row in sub_to_plot.iterrows()]
+        
+        #open the mosaic
+        mosimg = Askapimage(mos)
+        mosimg.load_wcs()
+        mosimg.load_fits_data()
+        mosimg.load_position_dimensions()
+        
+        # catalog_askap_collection = create_ellipses(askap_extractions, mosimg.wcs, "#1f77b4")
+        #
+        # if convolve:
+        #     catalog_askap_nonconv_collection = create_ellipses(askap_pre_convolve_catalog.df, mosimg.wcs, "#11BA1C")
+        #     askap_catalog_collection_2 = create_ellipses(cat_extractions, askap_wcs, "#d62728")
+        # else:
+        #     catalog_askap_nonconv_collection = None
+        #     catalog_askap_nonconv_collection_2 = None
+        #     askap_catalog_collection_2 = None
+        #
+        # catalog_collection = create_ellipses(cat_extractions, mosimg.wcs, "#d62728")
         
     
-    if nprocs >1:
-        #Get the unique SUMSS images.
-        sumss_fits_mosaics = df["sumss_Mosaic"].unique()
-        logger.info("{} unique SUMSS images needed for postage stamps".format(len(sumss_fits_mosaics)))
     
-        sumss_looping_dict=_get_stamp_looping_parameters(df, sumss_fits_mosaics)
-        #below is broken
-        postage_stamps_multi=partial(produce_comp_postage_stamps_multicore, askap_image=askap_image, params_dict=sumss_looping_dict, df=df, 
-            sumss_mosaic_dir=sumss_mosaic_dir, good_sources=good_sources, bad_sources=bad_sources, radius=radius)
+        produce_multi = partial(produce_postage_stamps_new, askap_data=askap_data, askap_wcs=askap_wcs, mos_data=mosimg.data, mos_wcs=mosimg.wcs, 
+                            askap_extractions=askap_extractions, cat_extractions=cat_extractions, askap_pre_convolve_catalog=askap_pre_convolve_catalog.df,
+                            radius=radius, convolve=convolve, askap_nonconv_data=askap_nonconv_img.data, askap_nonconv_wcs=askap_nonconv_img.wcs, basecat=basecat)
+                            
         workers=mp.Pool(processes=nprocs)
         try:
-            workers.map(postage_stamps_multi, sumss_fits_mosaics)
+            workers.map(produce_multi, looping_dicts)
         except KeyboardInterrupt:
             logger.warning("Caught KeyboardInterrupt, terminating jobs...")
             workers.terminate()
             logger.info("Exiting...")
             workers.close()
             sys.exit()
+        
+        
+        
+        
+        
+    
+    # if nprocs >1:
+    #     #Get the unique SUMSS images.
+    #     fits_mosaics = df["master_Mosaic_mosaic"].unique()
+    #     logger.info("{} unique mosaic images needed for postage stamps".format(len(sumss_fits_mosaics)))
+    #
+    #     sumss_looping_dict=_get_stamp_looping_parameters(df, sumss_fits_mosaics)
+    #     #below is broken
+    #     postage_stamps_multi=partial(produce_comp_postage_stamps_multicore, askap_image=askap_image, params_dict=sumss_looping_dict, df=df,
+    #         sumss_mosaic_dir=sumss_mosaic_dir, good_sources=good_sources, bad_sources=bad_sources, radius=radius)
+    #     workers=mp.Pool(processes=nprocs)
+    #     try:
+    #         workers.map(postage_stamps_multi, sumss_fits_mosaics)
+    #     except KeyboardInterrupt:
+    #         logger.warning("Caught KeyboardInterrupt, terminating jobs...")
+    #         workers.terminate()
+    #         logger.info("Exiting...")
+    #         workers.close()
+    #         sys.exit()
+    # else:
+    #     produce_postage_stamps(df_to_plot, askap_image,
+    #         cat_extractions, askap_extractions, cat2_extractions=cat2_extractions, radius=13./60., max_separation=None,
+    #         convolve=convolve, askap_pre_convolve_image=askap_pre_convolve_image, askap_pre_convolve_catalog=askap_pre_convolve_catalog, dualmode=dualmode,
+    #         basecat=basecat)
+        
+def produce_postage_stamps_new(row_dict, askap_data, askap_wcs, mos_data, mos_wcs, askap_extractions, cat_extractions, askap_pre_convolve_catalog, radius=13./60., convolve=False, 
+                            askap_nonconv_data=None, askap_nonconv_wcs=None, basecat="sumss"):
+    #For now support one ASKAP image at a time so can just take this from the first entry.
+    
+    #First initialise the figure and set up the askap panel with the image.
+    if convolve:
+        total_panels = 3
     else:
-        produce_postage_stamps(df_to_plot, askap_image, 
-            cat_extractions, askap_extractions, cat2_extractions=cat2_extractions, radius=13./60., max_separation=None, 
-            convolve=convolve, askap_pre_convolve_image=askap_pre_convolve_image, askap_pre_convolve_catalog=askap_pre_convolve_catalog, dualmode=dualmode, 
-            basecat=basecat)
+        total_panels = 2
+    panels={}
+    other={"sumss":"nvss", "nvss":"sumss"}
+    fig = plt.figure(figsize=(18, 8))
+    
+    target = SkyCoord(row_dict["master_ra"]*u.degree, row_dict["master_dec"]*u.degree)
+    askap_cutout = Cutout2D(askap_data, position=target, size=Angle(radius*2.*u.degree), wcs=askap_wcs)
+    mos_cutout = Cutout2D(mos_data, position=target, size=Angle(radius*2.*u.degree), wcs=mos_wcs)
+    if convolve:
+        askap_nonconv_cutout = Cutout2D(askap_nonconv_data, position=target, size=Angle(radius*2.*u.degree), wcs=askap_nonconv_wcs)
         
-    # if "transients" in postage_options:
-        # _copy_images_to_transient_folders(crossmatch.transients_no_matches_df["master_name"].tolist(), "NOMATCH", good_sources, bad_sources)
-        # _copy_images_to_transient_folders(crossmatch.transients_large_ratios_df["master_name"].tolist(), "LARGERATIO", good_sources, bad_sources)
-        # else:
-        #     #all transients should have been done now above
-        #     sumss_done=df["master_name"].tolist()
-        #     df_required=crossmatch.crossmatch_df[~crossmatch.crossmatch_df.sumss_name.isin(sumss_done)].reset_index(drop=True)
-        #     if nprocs >1:
-        #         required_sumss_fits_mosaics = df_required["sumss_Mosaic"].unique()
-        #         required_sumss_looping_dict=_get_stamp_looping_parameters(df_required, required_sumss_fits_mosaics)
-        #         postage_stamps_multi=partial(produce_comp_postage_stamps_multicore, askap_image=askap_image, params_dict=required_sumss_looping_dict, df=df_required, sumss_mosaic_dir=sumss_mosaic_dir, radius=radius)
-        #         try:
-        #             workers.map(postage_stamps_multi, sumss_fits_mosaics)
-        #         except KeyboardInterrupt:
-        #             logger.warning("Caught KeyboardInterrupt, terminating jobs...")
-        #             workers.terminate()
-        #             logger.info("Exiting...")
-        #             workers.close()
-        #             sys.exit()
-        #         #ASKAP only ones
-        #         workers.close()
-        #     else:
-        #         produce_postage_stamps(df_required, crossmatch.crossmatch_df, askap_image, sumss_mosaic_dir, good_sources, bad_sources, radius=16./60., max_separation=None, askap_only=False, convolve=convolve, askap_pre_convolve_image=askap_pre_convolve_image,
-        #             askap_pre_convolve_catalog=askap_pre_convolve_catalog, dualmode=, )
+    askap_norm = ImageNormalize(askap_cutout.data, interval=ZScaleInterval(contrast=0.15))
+    mos_norm = ImageNormalize(mos_cutout.data, interval=ZScaleInterval(contrast=0.15))
+    # if convolve
+    # askap_norm = ImageNormalize(askap_cutout.data, interval=ZScaleInterval(contrast=0.15))
+    
+    panels[1] = fig.add_subplot(1,total_panels,1, projection=mos_cutout.wcs)
+    panels[2] = fig.add_subplot(1,total_panels,2, projection=askap_cutout.wcs)
+    if convolve:
+        panels[3] = fig.add_subplot(1,total_panels,3, projection=askap_nonconv_cutout.wcs)
         
-        # create_askap_postage_stamps(crossmatch.transients_not_matched_askap_should_see_df, crossmatch.crossmatch_df, askap_image,nprocs,
-        #     cat_extractions, askap_extractions, cat2_extractions=cat2_extractions, convolve=convolve, askap_pre_convolve_image=askap_pre_convolve_image,
-        #     askap_pre_convolve_catalog=askap_pre_convolve_catalog, dualmode=dualmode, basecat=basecat)
+    panels[1].imshow(mos_cutout.data,norm=mos_norm,cmap='gray_r')
+    panels[2].imshow(askap_cutout.data,norm=askap_norm,cmap='gray_r')
+    if convolve:
+        panels[3].imshow(askap_nonconv_cutout.data,norm=askap_norm,cmap='gray_r')
+    
+    
+    for i in panels:
+        panels[i].set_autoscale_on(False)
         
+    askap_collection = create_ellipses(askap_extractions, askap_cutout.wcs, "#1f77b4")
+    
+    if convolve:
+        askap_nonconv_collection = create_ellipses(askap_pre_convolve_catalog, askap_cutout.wcs, "#11BA1C")
+        askap_nonconv_collection_2 = create_ellipses(askap_pre_convolve_catalog, askap_cutout.wcs, "#11BA1C")
+        askap_collection_2 = create_ellipses(askap_extractions, askap_cutout.wcs, "#1f77b4")
+    else:
+        askap_nonconv_collection = None
+        askap_nonconv_collection_2 = None
+        askap_collection_2 = None
+
+    askap_catalog_collection = create_ellipses(cat_extractions, askap_cutout.wcs, "#d62728")
+    
+    catalog_askap_collection = create_ellipses(askap_extractions, mos_cutout.wcs, "#1f77b4")
+
+    if convolve:
+        catalog_askap_nonconv_collection = create_ellipses(askap_pre_convolve_catalog, mos_cutout.wcs, "#11BA1C")
+        askap_catalog_collection_2 = create_ellipses(cat_extractions, askap_cutout.wcs, "#d62728")
+    else:
+        catalog_askap_nonconv_collection = None
+        catalog_askap_nonconv_collection_2 = None
+        askap_catalog_collection_2 = None
+
+    catalog_collection = create_ellipses(cat_extractions, mos_cutout.wcs, "#d62728")
+
+    #Ellipes loading
+    panels[1].add_collection(catalog_collection, autolim=False)
+    panels[1].add_collection(catalog_askap_collection, autolim=False)
+
+    panels[2].add_collection(askap_collection, autolim=False)
+    panels[2].add_collection(askap_catalog_collection, autolim=False)
+    
+    if convolve:
+        panels[1].add_collection(catalog_askap_nonconv_collection, autolim=False)
+        panels[2].add_collection(askap_nonconv_collection, autolim=False)
+        panels[3].add_collection(askap_catalog_collection_2, autolim=False)
+        panels[3].add_collection(askap_collection_2, autolim=False)
+        panels[3].add_collection(askap_nonconv_collection_2, autolim=False)
+    
+    
+    bbox_dict=dict(boxstyle="round", ec="white", fc="white", alpha=0.8)
+    
+    # if not pd.isna(filtered_cross_matches.iloc[0]["master_catalog_Mosaic_rms"]):
+    #     image_rms = filtered_cross_matches.iloc[0]["master_catalog_Mosaic_rms"]
+    # else:
+    #     image_rms = filtered_cross_matches.iloc[0]["catalog_Mosaic_rms"]
+
+    # for i in range(2,total_panels+1):
+    #     lon = panels[i].coords[0]
+    #     lat = panels[i].coords[1]
+    #
+    #     lon.set_ticklabel_visible(False)
+    #     lat.set_ticklabel_visible(False)
+    #     # lon.set_ticks_visible(False)
+    #     # lat.set_ticks_visible(False)
+    #     lon.set_axislabel('')
+    #     lat.set_axislabel('')
+            
+    #Now begin the main loop per source
+    # debug_num=0
+    if row_dict["type"] == "goodmatch":
+        askap_title = "RACS "+row_dict["askap_name"]
+        if np.isnan(row_dict["aegean_convolved_int_flux"]):
+            askap_title_2 = "RACS "+row_dict["askap_non_conv_name"]
+        else:
+            askap_title_2 = "RACS" + row_dict["askap_name"]
+        sumss_title = "SUMSS "+row_dict["master_name"]
+        recentre_ra=row_dict["master_ra"]
+        recentre_dec=row_dict["master_dec"]
+        
+    elif row_dict["type"] == "noaskapmatch":
+        askap_title = "RACS (Convolved)"
+        askap_title_2 = "RACS (Non-Convolved)"
+        sumss_title = "SUMSS "+row_dict["master_name"]
+        recentre_ra=row_dict["master_ra"]
+        recentre_dec=row_dict["master_dec"]
+    elif row_dict["type"] == "nocatalogmatch":
+        askap_title = "RACS "+row_dict["askap_name"]
+        askap_title_2 = "RACS "+row_dict["askap_non_conv_name"]
+        sumss_title = "SUMSS ({})".format(row_dict["master_catalog_mosaic"])
+        recentre_ra=row_dict["askap_ra"]
+        recentre_dec=row_dict["askap_dec"]
+            
+    panels[1].set_title(sumss_title)
+    panels[2].set_title(askap_title)
+    if convolve:
+        panels[3].set_title(askap_title_2)
+   
+    #Centre each image on the ASKAP coordinates for clarity
+    if convolve:
+        pos_x_1 = 0.41
+        pos_y_1 = 0.68
+        pos_x_2 = 0.14
+        pos_y_2 = 0.27
+        pos_x_3 = 0.17
+        pos_y_3 = 0.15
+        pos_x_4 = 0.6
+        pos_x_5 = 0.68
+        pos_y_5 = 0.27
+        size=15
+    else:
+        pos_x_1 = 0.57
+        pos_y_1 = 0.75
+        pos_x_2 = 0.14
+        pos_y_2 = 0.78
+        pos_x_3 = 0.02
+        pos_y_3 = 0.08
+        pos_x_4 = 0.8
+        size=12
+    
+            #
+            #
+            #
+            # if row["type"] == "goodmatch":
+            #     panels[p].show_circles([recentre_ra], [recentre_dec], 120./3600., color='C9', linewidth=3, label="{} source".format(image_type), layer="Cat Source")
+            #     panels[p].show_circles([row["askap_ra"]], [row["askap_dec"]], 120./3600., color='C1', linewidth=3, label="ASKAP source", layer="ASKAP Source")
+            #     if p==1:
+            #         sep_text=plt.text(pos_x_3, pos_y_3, "Distance Separation = {:.2f} arcsec".format(row["d2d"]), transform=plt.gcf().transFigure, size=size)
+            #         ratio_text=plt.text(pos_x_4, pos_y_3, "Scaled Int. Flux Ratio = {:.2f} +/- {:.2f}".format(row["master_ratio"], row["master_ratio_err"]), transform=plt.gcf().transFigure, size=size)
+            #         askap_snr_text=plt.text(pos_x_1, pos_y_2, "ASKAP Int. Flux = {:.2f} +/- {:.2f} mJy\nASKAP Image RMS ~ {:.2f} mJy\nASKAP Local RMS ~ {:.2f} mJy".format(row["askap_flux_to_use"]*1.e3,
+            #             row["askap_flux_to_use_err"]*1.e3, row["askap_rms"]*1.e3, row["measured_askap_local_rms"]*1.e3), transform=plt.gcf().transFigure, bbox=bbox_dict)
+            #         sumss_snr_text=plt.text(pos_x_2, pos_y_2, "{0} Int. Flux = {1:.2f} +/- {2:.2f} mJy\n{0} RMS ~ {3:.2f} mJy\n{0} SNR = {4:.2f}".format(image_type,
+            #             row["catalog_flux_to_use"]*1.e3,row["catalog_flux_to_use_err"]*1.e3,image_rms*1.e3, row[snr_col]), transform=plt.gcf().transFigure, bbox=bbox_dict)
+            #         if convolve:
+            #             askap_snr_text_preconv=plt.text(pos_x_5, pos_y_2, "ASKAP Int. Flux = {:.2f} +/- {:.2f} mJy\nASKAP Image RMS ~ {:.2f} mJy\nASKAP Local RMS ~ {:.2f} mJy".format(row["askap_flux_to_use_2"]*1.e3,
+            #                 row["askap_flux_to_use_2_err"]*1.e3, row["askap_rms_preconv"]*1.e3, row["measured_preconv_askap_local_rms"]*1.e3), transform=plt.gcf().transFigure, bbox=bbox_dict)
+            #             custom_lines = [Line2D([0], [0], color="w", marker="o", fillstyle="none", lw=2, markeredgecolor='#1f77b4'),
+            #                             Line2D([0], [0], color="w", marker="o", fillstyle="none", lw=2, markeredgecolor='#d62728'),
+            #                             Line2D([0], [0], color="w", markeredgecolor='#11BA1C', marker="o", fillstyle="none", lw=2),
+            #                             Line2D([0], [0], color="w", markeredgecolor='C9', marker="o", fillstyle="none", lw=2),
+            #                             Line2D([0], [0], color='C1'),
+            #                             Line2D([0], [0], color='C9')
+            #                         ]
+            #             labels = ["ASKAP Sources", "{} Sources".format(basecat.upper()), "Non-conv ASKAP sources", "Extracted Flux", "SUMSS Source Position", "ASKAP Source Position"]
+            #         else:
+            #             custom_lines = [Line2D([0], [0], color="w", marker="o", fillstyle="none", lw=2, markeredgecolor='#1f77b4'),
+            #                             Line2D([0], [0], color="w", marker="o", fillstyle="none", lw=2, markeredgecolor='#d62728'),
+            #                             Line2D([0], [0], color="w", markeredgecolor='C9', marker="o", fillstyle="none", lw=2),
+            #                             Line2D([0], [0], color='C1'),
+            #                             Line2D([0], [0], color='C9')
+            #                         ]
+            #             labels = ["ASKAP Sources", "{} Sources".format(basecat.upper()), "Extracted Flux", "SUMSS Source Position", "ASKAP Source Position"]
+            # elif row["type"] == "noaskapmatch":
+            #     panels[p].show_circles([recentre_ra], [recentre_dec], 120./3600., color='C9', linewidth=3, label="{} source".format(image_type), layer="Cat Source")
+            #     if p==0:
+            #         ratio_text=plt.text(pos_x_4, pos_y_3, "Scaled Int. Flux Ratio = {:.2f} +/- {:.2f}".format(row["master_ratio"], row["master_ratio_err"]), transform=plt.gcf().transFigure, size=size)
+            #     if convolve:
+            #         if p==1:
+            #             panels[p].show_circles([recentre_ra], [recentre_dec], 22.5/3600., color='C1', linewidth=1, label="Extracted Flux", layer="Extracted Flux")
+            #         if p==2:
+            #             panels[p].show_circles([recentre_ra], [recentre_dec], 7./3600., color='C1', linewidth=1, label="Extracted Flux", layer="Extracted Flux_2")
+            #         if p==0:
+            #             askap_snr_text=plt.text(pos_x_1, pos_y_2, "ASKAP Measured Int. Flux = {:.2f} mJy +/- {:.2f} \nASKAP Image RMS ~ {:.2f} mJy\nASKAP Local RMS ~ {:.2f} mJy".format(row["askap_flux_to_use"]*1.e3,
+            #                 row["askap_flux_to_use_err"]*1.e3, row["askap_rms"]*1.e3, row["measured_askap_local_rms"]*1.e3), transform=plt.gcf().transFigure, bbox=bbox_dict)
+            #             askap_snr_text_preconv=plt.text(pos_x_5, pos_y_2, "ASKAP Measured Int. Flux = {:.2f} +/- {:.2f} mJy\nASKAP Image RMS ~ {:.2f} mJy\nASKAP Local RMS ~ {:.2f} mJy".format(row["askap_flux_to_use_2"]*1.e3,
+            #                 row["askap_flux_to_use_2_err"]*1.e3, row["askap_rms_preconv"]*1.e3, row["measured_preconv_askap_local_rms"]*1.e3), transform=plt.gcf().transFigure, bbox=bbox_dict)
+            #             custom_lines = [Line2D([0], [0], color="w", marker="o", fillstyle="none", lw=2, markeredgecolor='#1f77b4'),
+            #                             Line2D([0], [0], color="w", marker="o", fillstyle="none", lw=2, markeredgecolor='#d62728'),
+            #                             Line2D([0], [0], color="w", markeredgecolor='#11BA1C', marker="o", fillstyle="none", lw=2),
+            #                             Line2D([0], [0], color="w", markeredgecolor='C9', marker="o", fillstyle="none", lw=2),
+            #                             Line2D([0], [0], color='C1')
+            #                         ]
+            #             labels = ["ASKAP Sources", "{} Sources".format(basecat.upper()), "Non-conv ASKAP sources", "Extracted Flux", "SUMSS Source Position"]
+            #     else:
+            #         if p==1:
+            #             panels[p].show_circles([recentre_ra], [recentre_dec], 7./3600., color='C1', linewidth=1, label="Extracted Flux", layer="Extracted Flux")
+            #         if p==0:
+            #             askap_snr_text=plt.text(pos_x_1, pos_y_2, "ASKAP Measured Int. Flux = {:.2f} +/- {:.2f} mJy\nASKAP Image RMS ~ {:.2f} mJy\nASKAP Local RMS ~ {:.2f} mJy".format(row["askap_flux_to_use"]*1.e3,
+            #                 row["askap_flux_to_use_err"]*1.e3, row["askap_rms"]*1.e3, row["measured_askap_local_rms"]*1.e3), transform=plt.gcf().transFigure, bbox=bbox_dict)
+            #             custom_lines = [Line2D([0], [0], color="w", marker="o", fillstyle="none", lw=2, markeredgecolor='#1f77b4'),
+            #                             Line2D([0], [0], color="w", marker="o", fillstyle="none", lw=2, markeredgecolor='#d62728'),
+            #                             Line2D([0], [0], color="w", markeredgecolor='C9', marker="o", fillstyle="none", lw=2),
+            #                             Line2D([0], [0], color='C1')
+            #                         ]
+            #             labels = ["ASKAP Sources", "{} Sources".format(basecat.upper()), "Extracted Flux", "SUMSS Source Position"]
+            #     if p==0:
+            #         sumss_snr_text=plt.text(pos_x_2, pos_y_2, "{0} Int. Flux = {1:.2f} +/- {2:.2f} mJy\n{0} RMS ~ {3:.2f} mJy\n{0} SNR = {4:.2f}".format(image_type,
+            #             row["catalog_flux_to_use"]*1.e3, row["catalog_flux_to_use_err"]*1.e3,image_rms*1.e3, row[snr_col]), transform=plt.gcf().transFigure, bbox=bbox_dict)
+            #     #Rectangle on extracted flux on ASKAP images
+            #     # x_size,y_size=_get_extracted_rectangle_size(panels[1], recentre_ra, recentre_dec, 10)
+            #     # panels[1].show_rectangles([recentre_ra], [recentre_dec], x_size, y_size, color='C1', linewidth=1, label="Extracted Flux", layer="Extracted Flux")
+            #     # if convolve:
+            #     #     x_size,y_size=_get_extracted_rectangle_size(panels[2], recentre_ra, recentre_dec, 10)
+            #     #     panels[2].show_rectangles([recentre_ra], [recentre_dec], x_size, y_size, color='C1', linewidth=1, label="Extracted Flux", layer="Extracted Flux")
+            #
+            # elif row["type"] == "nocatalogmatch":
+            #     panels[p].show_circles([recentre_ra], [recentre_dec], 120./3600., color='C1', linewidth=3, label="ASKAP position", layer="ASKAP Source")
+            #     if p==0:
+            #         ratio_text=plt.text(pos_x_4, pos_y_3, "Scaled Int. Flux Ratio = {:.2f} +/- {:.2f}".format(row["master_ratio"], row["master_ratio_err"]), transform=plt.gcf().transFigure, size=size)
+            #         #Put a rectangle to show extracted peak flux measurement
+            #         # x_size,y_size=_get_extracted_rectangle_size(panels[0], recentre_ra, recentre_dec, 5)
+            #         panels[p].show_circles([recentre_ra], [recentre_dec], 22.5/3600., color='C9', linewidth=1, label="Extracted Flux", layer="Extracted Flux")
+            #         askap_snr_text=plt.text(pos_x_1, pos_y_2, "ASKAP Int. Flux = {:.2f} +/- {:.2f} mJy\nASKAP Image RMS ~ {:.2f} mJy\nASKAP Local RMS ~ {:.2f} mJy".format(row["askap_flux_to_use"]*1.e3,
+            #             row["askap_flux_to_use_err"]*1.e3,row["askap_rms"]*1.e3, row["measured_askap_local_rms"]*1.e3), transform=plt.gcf().transFigure, bbox=bbox_dict)
+            #         if convolve:
+            #             askap_snr_text_preconv=plt.text(pos_x_5, pos_y_2, "ASKAP Int. Flux = {:.2f} +/- {:.2f} mJy\nASKAP Image RMS ~ {:.2f} mJy\nASKAP Local RMS ~ {:.2f} mJy".format(row["askap_flux_to_use_2"]*1.e3,
+            #                 row["askap_flux_to_use_2_err"]*1.e3,row["askap_rms_preconv"]*1.e3, row["measured_preconv_askap_local_rms"]*1.e3), transform=plt.gcf().transFigure, bbox=bbox_dict)
+            #             custom_lines = [Line2D([0], [0], color="w", marker="o", fillstyle="none", lw=2, markeredgecolor='#1f77b4'),
+            #                             Line2D([0], [0], color="w", marker="o", fillstyle="none", lw=2, markeredgecolor='#d62728'),
+            #                             Line2D([0], [0], color="w", markeredgecolor='#11BA1C', marker="o", fillstyle="none", lw=2),
+            #                             Line2D([0], [0], color="w", markeredgecolor='C9', marker="o", fillstyle="none", lw=2),
+            #                             Line2D([0], [0], color='C9')
+            #                         ]
+            #             labels = ["ASKAP Sources", "{} Sources".format(basecat.upper()), "Non-conv ASKAP sources", "Extracted Flux", "ASKAP Source Position"]
+            #         else:
+            #             custom_lines = [Line2D([0], [0], color="w", marker="o", fillstyle="none", lw=2, markeredgecolor='#1f77b4'),
+            #                             Line2D([0], [0], color="w", marker="o", fillstyle="none", lw=2, markeredgecolor='#d62728'),
+            #                             Line2D([0], [0], color="w", markeredgecolor='C9', marker="o", fillstyle="none", lw=2),
+            #                             Line2D([0], [0], color='C9')
+            #                         ]
+            #             labels = ["ASKAP Sources", "{} Sources".format(basecat.upper()), "Extracted Flux", "ASKAP Source Position"]
+            #         sumss_snr_text=plt.text(pos_x_2, pos_y_2, "Measured {0} Int. Flux = {1:.2f} +/- {2:.2f} mJy\n{0} RMS ~ {3:.2f} mJy\n{0} SNR = {4:.2f}".format(image_type,
+            #             row["catalog_flux_to_use"]*1.e3,row["catalog_flux_to_use_err"]*1.e3,image_rms*1.e3, row["catalog_flux_to_use"]/image_rms), transform=plt.gcf().transFigure, bbox=bbox_dict)
+            #     # panels[0].show_rectangles([recentre_ra], [recentre_dec], x_size, y_size, color='C1', linewidth=1, label="Extracted Flux", layer="Extracted Flux")
+            #
+            # if skip:
+            #     continue
+            #
+    figname = "source_{}_postagestamps.jpg".format(row_dict["master_name"])
+            # if convolve:
+            #     panels[2]._ax1.legend(custom_lines,  labels)
+            # else:
+            #     panels[1]._ax1.legend(custom_lines, labels)
+                    
+
+
+    plt.savefig(figname, bbox_inches="tight")
+    fig.clf()
+    #plt.show()
+    plt.close(fig)
+    return 
+    
+
             
             
 def produce_comp_postage_stamps_multicore(sumss_image, askap_image, params_dict, df, sumss_mosaic_dir, good_sources, bad_sources,radius=13./60., askap_only=False):
@@ -432,25 +748,6 @@ def produce_comp_postage_stamps_multicore(sumss_image, askap_image, params_dict,
     
 def produce_postage_stamps(df, askap_fits, cat_extractions, askap_extractions, cat2_extractions="None", 
     radius=13./60., max_separation=None, convolve=False, askap_pre_convolve_image=None, askap_pre_convolve_catalog=None, dualmode=False, basecat="sumss"):
-        # logger.info("Estimated time to completion = {:.2f} hours".format(len(df.index)*6./3600.))
-        #Minimise fits opening so first get a list of all the unique SUMSS fits files to be used
-        
-        # Get the image paths here
-        # if dualmode or basecat=="sumss":
-        #     fits_col = "sumss_Mosaic"
-        # else:
-        #     fits_col = "nvss_Mosaic"
-        #
-        # for i, row in df.iterrows():
-        #     # print sumss_mosaic_dir, nvss_mosaic_dir, row[fits_col]
-        #     if row["survey_used"]=="sumss":
-        #         df.at[i, fits_col] = os.path.join(sumss_mosaic_dir, row[fits_col]+".FITS")
-        #     else:
-        #         df.at[i, fits_col] = os.path.join(nvss_mosaic_dir, row[fits_col])
-        # if askap_only:
-        #     fits_col="catalog_Mosaic_path"
-        # else:
-        #     fits_col="master_catalog_Mosaic_path"
         fits_mosaics = df["master_catalog_mosaic_path"].unique()
         #For now support one ASKAP image at a time so can just take this from the first entry.
         

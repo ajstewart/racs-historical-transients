@@ -8,7 +8,7 @@ from astropy.coordinates import SkyCoord
 from astropy import units as u
 from astropy.stats import sigma_clipped_stats
 from astropy.nddata.utils import Cutout2D
-from racstransients.tools.fitsimage import askapimage
+from racstransients.tools.fitsimage import Askapimage
 import matplotlib.pyplot as plt
 import os
 from matplotlib.lines import Line2D
@@ -126,11 +126,12 @@ class crossmatch(object):
         panels[key].set_theme('publication')
         return panels
     
-    def produce_postage_stamps(self, postage_options, radius=15./60., nprocs=1, max_separation=15., convolve=False, pre_convolve_image=None, preconolve_catalog=None,
-        dualmode=False, basecat="sumss", transients=False, transient_min_ratio=2.0):
-        askap_fits = self.crossmatch_df["askap_image"].iloc[0]
-        postage_stamps.crossmatch_stamps(self, askap_fits, postage_options, nprocs, radius=radius, max_separation=max_separation, convolve=convolve,
-            askap_pre_convolve_image=pre_convolve_image, askap_pre_convolve_catalog=preconolve_catalog, dualmode=dualmode, basecat=basecat, transients=transients, transient_min_ratio=transient_min_ratio)
+    def produce_postage_stamps(self, askap_data, askap_wcs, selection, nprocs, radius=13./60., convolve=False,
+            askap_nonconv_image=None, askap_pre_convolve_catalog=None, dualmode=False, 
+            basecat="sumss"):
+        postage_stamps.crossmatch_stamps(self, askap_data, askap_wcs, selection, nprocs, radius=radius, convolve=convolve,
+            askap_nonconv_img=askap_nonconv_image, askap_pre_convolve_catalog=askap_pre_convolve_catalog, dualmode=dualmode, 
+            basecat=basecat)
         
 
     def merge(self, to_merge_crossmatch, basecat, max_sep=15., raw=False):
@@ -631,7 +632,7 @@ class crossmatch(object):
             if mos.split("/")[-1]=="SKIP.FITS":
                 self.logger.warning("Missing SUMSS FITS mosaic. Skipping.")
                 continue
-            mosaic = askapimage(mos)
+            mosaic = Askapimage(mos)
             mosaic.load_fits_header()
             if not mosaic._beam_loaded:
                 if this_nvss is False:
@@ -1173,7 +1174,7 @@ class crossmatch(object):
                 sumss_image=False
             #Try using own library to load survey images
             if fits_image not in loaded_fits:
-                loaded_fits[fits_image]=askapimage(row["catalog_Mosaic_path"])
+                loaded_fits[fits_image]=Askapimage(row["catalog_Mosaic_path"])
                 loaded_fits[fits_image].load_wcs()
                 loaded_fits[fits_image].load_fits_data()
             catalog_peak_flux = self._get_peak_flux(row[ra_col], row[dec_col], loaded_fits[fits_image].wcs, loaded_fits[fits_image].data, num_pixels=5, sumss=sumss_image)
