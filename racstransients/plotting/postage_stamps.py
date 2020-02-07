@@ -395,6 +395,10 @@ def produce_postage_stamps_new(row_dict, askap_data, askap_wcs, mos_data, mos_wc
     panels[2].imshow(askap_cutout.data,norm=askap_norm,cmap='gray_r')
     if convolve:
         panels[3].imshow(askap_nonconv_cutout.data,norm=askap_norm,cmap='gray_r')
+        
+    asp = np.diff(panels[2].get_xlim())[0] / np.diff(panels[2].get_ylim())[0]
+    panels[2].set_aspect(asp)
+    panels[3].set_aspect(asp)
     
     
     for i in panels:
