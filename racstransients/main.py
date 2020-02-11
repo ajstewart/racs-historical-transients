@@ -7,6 +7,7 @@ from racstransients.tools.fitsimage import Askapimage
 from racstransients.tools.crossmatch import crossmatch
 from racstransients.tools.catalog import Catalog
 from racstransients.plotting import plots
+import multiprocessing
 import datetime
 import os
 import pandas as pd
@@ -251,6 +252,8 @@ def main():
         "transient_max_separation":45.0,
         "postage_stamps":False,
         "postage_stamp_selection":"all",
+        "postage_stamp_ncores":multiprocessing.cpu_count()/2,
+        "postage_stamp_radius":13.0,
         "sumss_mosaic_dir":"None",
         "nvss_mosaic_dir":"None",
         "aegean_settings_config":None,
@@ -333,6 +336,8 @@ def main():
     parser.add_argument("--transient-max-separation", type=str2float, help="Maximum crossmatch distance (in arcsec) to be consdiered when searching for transients.")
     parser.add_argument("--postage-stamps", type=str2bool, help="Produce postage stamp plots of the cross matched sources within the max separation.")
     parser.add_argument("--postage-stamp-selection", type=str, choices=["all", "transients"], help="Select which postage stamps to create.")
+    parser.add_argument("--postage-stamp-ncores", type=int, help="Select how many cores to use when creating the postage stamps.")
+    parser.add_argument("--postage-stamp-radius", type=int, help="Select the radius of the postage stamp cutouts (arcmin).")
     # parser.add_argument("--nprocs", type=str2int, help="Number of simulataneous SUMSS images at once when producing postage stamps.", default=1)
     parser.add_argument("--sumss-mosaic-dir", type=str, help="Directory containing the SUMSS survey mosaic image files.")
     parser.add_argument("--nvss-mosaic-dir", type=str, help="Directory containing the NVSS survey mosaic image files.")
@@ -1086,7 +1091,7 @@ def main():
         
         if args.postage_stamps:
             logger.info("Starting postage stamp production.")
-            transient_crossmatch.produce_postage_stamps(theimg.data, theimg.wcs, "all", 5, radius=5./60., convolve=args.convolve,
+            transient_crossmatch.produce_postage_stamps(theimg.data, theimg.wcs, "all", args.postage_stamp_ncores, radius=args.postage_stamp_radius, convolve=args.convolve,
             askap_nonconv_image=original_theimg, askap_pre_convolve_catalog=non_conv_askap_cat, dualmode=dualmode, 
             basecat=basecat)
             os.mkdir("postage-stamps")
