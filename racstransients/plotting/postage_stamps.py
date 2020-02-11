@@ -379,6 +379,7 @@ def produce_postage_stamps_new(row_dict, askap_data, askap_wcs, mos_data, mos_wc
     #For now support one ASKAP image at a time so can just take this from the first entry.
     
     #First initialise the figure and set up the askap panel with the image.
+    radius = Angle(radius * u.arcmin)
     if convolve:
         total_panels = 3
     else:
@@ -389,10 +390,10 @@ def produce_postage_stamps_new(row_dict, askap_data, askap_wcs, mos_data, mos_wc
     thissurvey = row_dict["survey_used"].upper()
     
     target = SkyCoord(row_dict["master_ra"]*u.degree, row_dict["master_dec"]*u.degree)
-    askap_cutout = Cutout2D(askap_data, position=target, size=Angle(radius*2.*u.degree), wcs=askap_wcs, mode='partial')
-    mos_cutout = Cutout2D(mos_data, position=target, size=Angle(radius*2.*u.degree), wcs=mos_wcs, mode='partial')
+    askap_cutout = Cutout2D(askap_data, position=target, size=radius, wcs=askap_wcs, mode='partial')
+    mos_cutout = Cutout2D(mos_data, position=target, size=radius, wcs=mos_wcs, mode='partial')
     if convolve:
-        askap_nonconv_cutout = Cutout2D(askap_nonconv_data, position=target, size=Angle(radius*2.*u.degree), wcs=askap_nonconv_wcs, mode='partial')
+        askap_nonconv_cutout = Cutout2D(askap_nonconv_data, position=target, size=radius, wcs=askap_nonconv_wcs, mode='partial')
         
     askap_norm = ImageNormalize(askap_cutout.data, interval=ZScaleInterval(contrast=0.15))
     mos_norm = ImageNormalize(mos_cutout.data, interval=ZScaleInterval(contrast=0.15))
