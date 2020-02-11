@@ -38,7 +38,7 @@ def source_finding(askapimg, sf, logger, options=None, save_diag_images=False):
     if sf=="aegean":
         if options==None:
             aegean_sf_options={
-                "cores":multiprocessing.cpu_count()/2,
+                "cores":int(multiprocessing.cpu_count()/2),
                 "maxsummits":5,
                 "seedclip":5,
                 "floodclip":4,
