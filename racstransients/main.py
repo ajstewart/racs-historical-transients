@@ -662,7 +662,7 @@ def main():
         aegean_total = len(askap_catalog.index)
         logger.info("Total number of ASKAP sources: {}".format(aegean_total))
         if not args.use_all_fits:
-            askap_catalog=askap_catalog[askap_catalog["flag_c4"]==0].reset_index(drop=True)
+            askap_catalog=askap_catalog[askap_catalog["flag"]==0].reset_index(drop=True)
             aegean_good_fits=len(askap_catalog.index)
             logger.info("Total number of good fit ASKAP sources found: {} ({} sources removed).".format(aegean_good_fits, aegean_total - aegean_good_fits))
         theimg.total_askap_sources = len(askap_catalog.index)
