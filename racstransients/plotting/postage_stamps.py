@@ -609,7 +609,7 @@ def produce_postage_stamps_new(row_dict, askap_data, askap_wcs, mos_data, mos_wc
                                     Line2D([0], [0], color='C1')
                                 ]
                     labels = ["ASKAP Sources", "{} Sources".format(thissurvey), "Extracted Flux", thissurvey+" Source Position"]
-            if p==0:
+            if p==1:
                 sumss_snr_text=plt.text(pos_x_2, pos_y_2, "{0} Int. Flux = {1:.2f} +/- {2:.2f} mJy\n{0} RMS ~ {3:.2f} mJy\n{0} SNR = {4:.2f}".format(thissurvey,
                     row_dict["catalog_flux_to_use"]*1.e3, row_dict["catalog_flux_to_use_err"]*1.e3,image_rms*1.e3, row_dict[snr_col]), transform=fig.transFigure, bbox=bbox_dict, size=boxsize)
         #Rectangle on extracted flux on ASKAP images
