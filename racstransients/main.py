@@ -1086,7 +1086,7 @@ def main():
         
         if args.postage_stamps:
             logger.info("Starting postage stamp production.")
-            transient_crossmatch.produce_postage_stamps(theimg.data, theimg.wcs, "all", 5, radius=3./60., convolve=args.convolve,
+            transient_crossmatch.produce_postage_stamps(theimg.data, theimg.wcs, "all", 5, radius=5./60., convolve=args.convolve,
             askap_nonconv_image=original_theimg, askap_pre_convolve_catalog=non_conv_askap_cat, dualmode=dualmode, 
             basecat=basecat)
             os.mkdir("postage-stamps")
@@ -1158,11 +1158,13 @@ def main():
                 transient_crossmatch.inject_transients_db(image_id, sumss, nvss, db_engine=args.db_engine, db_username=args.db_username, db_password=args.db_password, db_host=args.db_host, 
                     db_port=args.db_port, db_database=args.db_database, max_separation=args.transient_max_separation, dualmode=dualmode, basecat=basecat, askap_image = theimg.image,
                     askap_image_2 = image_2)
+        else:
+            image_id = None
         # if args.transients:
             # transient_crossmatch.inject_transients_db(image_id, db_engine=args.db_engine, db_username=args.db_username, db_host=args.db_host,
             # db_port=args.db_port, db_database=args.db_database, dualmode=dualmode, basecat=basecat)
         
-        if args.website_media_dir!="none":
+        if args.website_media_dir!="none" and image_id is not None:
             media_dir=os.path.join(args.website_media_dir, str(image_id))
         # else:
             # media_dir=os.path.join("..", "static", "media", "{}".format(image_id))
