@@ -337,7 +337,7 @@ def main():
     parser.add_argument("--postage-stamps", type=str2bool, help="Produce postage stamp plots of the cross matched sources within the max separation.")
     parser.add_argument("--postage-stamp-selection", type=str, choices=["all", "transients"], help="Select which postage stamps to create.")
     parser.add_argument("--postage-stamp-ncores", type=int, help="Select how many cores to use when creating the postage stamps.")
-    parser.add_argument("--postage-stamp-radius", type=int, help="Select the radius of the postage stamp cutouts (arcmin).")
+    parser.add_argument("--postage-stamp-radius", type=float, help="Select the radius of the postage stamp cutouts (arcmin).")
     # parser.add_argument("--nprocs", type=str2int, help="Number of simulataneous SUMSS images at once when producing postage stamps.", default=1)
     parser.add_argument("--sumss-mosaic-dir", type=str, help="Directory containing the SUMSS survey mosaic image files.")
     parser.add_argument("--nvss-mosaic-dir", type=str, help="Directory containing the NVSS survey mosaic image files.")
