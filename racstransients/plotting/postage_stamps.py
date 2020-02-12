@@ -344,6 +344,9 @@ def crossmatch_stamps(crossmatch, askap_data, askap_wcs, selection, nprocs, radi
             workers.close()
             sys.exit()
         
+        #close workers
+        workers.close()
+        
         
         
         

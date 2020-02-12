@@ -1176,7 +1176,7 @@ def main():
             stamp_media_dir=os.path.join(media_dir, "stamps")
         # os.makedirs(media_dir)
             os.makedirs(stamp_media_dir)
-            subprocess.call("cp postage-stamps/*.jpg {}/".format(stamp_media_dir), shell=True)
+            subprocess.call("for i in `ls postage-stamps/*.jpg`; do cp $i {}/ ; done".format(stamp_media_dir), shell=True)
         # subprocess.call("cp postage-stamps/bad/*.jpg {}/".format(stamp_media_dir), shell=True)
         # if args.transients:
         #     subprocess.call("cp transients/askap-notseen/*.jpg {}/".format(stamp_media_dir), shell=True)
