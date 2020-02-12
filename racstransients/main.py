@@ -252,7 +252,7 @@ def main():
         "transient_max_separation":45.0,
         "postage_stamps":False,
         "postage_stamp_selection":"all",
-        "postage_stamp_ncores":multiprocessing.cpu_count()/2,
+        "postage_stamp_ncores":int(multiprocessing.cpu_count()/2),
         "postage_stamp_radius":13.0,
         "sumss_mosaic_dir":"None",
         "nvss_mosaic_dir":"None",

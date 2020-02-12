@@ -252,7 +252,49 @@ class crossmatch(object):
         matched_sources = sources_to_match.iloc[indexes,:].reset_index(drop=True)
         
         return matched_sources
+        
+    def _get_goodmatch_postage(self, row):
+        postname = "source_{}_postagestamps.jpg".format(row["master_name"])
+        return postname
+        
     
+    def _good_sources_check(self,row, askap_img_wcs, askap_img_data, pre_conv_crossmatch, preconv_matches_names, non_convolved_isl_cat_df, max_separation, askap_cat_islands_df):
+        # if row["d2d"] <= max_separation:
+        if self._check_for_edge_case(row["master_ra"], row["master_dec"], askap_img_wcs, askap_img_data):
+            tag = "Edge of ASKAP image"
+        #Check if either is extended
+        elif (row["askap_a"] > (1.75 * row["askap_telescope_bmaj"])) or (row["askap_b"] > (1.75 * row["askap_telescope_bmin"])):
+            tag = "Extended source"
+        elif (row["{}_MajAxis".format(row["survey_used"])] > (1.75 * row["{}_telescope_bmaj".format(row["survey_used"])])) or (row["{}_MinAxis".format(row["survey_used"])] > (1.75 * row["{}_telescope_bmin".format(row["survey_used"])])):
+            tag = "Extended source"
+            
+        elif pre_conv_crossmatch !=None:
+            if row["master_name"] in preconv_matches_names:
+                if self._check_for_large_island(row["master_name"], row["askap_name"], row["askap_island"], pre_conv_crossmatch, askap_cat_islands_df=non_convolved_isl_cat_df, 
+                     threshold=3, transient_sep=max_separation):
+                    tag = "Large island source"
+                else:
+                    tag = "Candidate"
+            else:
+                if self._check_for_large_island(row["master_name"], row["askap_name"], row["askap_island"], pre_conv_crossmatch, askap_cat_islands_df=askap_cat_islands_df, 
+                    non_convolved_isl_cat_df=non_convolved_isl_cat_df, threshold=3, transient_sep=max_separation):
+                    tag = "Large island source"
+                else:
+                    tag = "Candidate"
+        elif self._check_for_large_island(row["master_name"], row["askap_name"], row["askap_island"], pre_conv_crossmatch, askap_cat_islands_df=askap_cat_islands_df, 
+                threshold=3, transient_sep=max_separation):
+            tag = "Large island source"
+        else:
+            tag = "Candidate"
+        return tag
+        # else:
+            # large_ratios_postage_stamps.append("source_{}_BAD_sidebyside.jpg".format(row["master_name"]))
+        #Also find the nearest sources
+        
+    def _get_nearest_good_match_sources(self, row):
+        nearest_good_match_sources=self._find_nearest_sources(row["master_ra"], row["master_dec"], row["master_name"], self.goodmatches_df_trans)
+        return ",".join(nearest_good_match_sources["master_name"].tolist())
+        
     def transient_search(self, max_separation=15.0, askap_snr_thresh=5.0, large_flux_thresh=3.0, pre_conv_crossmatch=None, image_beam_maj=45., image_beam_min=45., 
         image_beam_pa=0.0, dualmode=False, sumss=False, nvss=False, askap_img_wcs="None", askap_img_header={}, askap_img_data=[], preconv_askap_img_wcs="None", preconv_askap_img_header={},
         preconv_askap_img_data=[], askap_cat_islands_df=[], non_convolved_isl_cat_df=[], askap_image="None", preconv_askap_image="None", clean_for_sumss=False, max_sumss=0.0,
@@ -472,43 +514,44 @@ class crossmatch(object):
         goodmatch_pipelinetags=[]
         nearest_sources=[]
         
-        for i,row in self.goodmatches_df_trans.iterrows():
-            # if row["d2d"] <= max_separation:
-            goodmatch_postage_stamps.append("source_{}_postagestamps.jpg".format(row["master_name"]))
-            if self._check_for_edge_case(row["master_ra"], row["master_dec"], askap_img_wcs, askap_img_data):
-                goodmatch_pipelinetags.append("Edge of ASKAP image")
-            #Check if either is extended
-            elif (row["askap_a"] > (1.75 * row["askap_telescope_bmaj"])) or (row["askap_b"] > (1.75 * row["askap_telescope_bmin"])):
-                goodmatch_pipelinetags.append("Extended source")
-            elif (row["{}_MajAxis".format(row["survey_used"])] > (1.75 * row["{}_telescope_bmaj".format(row["survey_used"])])) or (row["{}_MinAxis".format(row["survey_used"])] > (1.75 * row["{}_telescope_bmin".format(row["survey_used"])])):
-                goodmatch_pipelinetags.append("Extended source")
-                
-            elif pre_conv_crossmatch !=None:
-                if row["master_name"] in preconv_matches_names:
-                    if self._check_for_large_island(row["master_name"], row["askap_name"], row["askap_island"], pre_conv_crossmatch, askap_cat_islands_df=non_convolved_isl_cat_df, 
-                         threshold=3, transient_sep=max_separation):
-                        goodmatch_pipelinetags.append("Large island source")
-                    else:
-                        goodmatch_pipelinetags.append("Candidate")
-                else:
-                    if self._check_for_large_island(row["master_name"], row["askap_name"], row["askap_island"], pre_conv_crossmatch, askap_cat_islands_df=askap_cat_islands_df, 
-                        non_convolved_isl_cat_df=non_convolved_isl_cat_df, threshold=3, transient_sep=max_separation):
-                        goodmatch_pipelinetags.append("Large island source")
-                    else:
-                        goodmatch_pipelinetags.append("Candidate")
-            elif self._check_for_large_island(row["master_name"], row["askap_name"], row["askap_island"], pre_conv_crossmatch, askap_cat_islands_df=askap_cat_islands_df, 
-                    threshold=3, transient_sep=max_separation):
-                goodmatch_pipelinetags.append("Large island source")
-            else:
-                goodmatch_pipelinetags.append("Candidate")
+        # for i,row in self.goodmatches_df_trans.iterrows():
+            # # if row["d2d"] <= max_separation:
+            # goodmatch_postage_stamps.append("source_{}_postagestamps.jpg".format(row["master_name"]))
+            # if self._check_for_edge_case(row["master_ra"], row["master_dec"], askap_img_wcs, askap_img_data):
+            #     goodmatch_pipelinetags.append("Edge of ASKAP image")
+            # #Check if either is extended
+            # elif (row["askap_a"] > (1.75 * row["askap_telescope_bmaj"])) or (row["askap_b"] > (1.75 * row["askap_telescope_bmin"])):
+            #     goodmatch_pipelinetags.append("Extended source")
+            # elif (row["{}_MajAxis".format(row["survey_used"])] > (1.75 * row["{}_telescope_bmaj".format(row["survey_used"])])) or (row["{}_MinAxis".format(row["survey_used"])] > (1.75 * row["{}_telescope_bmin".format(row["survey_used"])])):
+            #     goodmatch_pipelinetags.append("Extended source")
+            #
+            # elif pre_conv_crossmatch !=None:
+            #     if row["master_name"] in preconv_matches_names:
+            #         if self._check_for_large_island(row["master_name"], row["askap_name"], row["askap_island"], pre_conv_crossmatch, askap_cat_islands_df=non_convolved_isl_cat_df,
+            #              threshold=3, transient_sep=max_separation):
+            #             goodmatch_pipelinetags.append("Large island source")
+            #         else:
+            #             goodmatch_pipelinetags.append("Candidate")
+            #     else:
+            #         if self._check_for_large_island(row["master_name"], row["askap_name"], row["askap_island"], pre_conv_crossmatch, askap_cat_islands_df=askap_cat_islands_df,
+            #             non_convolved_isl_cat_df=non_convolved_isl_cat_df, threshold=3, transient_sep=max_separation):
+            #             goodmatch_pipelinetags.append("Large island source")
+            #         else:
+            #             goodmatch_pipelinetags.append("Candidate")
+            # elif self._check_for_large_island(row["master_name"], row["askap_name"], row["askap_island"], pre_conv_crossmatch, askap_cat_islands_df=askap_cat_islands_df,
+            #         threshold=3, transient_sep=max_separation):
+            #     goodmatch_pipelinetags.append("Large island source")
             # else:
-                # large_ratios_postage_stamps.append("source_{}_BAD_sidebyside.jpg".format(row["master_name"]))
-            #Also find the nearest sources
-            nearest_good_match_sources=self._find_nearest_sources(row["master_ra"], row["master_dec"], row["master_name"], self.goodmatches_df_trans)
-            nearest_sources.append(",".join(nearest_good_match_sources["master_name"].tolist()))
-        self.goodmatches_df_trans["postage_stamp"] = goodmatch_postage_stamps
-        self.goodmatches_df_trans["pipelinetag"] = goodmatch_pipelinetags
-        self.goodmatches_df_trans["nearest_sources"] = nearest_sources
+            #     goodmatch_pipelinetags.append("Candidate")
+            # # else:
+            #     # large_ratios_postage_stamps.append("source_{}_BAD_sidebyside.jpg".format(row["master_name"]))
+            # #Also find the nearest sources
+            # nearest_good_match_sources=self._find_nearest_sources(row["master_ra"], row["master_dec"], row["master_name"], self.goodmatches_df_trans)
+            # nearest_sources.append(",".join(nearest_good_match_sources["master_name"].tolist()))
+        self.goodmatches_df_trans["postage_stamp"] = self.goodmatches_df_trans.apply(self._get_goodmatch_postage, axis=1)
+        self.goodmatches_df_trans["pipelinetag"] = self.goodmatches_df_trans.apply(self._good_sources_check, args=(askap_img_wcs, 
+            askap_img_data, pre_conv_crossmatch, preconv_matches_names, non_convolved_isl_cat_df, max_separation, askap_cat_islands_df), axis=1)
+        self.goodmatches_df_trans["nearest_sources"] = self.goodmatches_df_trans.apply(self._get_nearest_good_match_sources, axis=1)
         
         # self.transients_large_ratios_df=large_ratios
         self.goodmatches_df_trans.to_csv("transients_good_matches.csv", index=False)

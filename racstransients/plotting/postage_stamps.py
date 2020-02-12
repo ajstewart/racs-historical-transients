@@ -294,6 +294,18 @@ def crossmatch_stamps(crossmatch, askap_data, askap_wcs, selection, nprocs, radi
     #Get the unique mosaic files
     fits_mosaics = df_to_plot["master_catalog_Mosaic_path"].unique()
     
+    if convolve:
+        if askap_pre_convolve_catalog is not None:
+            askap_pre_convolve_catalog = askap_pre_convolve_catalog.df
+        
+        if askap_nonconv_img is not None:
+            askap_nonconv_data = askap_nonconv_img.data
+            askap_nonconv_wcs = askap_nonconv_img.wcs
+    
+    else:
+        askap_nonconv_data = None
+        askap_nonconv_wcs = None
+    
     for mos in fits_mosaics:
         #get the crossmatches
         sub_to_plot = df_to_plot[df_to_plot.master_catalog_Mosaic_path == mos]
@@ -317,19 +329,6 @@ def crossmatch_stamps(crossmatch, askap_data, askap_wcs, selection, nprocs, radi
         #     askap_catalog_collection_2 = None
         #
         # catalog_collection = create_ellipses(cat_extractions, mosimg.wcs, "#d62728")
-        
-        if convolve:
-            if askap_pre_convolve_catalog is not None:
-                askap_pre_convolve_catalog = askap_pre_convolve_catalog.df
-            
-            if askap_nonconv_img is not None:
-                askap_nonconv_data = askap_nonconv_img.data
-                askap_nonconv_wcs = askap_nonconv_img.wcs
-        
-        else:
-            askap_nonconv_data = None
-            askap_nonconv_wcs = None
-    
     
         produce_multi = partial(produce_postage_stamps_new, askap_data=askap_data, askap_wcs=askap_wcs, mos_data=mosimg.data, mos_wcs=mosimg.wcs, 
                             askap_extractions=askap_extractions, cat_extractions=cat_extractions, askap_pre_convolve_catalog=askap_pre_convolve_catalog,
