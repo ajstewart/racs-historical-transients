@@ -782,6 +782,8 @@ def main():
             #Define empty ones for diagnostic plots
             nvss_catalog=[]
             theimg.total_nvss_sources = 0
+            clean_for_nvss = False
+            min_nvss = 0.0
         
         #Filter out extended sources if requested for diagnostics only
         if args.remove_extended:
