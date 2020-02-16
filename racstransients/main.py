@@ -254,6 +254,7 @@ def main():
         "postage_stamp_selection":"all",
         "postage_stamp_ncores":int(multiprocessing.cpu_count()/2),
         "postage_stamp_radius":13.0,
+        "postage_stamp_zscale_contrast":0.2,
         "sumss_mosaic_dir":"None",
         "nvss_mosaic_dir":"None",
         "aegean_settings_config":None,
@@ -338,6 +339,7 @@ def main():
     parser.add_argument("--postage-stamp-selection", type=str, choices=["all", "transients"], help="Select which postage stamps to create.")
     parser.add_argument("--postage-stamp-ncores", type=int, help="Select how many cores to use when creating the postage stamps.")
     parser.add_argument("--postage-stamp-radius", type=float, help="Select the radius of the postage stamp cutouts (arcmin).")
+    parser.add_argument("--postage-stamp-zscale-contrast", type=float, help="Select the ZScale contrast to use in the postage stamps.")
     # parser.add_argument("--nprocs", type=str2int, help="Number of simulataneous SUMSS images at once when producing postage stamps.", default=1)
     parser.add_argument("--sumss-mosaic-dir", type=str, help="Directory containing the SUMSS survey mosaic image files.")
     parser.add_argument("--nvss-mosaic-dir", type=str, help="Directory containing the NVSS survey mosaic image files.")
@@ -1093,8 +1095,8 @@ def main():
         
         if args.postage_stamps:
             logger.info("Starting postage stamp production.")
-            transient_crossmatch.produce_postage_stamps(theimg.data, theimg.wcs, "all", args.postage_stamp_ncores, radius=args.postage_stamp_radius, convolve=args.convolve,
-            askap_nonconv_image=original_theimg, askap_pre_convolve_catalog=non_conv_askap_cat, dualmode=dualmode, 
+            transient_crossmatch.produce_postage_stamps(theimg.data, theimg.wcs, "all", args.postage_stamp_ncores, radius=args.postage_stamp_radius, contrast=args.postage_stamp_zscale_contrast,
+            convolve=args.convolve, askap_nonconv_image=original_theimg, askap_pre_convolve_catalog=non_conv_askap_cat, dualmode=dualmode, 
             basecat=basecat)
             os.mkdir("postage-stamps")
  #            os.makedirs("postage-stamps/bad")

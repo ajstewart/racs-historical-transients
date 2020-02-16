@@ -253,8 +253,8 @@ def create_ellipses(df, wcs, color):
     
     return collection
 
-def crossmatch_stamps(crossmatch, askap_data, askap_wcs, selection, nprocs, radius=13./60., convolve=False,
-            askap_nonconv_img=None, askap_pre_convolve_catalog=None, dualmode=False, 
+def crossmatch_stamps(crossmatch, askap_data, askap_wcs, selection, nprocs, radius=13./60., contrast=0.2,
+            convolve=False, askap_nonconv_img=None, askap_pre_convolve_catalog=None, dualmode=False, 
             basecat="sumss"):
 
     #Here we just need to plot from the transients master df based on the ratio - good and bad no longer exists
@@ -332,7 +332,7 @@ def crossmatch_stamps(crossmatch, askap_data, askap_wcs, selection, nprocs, radi
     
         produce_multi = partial(produce_postage_stamps_new, askap_data=askap_data, askap_wcs=askap_wcs, mos_data=mosimg.data, mos_wcs=mosimg.wcs, 
                             askap_extractions=askap_extractions, cat_extractions=cat_extractions, askap_pre_convolve_catalog=askap_pre_convolve_catalog,
-                            radius=radius, convolve=convolve, askap_nonconv_data=askap_nonconv_data, askap_nonconv_wcs=askap_nonconv_wcs, basecat=basecat)
+                            radius=radius, contrast=contrast, convolve=convolve, askap_nonconv_data=askap_nonconv_data, askap_nonconv_wcs=askap_nonconv_wcs, basecat=basecat)
                             
         workers=mp.Pool(processes=nprocs)
         try:
@@ -376,8 +376,8 @@ def crossmatch_stamps(crossmatch, askap_data, askap_wcs, selection, nprocs, radi
     #         convolve=convolve, askap_pre_convolve_image=askap_pre_convolve_image, askap_pre_convolve_catalog=askap_pre_convolve_catalog, dualmode=dualmode,
     #         basecat=basecat)
         
-def produce_postage_stamps_new(row_dict, askap_data, askap_wcs, mos_data, mos_wcs, askap_extractions, cat_extractions, askap_pre_convolve_catalog, radius=13./60., convolve=False, 
-                            askap_nonconv_data=None, askap_nonconv_wcs=None, basecat="sumss"):
+def produce_postage_stamps_new(row_dict, askap_data, askap_wcs, mos_data, mos_wcs, askap_extractions, cat_extractions, askap_pre_convolve_catalog, radius=13./60., contrast=0.2,
+                            convolve=False, askap_nonconv_data=None, askap_nonconv_wcs=None, basecat="sumss"):
     #For now support one ASKAP image at a time so can just take this from the first entry.
     
     #First initialise the figure and set up the askap panel with the image.
@@ -397,8 +397,8 @@ def produce_postage_stamps_new(row_dict, askap_data, askap_wcs, mos_data, mos_wc
     if convolve:
         askap_nonconv_cutout = Cutout2D(askap_nonconv_data, position=target, size=radius, wcs=askap_nonconv_wcs, mode='partial')
         
-    askap_norm = ImageNormalize(askap_cutout.data, interval=ZScaleInterval(contrast=0.15))
-    mos_norm = ImageNormalize(mos_cutout.data, interval=ZScaleInterval(contrast=0.15))
+    askap_norm = ImageNormalize(askap_cutout.data, interval=ZScaleInterval(contrast=contrast))
+    mos_norm = ImageNormalize(mos_cutout.data, interval=ZScaleInterval(contrast=contrast))
     # if convolve
     # askap_norm = ImageNormalize(askap_cutout.data, interval=ZScaleInterval(contrast=0.15))
     

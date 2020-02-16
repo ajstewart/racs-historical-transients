@@ -127,10 +127,10 @@ class crossmatch(object):
         panels[key].set_theme('publication')
         return panels
     
-    def produce_postage_stamps(self, askap_data, askap_wcs, selection, nprocs, radius=13./60., convolve=False,
+    def produce_postage_stamps(self, askap_data, askap_wcs, selection, nprocs, radius=13./60., contrast=0.2, convolve=False,
             askap_nonconv_image=None, askap_pre_convolve_catalog=None, dualmode=False, 
             basecat="sumss"):
-        postage_stamps.crossmatch_stamps(self, askap_data, askap_wcs, selection, nprocs, radius=radius, convolve=convolve,
+        postage_stamps.crossmatch_stamps(self, askap_data, askap_wcs, selection, nprocs, radius=radius, contrast=contrast, convolve=convolve,
             askap_nonconv_img=askap_nonconv_image, askap_pre_convolve_catalog=askap_pre_convolve_catalog, dualmode=dualmode, 
             basecat=basecat)
         
