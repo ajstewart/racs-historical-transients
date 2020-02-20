@@ -235,10 +235,10 @@ class Askapimage(object):
         if not self.centre:
             self.load_position_dimensions()
         if np.abs(self.size_x-self.size_y) > max([self.size_x,self.size_y])*0.05:
-            self.logger.warning("Non square image detected! Will pad the Vizier search area by 1.6 (default 1.3).")
-            pad=1.6
+            self.logger.warning("Non square image detected! Will pad the Vizier search area by 2.0 (default 1.5).")
+            pad=2.0
         else:
-            pad=1.3
+            pad=1.5
         # if not self.data:
         #     self.load_data()
         v = Vizier(columns=["_r", "_RAJ2000","_DEJ2000", "**"])
@@ -339,11 +339,11 @@ class Askapimage(object):
                     else:
                         num_nonzero=np.count_nonzero(self.data[i[1], i[0]])
                     if num_nonzero==0:
-                        isnan=False
-                    else:
                         isnan=True
+                    else:
+                        isnan=False
                 except:
-                    isnan=False
+                    isnan=True
             self.logger.debug("is nan: {}".format(isnan))
             nan_mask.append(isnan)
 
@@ -354,8 +354,8 @@ class Askapimage(object):
             # if nan_mask[i]==False:
                 # mask_sumss.iloc[i]=row
                     
-        if boundary_value=="nan":
-            nan_mask=~np.array(nan_mask)
+        # if boundary_value=="nan":
+        nan_mask=~np.array(nan_mask)
         mask_filter=tofilter[nan_mask]
 
         mask_catalog=mask_filter.dropna(how="all").reset_index(drop=True)
