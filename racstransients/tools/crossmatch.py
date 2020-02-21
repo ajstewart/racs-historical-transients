@@ -1263,7 +1263,7 @@ class crossmatch(object):
             
         #Step 2 Run Aegean
             
-        command="aegean --cores {} --priorized 1 --input {} --floodclip -1 --table {} {} --ratio 1".format(int(multiprocessing.cpu_count()/2), aegean_coords_file, aegean_output_file, image)
+        command="aegean --cores 1 --priorized 1 --input {} --floodclip -1 --table {} {} --ratio 1".format(aegean_coords_file, aegean_output_file, image)
         if nvss_beam:
             command+=" --beam {0} {0} 0.0 --slice 0".format(45./3600.)
         subprocess.call(command, shell=True)
