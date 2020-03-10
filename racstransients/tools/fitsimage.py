@@ -28,7 +28,7 @@ class Askapimage(object):
             return None
         else:
             return super(Askapimage, cls).__new__(cls)
-            
+
     def __init__(self, arg, logger=None, readinfo=False):
         super(Askapimage, self).__init__()
         self.logger = logger or logging.getLogger(__name__)
@@ -40,7 +40,7 @@ class Askapimage(object):
         self.header = None
         if readinfo:
             self.load_all()
-                
+
     def load_wcs(self):
         # Load the FITS hdulist using astropy.io.fits
         with fits.open(self.image) as hdulist:
@@ -70,14 +70,14 @@ class Askapimage(object):
         self.radius=self.centre.separation(outskirt_coords)
         self.logger.info("Image Centre: {}".format(self.centre.to_string('hmsdms')))
         self.logger.info("Radius: {} (deg)".format(self.radius.degree))
-    
+
     def load_fits_data(self):
         with fits.open(self.image) as hdul:
             try:
                 self.data = hdul[0].data[0,0,:,:]
             except:
                 self.data = hdul[0].data
-        
+
     def load_fits_header(self):
         with fits.open(self.image) as hdul:
             self.header = hdul[0].header
@@ -99,7 +99,7 @@ class Askapimage(object):
         except:
             self.logger.warning("Beam information could not be determined.")
             self._beam_loaded = False
-         
+
     def load_all(self):
         self.load_fits_header()
         with fits.open(self.image) as hdul:
@@ -109,15 +109,15 @@ class Askapimage(object):
                 self.data = hdul[0].data
             self.wcs = wcs.WCS(self.header, naxis=2)
             self.load_position_dimensions()
-            
+
     def calculate_sumss_beam(self):
         self.img_sumss_bmaj = 45.*(1./np.sin(np.deg2rad(np.abs(self.centre.dec.degree))))
         self.img_sumss_bmin = 45.
-        
+
     def calculate_nvss_beam(self):
         self.img_sumss_bmaj = 45.
         self.img_sumss_bmin = 45.
-    
+
     def _get_default_selavy_options(self):
         mapnames=self.imagename.reaplce(".fits", "")
         selavy_options={"Selavy.imagetype":"fits",
@@ -159,13 +159,13 @@ class Askapimage(object):
         # Not performing RM Synthesis for this case
         "Selavy.RMSynthesis":"false"}
         return selavy_options
-        
+
     def _write_selavy_parset(self, parset_out, settings_to_write):
         with open(parset_out, 'w') as f:
             f.write("# selavy parset for {}\n\n".format(self.imagename))
             for i in sorted(settings_to_write):
                 f.write("{0:<40} = {1}\n".format(i, settings_to_write[i]))
-    
+
     def find_sources(self, sf="aegean", options={}):
         outfile=self.imagename.replace(".fits", "_comp.csv")
         if sf=="aegean":
@@ -188,7 +188,7 @@ class Askapimage(object):
             pybdsf_img.write_catalog(outfile=outfile+".original", catalog_type="gaul", format="csv")
             utils.pybdsf2aegean(outfile+".original", outfile)
             self.logger.info("PyBDSF output converted to aegean format and placed in {}.".format(outfile))
-            
+
 
         elif sf=="selavy":
             self.logger.info("Running source finding with Selavy...")
@@ -203,17 +203,17 @@ class Askapimage(object):
                 nsubx=int(options["Selavy.nsubx"])
             if "Selavy.nsuby" in options:
                 nsuby=int(options["Selavy.nsuby"])
-                
+
             num_procs = nsubx * nsuby +1
-            
+
             command = "mpirun -n {} selavy -c {} > ".format(num_procs, selavy_parset_name)+self.imagename.replace(".fits", "_selavy.log")
             subprocess.call(command, shell=True)
-            
+
             utils.selavy2aegean(selavy_outputname.replace(".txt", ".components.txt"), outfile)
             self.logger.info("Selavy output converted to aegean format and placed in {}.".format(outfile))
-            
-            
-            
+
+
+
     def get_catalogue(self, catalogue, boundary_value="nan"):
         cat_ids={"SUMSS":"VIII/81B/sumss212",
                 "NVSS":"VIII/65/nvss",
@@ -272,7 +272,7 @@ class Askapimage(object):
             self.logger.info("Filtering {} sources to only those within the image area...".format(catalogue))
             self.sumss_sources=self._filter_catalogue(self.raw_sumss_sources, boundary_value=boundary_value)
             return self.sumss_sources
-        
+
     # def get_nvss_catalogue(self, boundary_value="nan"):
     #     cat_ids={"NVSS":"VIII/65/nvss"}
     #     if not self.wcs:
@@ -298,18 +298,18 @@ class Askapimage(object):
     #     self.logger.info("Filtering NVSS sources to only those within the image area...")
     #     self.nvss_sources=self._filter_sumss_catalogue(self.raw_nvss_sources, boundary_value=boundary_value)
     #     return self.sumss_sources
-        
-        
+
+
     def _filter_catalogue(self, tofilter, boundary_value="nan"):
         self.logger.info("{} sources before filtering.".format(len(tofilter.index)))
         #First gather all the coordinates of the SUMSS sources in to an array
         world_coords=[]
         for i, row in tofilter.iterrows():
             world_coords.append([row["_RAJ2000"],row["_DEJ2000"]])
-        
+
         #Convert these to pixel coordinates on the ASKAP image.
         pixel_coords = self.wcs.wcs_world2pix(np.array(world_coords, np.float_), 1)
-        
+
         #Prepare a record of which ones are equal to the boundary value (default nan)
         nan_mask=[]
         self.logger.debug("Size X: {}, Size Y: {}".format(self.size_x, self.size_y))
@@ -353,29 +353,29 @@ class Askapimage(object):
         # for i, row in self.raw_sumss_sources.iterrows():
             # if nan_mask[i]==False:
                 # mask_sumss.iloc[i]=row
-                    
+
         # if boundary_value=="nan":
         nan_mask=~np.array(nan_mask)
         mask_filter=tofilter[nan_mask]
 
         mask_catalog=mask_filter.dropna(how="all").reset_index(drop=True)
-        
+
         self.logger.info("{} sources remain after filtering.".format(len(mask_catalog.index)))
-        
+
         return mask_catalog
-        
-                
+
+
     def write_sumss_sources(self):
         name=self.imagename.replace(".fits", "_sumss_comp.csv")
         self.sumss_sources.to_csv(name, sep=",", index=False)
         self.logger.info("Wrote SUMSS sources to {}.".format(name))
-        
+
     def write_nvss_sources(self):
         name=self.imagename.replace(".fits", "_nvss_comp.csv")
         self.nvss_sources.to_csv(name, sep=",", index=False)
         self.logger.info("Wrote NVSS sources to {}.".format(name))
-        
-    def inject_db(self, basecat="sumss", datestamp=datetime.datetime.utcnow(), user="unknown", description="", db_engine="postgresql", 
+
+    def inject_db(self, basecat="sumss", datestamp=datetime.datetime.utcnow(), user="unknown", description="", db_engine="postgresql",
             db_username="postgres", db_password="postgres", db_host="localhost", db_port="5432", db_database="postgres", transients_noaskapmatchtocatalog_total=0,
             transients_noaskapmatchtocatalog_candidates=0,
             transients_nocatalogmatchtoaskap_total=0,
@@ -386,20 +386,20 @@ class Askapimage(object):
         unique_tag = str(uuid.uuid4())
         engine = sqlalchemy.create_engine('{}://{}:{}@{}:{}/{}'.format(db_engine, db_username, db_password, db_host, db_port, db_database))
         #Better to control the order
-        
+
         # conn = psycopg2.connect("host=localhost dbname=RACS user=aste7152 port=5434")
         if self.original_name is not None:
             thisimagename=self.original_name
         else:
             thisimagename=self.imagename
-        tempdf=pd.DataFrame([[unique_tag, thisimagename, description, self.centre.ra.degree, 
-            self.centre.dec.degree, datestamp, self.image]+[user,self.total_askap_sources, self.total_sumss_sources, self.rms, self.total_nvss_sources, 
+        tempdf=pd.DataFrame([[unique_tag, thisimagename, description, self.centre.ra.degree,
+            self.centre.dec.degree, datestamp, self.image]+[user,self.total_askap_sources, self.total_sumss_sources, self.rms, self.total_nvss_sources,
                 transients_master_total, self.matched_to, transients_master_candidates_total, transients_master_flagged_total,
-            "Unclaimed", image_2, 0]], columns=["unique_tag", "name", "description", 
+            "Unclaimed", image_2, 0]], columns=["unique_tag", "name", "description",
                 "ra", "dec", "runtime", "url"]+["runby", "number_askap_sources", "number_sumss_sources", "rms", "number_nvss_sources"]+["transients_master_total",
             "matched_to", "transients_master_candidates_total", "transients_master_flagged_total", "claimed_by", "url_2", "number_candidates_checked"])
         tempdf.to_sql("images_image", engine, if_exists="append", index=False)
-        
+
         #get the id
         result = engine.execute("SELECT id FROM images_image WHERE unique_tag='{}'".format(unique_tag))
         # try:
@@ -407,10 +407,10 @@ class Askapimage(object):
         # except:
             # image_id=1
         self.logger.info("Image run assigned id {}".format(image_id))
-        
+
         return image_id
-        
-    def inject_processing_db(self, image_id, output, askap_cat_file, sumss_source_cat, nvss_source_cat, askap_ext_thresh, sumss_ext_thresh, nvss_ext_thresh, max_separation, aegean_sigmas, db_engine="postgresql", 
+
+    def inject_processing_db(self, image_id, output, askap_cat_file, sumss_source_cat, nvss_source_cat, askap_ext_thresh, sumss_ext_thresh, nvss_ext_thresh, max_separation, aegean_sigmas, db_engine="postgresql",
             db_username="postgres", db_password="postgres", db_host="localhost", db_port="5432", db_database="postgres"):
         engine = sqlalchemy.create_engine('{}://{}:{}@{}:{}/{}'.format(db_engine, db_username, db_password, db_host, db_port, db_database))
         if sumss_source_cat == None:
@@ -424,16 +424,16 @@ class Askapimage(object):
                 plots_values.append("N/A")
             else:
                 plots_values.append("media/{}/{}".format(image_id, self.plots[i]))
-        settings_columns=["image_id", "output_dir", "askap_csv", "sumss_csv", "nvss_csv", "askap_ext_thresh", 
+        settings_columns=["image_id", "output_dir", "askap_csv", "sumss_csv", "nvss_csv", "askap_ext_thresh",
             "sumss_ext_thresh", "nvss_ext_thresh", "max_separation", "aegean_det_sigma", "aegean_fill_sigma"]+plots_columns
         settings_data=[image_id, output, askap_cat_file, sumss_source_cat, nvss_source_cat, askap_ext_thresh, sumss_ext_thresh, nvss_ext_thresh, max_separation]+aegean_sigmas+plots_values
         tempdf=pd.DataFrame([settings_data], columns=settings_columns)
         tempdf.to_sql("images_processingsettings", engine, if_exists="append", index=False)
-        
+
     def create_overlay_plot(self, overlay_cat, overlay_cat_label="sources", overlay_cat_2=None, overlay_cat_label_2=None, sumss=False, nvss=False):
         thename=plots.image_sources_overlay(self.data, self.wcs, self.imagename, overlay_cat, overlay_cat_label=overlay_cat_label, overlay_cat_2=overlay_cat_2, overlay_cat_label_2=overlay_cat_label_2, sumss=sumss, nvss=nvss)
         return thename
-        
+
     def _Median_clip(self, arr, sigma=3, max_iter=3, ftol=0.01, xtol=0.05, full_output=False, axis=None):
         """Median_clip(arr, sigma, max_iter=3, ftol=0.01, xtol=0.05, full_output=False, axis=None)
         Return the median of an array after iteratively clipping the outliers.
@@ -496,8 +496,8 @@ class Askapimage(object):
         self.rms = 0.4e-3
         self.logger.info("{0} estimate rms: {1:.03f} mJy".format(self.imagename,self.rms*1000.))
         return self.rms
-        
-        
+
+
     def get_local_rms_clipping(self, ra, dec, max_iter=10, sigma=4, num_pixels=50):
         coord = SkyCoord(ra*u.degree, dec*u.degree)
         cutout = Cutout2D(self.data, coord, num_pixels*2., wcs=self.wcs)
@@ -519,39 +519,39 @@ class Askapimage(object):
         # data_selection=data_selection*bscale
         # med, std, mask = self._Median_clip(data_selection, full_output=True, ftol=0.0, max_iter=max_iter, sigma=sigma)
         # return std
-        
-        
+
+
     def weight_crop(self, weight_image, weight_value):
         with fits.open(weight_image) as weight:
             weight_data = np.nan_to_num(weight[0].data)
-            
+
             weight_max=np.max(weight_data)
-       
+
             mask=np.where(weight_data > weight_max * weight_value, False, True)
 
         with fits.open(self.image) as fitsimage:
             fitsdata=fitsimage[0].data
-        
+
             fitsdata[mask]=np.nan
             fitsimage[0].data=fitsdata
-        
+
             weight_cropped_output=self.imagename.replace(".fits", ".weightcrop_{}.fits".format(weight_value))
-        
+
             fitsimage.writeto(weight_cropped_output, overwrite=True)
-        
+
         self.weight_cropped_image = weight_cropped_output
-        
+
         return os.path.abspath(weight_cropped_output)
-        
+
     def convolve2sumss(self, nvss=False):
-        
+
         cwd=os.getcwd()
-        
+
         if nvss:
             survey="nvss"
         else:
             survey="sumss"
-        
+
         convolve_outname = os.path.join(cwd, self.imagename.replace(".fits", ".convolve2{}_casa.fits".format(survey)))
         script="""#!/usr/bin/env python
 
@@ -573,13 +573,13 @@ def convolve_img(fitsfile):
     outname='{3}'
     imsmooth(imagename=fitsfile, major="{{}}arcsec".format(sumss_beam), minor="45arcsec", pa="0deg", outfile=outname, targetres=True)
     exportfits(imagename=outname, fitsimage=outname.replace(".image", ".fits"))
-    
+
 
 convolve_img("{1}")""".format(self.centre.dec.deg, self.image, nvss, convolve_outname.replace(".fits", ".image"))
 
         with open("convolve2casa.py", "w") as f:
             f.write(script)
-            
+
         cmd = "casa --nologger --nogui -c convolve2casa.py"
         try:
             self.logger.info("Running CASA to convolve the image")
@@ -593,20 +593,20 @@ convolve_img("{1}")""".format(self.centre.dec.deg, self.image, nvss, convolve_ou
             self.logger.error("Keyboard Interrupt caught, will terminate")
             p.terminate()
             success=False
-        
+
         if success:
             with fits.open(convolve_outname, mode="update") as convolved_img:
                 convolved_img[0].header["RESTFRQ"]=self.freq
-                
+
             return convolve_outname
-            
+
         else:
             return "Failed"
-        
-        
-        
-        
-            
-                 
-            
-        
+
+
+
+
+
+
+
+
