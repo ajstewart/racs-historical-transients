@@ -384,6 +384,7 @@ class crossmatch(object):
                 self.crossmatch_df=self.crossmatch_df.append(preconv_df_have_match, ignore_index=True)
             else:
                 self.logger.info("No further matches found in the convolved image.")
+                preconv_matches_names = []
         else:
             using_pre_conv = False
         matches = matches.reset_index(drop=True)
@@ -392,116 +393,119 @@ class crossmatch(object):
         self.badmatches_df_trans=no_matches
         # Stage 1
         # Consider all SUMSS sources with matches > max_sep to be 'not matched'
-        self.logger.info("Finding sources with no ASKAP matches...")
-        #For moved double matched sources the tag needs to be changed from BAD -> GOOD to load the correct image.
+        if no_matches.shape[0] > 0:
+            self.logger.info("Finding sources with no ASKAP matches...")
+            #For moved double matched sources the tag needs to be changed from BAD -> GOOD to load the correct image.
 
-        no_match_postage_stamps=["source_{}_postagestamps.jpg".format(val) for i,val in no_matches["master_name"].iteritems()]
+            no_match_postage_stamps=["source_{}_postagestamps.jpg".format(val) for i,val in no_matches["master_name"].iteritems()]
 
 
-        no_matches["postage_stamp"]=no_match_postage_stamps
+            no_matches["postage_stamp"]=no_match_postage_stamps
 
-        #Force extract fluxes using Aegean from the ASKAP image
-        aegean_to_extract_df = no_matches.filter(["master_name", "master_ra", "master_dec", "master_catflux"])
-        aegean_to_extract_df.columns=["name", "ra", "dec", "peak_flux"]
-        aegean_to_extract_df["peak_flux"]=aegean_to_extract_df["peak_flux"]*1.e-3
-        #force the source size to be that of the ASKAP beam (in this case same as the catalogue)
-        aegean_to_extract_df["a"]=image_beam_maj
-        aegean_to_extract_df["b"]=image_beam_min
-        aegean_to_extract_df["pa"]=image_beam_pa
+            #Force extract fluxes using Aegean from the ASKAP image
+            aegean_to_extract_df = no_matches.filter(["master_name", "master_ra", "master_dec", "master_catflux"])
+            aegean_to_extract_df.columns=["name", "ra", "dec", "peak_flux"]
+            aegean_to_extract_df["peak_flux"]=aegean_to_extract_df["peak_flux"]*1.e-3
+            #force the source size to be that of the ASKAP beam (in this case same as the catalogue)
+            aegean_to_extract_df["a"]=image_beam_maj
+            aegean_to_extract_df["b"]=image_beam_min
+            aegean_to_extract_df["pa"]=image_beam_pa
 
-        aegean_results = self.force_extract_aegean(aegean_to_extract_df, askap_image.image)
-        no_matches = self._merge_forced_aegean(no_matches, aegean_results, tag="aegean_convolved")
-        # no_matches.join(aegean_results, rsuffix="aegean")
+            aegean_results = self.force_extract_aegean(aegean_to_extract_df, askap_image.image)
+            no_matches = self._merge_forced_aegean(no_matches, aegean_results, tag="aegean_convolved")
+            # no_matches.join(aegean_results, rsuffix="aegean")
 
-        if pre_conv_crossmatch is not None:
-            aegean_to_extract_df["a"]=preconv_askap_image.bmaj*3600.
-            aegean_to_extract_df["b"]=preconv_askap_image.bmin*3600.
-            aegean_to_extract_df["pa"]=preconv_askap_image.bpa
-            preconv_aegean_results = self.force_extract_aegean(aegean_to_extract_df, preconv_askap_image.image)
-            no_matches= self._merge_forced_aegean(no_matches, preconv_aegean_results, tag="aegean_preconvolved")
-            # no_matches.join(aegean_results, rsuffix="aegean_preconv")
+            if pre_conv_crossmatch is not None:
+                aegean_to_extract_df["a"]=preconv_askap_image.bmaj*3600.
+                aegean_to_extract_df["b"]=preconv_askap_image.bmin*3600.
+                aegean_to_extract_df["pa"]=preconv_askap_image.bpa
+                preconv_aegean_results = self.force_extract_aegean(aegean_to_extract_df, preconv_askap_image.image)
+                no_matches= self._merge_forced_aegean(no_matches, preconv_aegean_results, tag="aegean_preconvolved")
+                # no_matches.join(aegean_results, rsuffix="aegean_preconv")
 
-        self.logger.info("Measuring ASKAP local rms...")
-        # no_matches.to_csv("testing_no_matches.csv")
-        #measure the peak flux at the position in the ASKAP image(s)
-        # no_matches=self.measure_askap_image_peak_fluxes(no_matches, askap_img_wcs, askap_img_data, using_pre_conv, preconv_askap_img_wcs, preconv_askap_img_data)
-        #also measure local rms
-        no_matches=self.measure_askap_image_local_rms(no_matches, askap_img_wcs, askap_img_header, askap_img_data, using_pre_conv, preconv_askap_img_wcs, preconv_askap_img_header, preconv_askap_img_data)
-        matches=self.measure_askap_image_local_rms(matches, askap_img_wcs, askap_img_header, askap_img_data, using_pre_conv, preconv_askap_img_wcs, preconv_askap_img_header, preconv_askap_img_data)
+            self.logger.info("Measuring ASKAP local rms...")
+            # no_matches.to_csv("testing_no_matches.csv")
+            #measure the peak flux at the position in the ASKAP image(s)
+            # no_matches=self.measure_askap_image_peak_fluxes(no_matches, askap_img_wcs, askap_img_data, using_pre_conv, preconv_askap_img_wcs, preconv_askap_img_data)
+            #also measure local rms
+            no_matches=self.measure_askap_image_local_rms(no_matches, askap_img_wcs, askap_img_header, askap_img_data, using_pre_conv, preconv_askap_img_wcs, preconv_askap_img_header, preconv_askap_img_data)
+            matches=self.measure_askap_image_local_rms(matches, askap_img_wcs, askap_img_header, askap_img_data, using_pre_conv, preconv_askap_img_wcs, preconv_askap_img_header, preconv_askap_img_data)
 
-        #Now check the sources to assign guesstimate type
-        #First check bright source proximity
-        # try:
-        if sumss or dualmode:
-            self.logger.info("Loading SUMSS bright sources")
-            sumss_bright_sources_df=pd.read_csv(pkg_resources.resource_filename(__name__, "../data/sumss_bright_sources.csv"), delimiter=";")
-            # sumss_bright_tomatch = SkyCoord(ra=sumss_bright_sources_df["_RAJ2000"].values*u.deg, dec=sumss_bright_sources_df["_DEJ2000"].values*u.deg)
-        if nvss or dualmode:
-            self.logger.info("Loading NVSS bright sources")
-            nvss_bright_sources_df=pd.read_csv(pkg_resources.resource_filename(__name__, "../data/nvss_bright_sources.csv"), delimiter=";")
-            # nvss_bright_tomatch = SkyCoord(ra=nvss_bright_sources_df["_RAJ2000"].values*u.deg, dec=nvss_bright_sources_df["_DEJ2000"].values*u.deg)
+            #Now check the sources to assign guesstimate type
+            #First check bright source proximity
+            # try:
+            if sumss or dualmode:
+                self.logger.info("Loading SUMSS bright sources")
+                sumss_bright_sources_df=pd.read_csv(pkg_resources.resource_filename(__name__, "../data/sumss_bright_sources.csv"), delimiter=";")
+                # sumss_bright_tomatch = SkyCoord(ra=sumss_bright_sources_df["_RAJ2000"].values*u.deg, dec=sumss_bright_sources_df["_DEJ2000"].values*u.deg)
+            if nvss or dualmode:
+                self.logger.info("Loading NVSS bright sources")
+                nvss_bright_sources_df=pd.read_csv(pkg_resources.resource_filename(__name__, "../data/nvss_bright_sources.csv"), delimiter=";")
+                # nvss_bright_tomatch = SkyCoord(ra=nvss_bright_sources_df["_RAJ2000"].values*u.deg, dec=nvss_bright_sources_df["_DEJ2000"].values*u.deg)
 
-        if dualmode:
-            sumss_bright_sources_df.append(nvss_bright_sources_df)
-            bright_sources_tomatch=SkyCoord(ra=sumss_bright_sources_df["_RAJ2000"].values*u.deg, dec=sumss_bright_sources_df["_DEJ2000"].values*u.deg)
-        elif sumss:
-            bright_sources_tomatch=SkyCoord(ra=sumss_bright_sources_df["_RAJ2000"].values*u.deg, dec=sumss_bright_sources_df["_DEJ2000"].values*u.deg)
+            if dualmode:
+                sumss_bright_sources_df.append(nvss_bright_sources_df)
+                bright_sources_tomatch=SkyCoord(ra=sumss_bright_sources_df["_RAJ2000"].values*u.deg, dec=sumss_bright_sources_df["_DEJ2000"].values*u.deg)
+            elif sumss:
+                bright_sources_tomatch=SkyCoord(ra=sumss_bright_sources_df["_RAJ2000"].values*u.deg, dec=sumss_bright_sources_df["_DEJ2000"].values*u.deg)
+            else:
+                bright_sources_tomatch=SkyCoord(ra=nvss_bright_sources_df["_RAJ2000"].values*u.deg, dec=nvss_bright_sources_df["_DEJ2000"].values*u.deg)
+
+            pipeline_tags=[]
+            nearest_sources=[]
+
+            for i, row in no_matches.iterrows():
+                targets=SkyCoord(ra=row["master_ra"]*u.deg, dec=row["master_dec"]*u.deg)
+                seps = targets.separation(bright_sources_tomatch)
+                if using_pre_conv==True:
+                    local_noise_col = "measured_preconv_askap_local_rms"
+                else:
+                    local_noise_col = "measured_askap_local_rms"
+                if np.min(seps.arcminute) <= 10.:
+                    pipeline_tags.append("Likely artefact (bright source)")
+                    #If it passes the bright source, then check if it is extremely extended (but this shouldn't be linked to bright source in case that fails.)
+                #Check the non-convolved island if available
+
+                elif self._check_for_large_island(row["master_name"], row["askap_name"], row["askap_island"], pre_conv_crossmatch, askap_cat_islands_df=askap_cat_islands_df,
+                    non_convolved_isl_cat_df=non_convolved_isl_cat_df, threshold=3):
+                    pipeline_tags.append("Large island source")
+
+                #check for possible really bright extended
+                elif row["aegean_convolved_int_flux"]/row["askap_rms"] > 50.:
+                    pipeline_tags.append("Likely bright extended structure")
+
+                #Check if the source would actually be seen in the local rms
+
+                elif row["aegean_convolved_local_rms"]!=0.0 and row["master_scaled_catalog_iflux"]*1.e-3/row["aegean_convolved_local_rms"] < 5.0:
+                    pipeline_tags.append("Local RMS too high")
+
+                elif row["survey_used"]=="sumss":
+                    if (row["sumss_MajAxis"] > (1.75 * row["sumss_telescope_bmaj"])) or (row["sumss_MinAxis"] > (1.75 * row["sumss_telescope_bmin"])):
+                        pipeline_tags.append("Likely diffuse/extended")
+                    #Edge of image check - NEED TO TIDY UP THIS SECTION OF THE CODE REPITITION
+                    elif self._check_for_edge_case(row["master_ra"], row["master_dec"], askap_img_wcs, askap_img_data):
+                        pipeline_tags.append("Edge of ASKAP image")
+                    else:
+                        pipeline_tags.append("Candidate")
+                else:
+                    if (row["nvss_MajAxis"] > (1.75 * 45.)) or (row["nvss_MinAxis"] > (1.75 * 45.)):
+                        pipeline_tags.append("Likely diffuse/extended")
+                    elif self._check_for_edge_case(row["master_ra"], row["master_dec"], askap_img_wcs, askap_img_data):
+                        pipeline_tags.append("Edge of ASKAP image")
+                    else:
+                        pipeline_tags.append("Candidate")
+                # print d2d_sumss.deg[min_index]
+                # print min_index
+                nearest_good_match_sources=self._find_nearest_sources(row["master_ra"], row["master_dec"], row["master_name"], self.goodmatches_df_trans)
+                nearest_sources.append(",".join(nearest_good_match_sources["master_name"].tolist()))
+            no_matches["pipelinetag"]=pipeline_tags
+            no_matches["nearest_sources"]=nearest_sources
+            # except:
+                # self.logger.error("Bright source data cannot be found!")
+                # self.logger.info("Skipping pipeline transient checks.")
+                # no_matches["pipelinetag"]="N/A"
         else:
-            bright_sources_tomatch=SkyCoord(ra=nvss_bright_sources_df["_RAJ2000"].values*u.deg, dec=nvss_bright_sources_df["_DEJ2000"].values*u.deg)
-
-        pipeline_tags=[]
-        nearest_sources=[]
-
-        for i, row in no_matches.iterrows():
-            targets=SkyCoord(ra=row["master_ra"]*u.deg, dec=row["master_dec"]*u.deg)
-            seps = targets.separation(bright_sources_tomatch)
-            if using_pre_conv==True:
-                local_noise_col = "measured_preconv_askap_local_rms"
-            else:
-                local_noise_col = "measured_askap_local_rms"
-            if np.min(seps.arcminute) <= 10.:
-                pipeline_tags.append("Likely artefact (bright source)")
-                #If it passes the bright source, then check if it is extremely extended (but this shouldn't be linked to bright source in case that fails.)
-            #Check the non-convolved island if available
-
-            elif self._check_for_large_island(row["master_name"], row["askap_name"], row["askap_island"], pre_conv_crossmatch, askap_cat_islands_df=askap_cat_islands_df,
-                non_convolved_isl_cat_df=non_convolved_isl_cat_df, threshold=3):
-                pipeline_tags.append("Large island source")
-
-            #check for possible really bright extended
-            elif row["aegean_convolved_int_flux"]/row["askap_rms"] > 50.:
-                pipeline_tags.append("Likely bright extended structure")
-
-            #Check if the source would actually be seen in the local rms
-
-            elif row["aegean_convolved_local_rms"]!=0.0 and row["master_scaled_catalog_iflux"]*1.e-3/row["aegean_convolved_local_rms"] < 5.0:
-                pipeline_tags.append("Local RMS too high")
-
-            elif row["survey_used"]=="sumss":
-                if (row["sumss_MajAxis"] > (1.75 * row["sumss_telescope_bmaj"])) or (row["sumss_MinAxis"] > (1.75 * row["sumss_telescope_bmin"])):
-                    pipeline_tags.append("Likely diffuse/extended")
-                #Edge of image check - NEED TO TIDY UP THIS SECTION OF THE CODE REPITITION
-                elif self._check_for_edge_case(row["master_ra"], row["master_dec"], askap_img_wcs, askap_img_data):
-                    pipeline_tags.append("Edge of ASKAP image")
-                else:
-                    pipeline_tags.append("Candidate")
-            else:
-                if (row["nvss_MajAxis"] > (1.75 * 45.)) or (row["nvss_MinAxis"] > (1.75 * 45.)):
-                    pipeline_tags.append("Likely diffuse/extended")
-                elif self._check_for_edge_case(row["master_ra"], row["master_dec"], askap_img_wcs, askap_img_data):
-                    pipeline_tags.append("Edge of ASKAP image")
-                else:
-                    pipeline_tags.append("Candidate")
-            # print d2d_sumss.deg[min_index]
-            # print min_index
-            nearest_good_match_sources=self._find_nearest_sources(row["master_ra"], row["master_dec"], row["master_name"], self.goodmatches_df_trans)
-            nearest_sources.append(",".join(nearest_good_match_sources["master_name"].tolist()))
-        no_matches["pipelinetag"]=pipeline_tags
-        no_matches["nearest_sources"]=nearest_sources
-        # except:
-            # self.logger.error("Bright source data cannot be found!")
-            # self.logger.info("Skipping pipeline transient checks.")
-            # no_matches["pipelinetag"]="N/A"
+            self.logger.info("No sources without an ASKAP match.")
 
         self.transients_no_matches_df=no_matches
         no_matches.to_csv("transients_sources_no_askap_match.csv", index=False)
@@ -569,7 +573,10 @@ class crossmatch(object):
             not_matched_askap_sources["survey"]="nvss"
         # not_matched_askap_sources["survey_used"]=["sumss" if d < -30 else "nvss" for d in not_matched_askap_sources["dec"].tolist()]
         # not_matched_askap_sources_should_see=not_matched_askap_sources_should_seeap_sources[not_matched_askap_sources["sumss_snr"]>=askap_snr_thresh].reset_index(drop=True)
-        not_matched_askap_sources_should_see=not_matched_askap_sources[mask].reset_index(drop=True)
+        if not_matched_askap_sources.shape[0] == 0:
+            not_matched_askap_sources_should_see = not_matched_askap_sources
+        else:
+            not_matched_askap_sources_should_see=not_matched_askap_sources[mask].reset_index(drop=True)
         not_matched_askap_sources_should_see["cat_snr"]=snrs
         # find_sumss_image_and_flux(not_matched_askap_sources_should_see)
         askapnotseen_postage_stamps=["source_{}_postagestamps.jpg".format(val) for i,val in not_matched_askap_sources_should_see["name"].iteritems()]
@@ -631,53 +638,56 @@ class crossmatch(object):
         not_matched_askap_sources_should_see=self.measure_askap_image_local_rms(not_matched_askap_sources_should_see, askap_img_wcs, askap_img_header, askap_img_data, using_pre_conv,
             preconv_askap_img_wcs, preconv_askap_img_header, preconv_askap_img_data, askap_only=True)
 
-        #check that no nan sources made it through from the aegean extraction (means that the SUMSS 'source' is out of range)
-        not_matched_askap_sources_should_see = not_matched_askap_sources_should_see[~not_matched_askap_sources_should_see["aegean_catalog_int_flux"].isna()].reset_index(drop=True)
+        if not_matched_askap_sources_should_see.shape[0] > 0:
+            #check that no nan sources made it through from the aegean extraction (means that the SUMSS 'source' is out of range)
+            not_matched_askap_sources_should_see = not_matched_askap_sources_should_see[~not_matched_askap_sources_should_see["aegean_catalog_int_flux"].isna()].reset_index(drop=True)
 
-        #Perform checks for these 'transients'
-        #1. Doubles
-        #2. Extended/Diffuse
-        #3. Edge - need to work out how to do
-        pipeline_tags=[]
-        nearest_sources=[]
-        #Get the askap catalogue to match to
-        askap_sources_tomatch = self.comp_catalog._crossmatch_catalog
-        for i,row in not_matched_askap_sources_should_see.iterrows():
-            askap_target=SkyCoord(ra=row["ra"]*u.deg, dec=row["dec"]*u.deg)
-            seps = askap_target.separation(askap_sources_tomatch)
-            if sorted(seps.arcsecond)[1] <= 2.5*45.:
-                pipeline_tags.append("Likely double")
-            elif (row["a"] > (1.75 * image_beam_maj)) or (row["b"] > (1.75 * image_beam_min)):
-                pipeline_tags.append("Likely diffuse/extended")
-            elif self._check_for_large_island(row["name"], row["name"], row["island"], pre_conv_crossmatch, askap_cat_islands_df=askap_cat_islands_df,
-                non_convolved_isl_cat_df=non_convolved_isl_cat_df, threshold=3, askap_only=True, transient_sep=max_separation):
-                pipeline_tags.append("Large island source")
-            elif self._check_for_edge_case(askap_target.ra.degree, askap_target.dec.degree, askap_img_wcs, askap_img_data):
-                pipeline_tags.append("Edge of ASKAP image")
-            elif (pre_conv_crossmatch != None) and (row["non_conv_d2d"] > 10.):
-                pipeline_tags.append("Created convolved source")
-            elif (pre_conv_crossmatch != None) and (row["non_conv_d2d"] < 10.) and (row["non_conv_askap_scaled_to_{}".format(row["survey"])]/row["catalog_Mosaic_rms"] < 5.):
-                pipeline_tags.append("Convolved flux error")
+            #Perform checks for these 'transients'
+            #1. Doubles
+            #2. Extended/Diffuse
+            #3. Edge - need to work out how to do
+            pipeline_tags=[]
+            nearest_sources=[]
+            #Get the askap catalogue to match to
+            askap_sources_tomatch = self.comp_catalog._crossmatch_catalog
+            for i,row in not_matched_askap_sources_should_see.iterrows():
+                askap_target=SkyCoord(ra=row["ra"]*u.deg, dec=row["dec"]*u.deg)
+                seps = askap_target.separation(askap_sources_tomatch)
+                if sorted(seps.arcsecond)[1] <= 2.5*45.:
+                    pipeline_tags.append("Likely double")
+                elif (row["a"] > (1.75 * image_beam_maj)) or (row["b"] > (1.75 * image_beam_min)):
+                    pipeline_tags.append("Likely diffuse/extended")
+                elif self._check_for_large_island(row["name"], row["name"], row["island"], pre_conv_crossmatch, askap_cat_islands_df=askap_cat_islands_df,
+                    non_convolved_isl_cat_df=non_convolved_isl_cat_df, threshold=3, askap_only=True, transient_sep=max_separation):
+                    pipeline_tags.append("Large island source")
+                elif self._check_for_edge_case(askap_target.ra.degree, askap_target.dec.degree, askap_img_wcs, askap_img_data):
+                    pipeline_tags.append("Edge of ASKAP image")
+                elif (pre_conv_crossmatch != None) and (row["non_conv_d2d"] > 10.):
+                    pipeline_tags.append("Created convolved source")
+                elif (pre_conv_crossmatch != None) and (row["non_conv_d2d"] < 10.) and (row["non_conv_askap_scaled_to_{}".format(row["survey"])]/row["catalog_Mosaic_rms"] < 5.):
+                    pipeline_tags.append("Convolved flux error")
+                else:
+                    pipeline_tags.append("Candidate")
+
+                nearest_good_match_sources=self._find_nearest_sources(row["ra"], row["dec"], row["name"], self.goodmatches_df_trans)
+                nearest_sources.append(",".join(nearest_good_match_sources["master_name"].tolist()))
+
+            not_matched_askap_sources_should_see["pipelinetag"]=pipeline_tags
+            not_matched_askap_sources_should_see["master_name"]=not_matched_askap_sources_should_see["name"]
+            not_matched_askap_sources_should_see["nearest_sources"]=nearest_sources
+            not_matched_askap_sources_should_see["master_ra"]=not_matched_askap_sources_should_see["ra"]
+            not_matched_askap_sources_should_see["master_dec"]=not_matched_askap_sources_should_see["dec"]
+            not_matched_askap_sources_should_see["master_catalog_Mosaic_path"]=not_matched_askap_sources_should_see["catalog_Mosaic_path"]
+            not_matched_askap_sources_should_see["master_catalog_Mosaic_rms"]=not_matched_askap_sources_should_see["catalog_Mosaic_rms"]
+            not_matched_askap_sources_should_see["master_catalog_Mosaic"]=not_matched_askap_sources_should_see["catalog_Mosaic"]
+            if convolve:
+                not_matched_askap_sources_should_see["master_scaled_non_conv_askap_iflux"]=[row["non_conv_askap_scaled_to_{}".format(row["survey"])] for i,row in not_matched_askap_sources_should_see.iterrows()]
             else:
-                pipeline_tags.append("Candidate")
-
-            nearest_good_match_sources=self._find_nearest_sources(row["ra"], row["dec"], row["name"], self.goodmatches_df_trans)
-            nearest_sources.append(",".join(nearest_good_match_sources["master_name"].tolist()))
-
-        not_matched_askap_sources_should_see["pipelinetag"]=pipeline_tags
-        not_matched_askap_sources_should_see["master_name"]=not_matched_askap_sources_should_see["name"]
-        not_matched_askap_sources_should_see["nearest_sources"]=nearest_sources
-        not_matched_askap_sources_should_see["master_ra"]=not_matched_askap_sources_should_see["ra"]
-        not_matched_askap_sources_should_see["master_dec"]=not_matched_askap_sources_should_see["dec"]
-        not_matched_askap_sources_should_see["master_catalog_Mosaic_path"]=not_matched_askap_sources_should_see["catalog_Mosaic_path"]
-        not_matched_askap_sources_should_see["master_catalog_Mosaic_rms"]=not_matched_askap_sources_should_see["catalog_Mosaic_rms"]
-        not_matched_askap_sources_should_see["master_catalog_Mosaic"]=not_matched_askap_sources_should_see["catalog_Mosaic"]
-        if convolve:
-            not_matched_askap_sources_should_see["master_scaled_non_conv_askap_iflux"]=[row["non_conv_askap_scaled_to_{}".format(row["survey"])] for i,row in not_matched_askap_sources_should_see.iterrows()]
+                not_matched_askap_sources_should_see["master_scaled_non_conv_askap_iflux"]=[0.0 for i in range(len(not_matched_askap_sources_should_see.index))]
+            not_matched_askap_sources_should_see["cat_snr"]=[row["sumss_snr"] if row["survey"]=="sumss" else row["nvss_snr"] for i,row in not_matched_askap_sources_should_see.iterrows()]
+            not_matched_askap_sources_should_see["master_scaled_to_catalog"]=[row["askap_scaled_to_sumss"] if row["survey"]=="sumss" else row["askap_scaled_to_nvss"] for i,row in not_matched_askap_sources_should_see.iterrows()]
         else:
-            not_matched_askap_sources_should_see["master_scaled_non_conv_askap_iflux"]=[0.0 for i in range(len(not_matched_askap_sources_should_see.index))]
-        not_matched_askap_sources_should_see["cat_snr"]=[row["sumss_snr"] if row["survey"]=="sumss" else row["nvss_snr"] for i,row in not_matched_askap_sources_should_see.iterrows()]
-        not_matched_askap_sources_should_see["master_scaled_to_catalog"]=[row["askap_scaled_to_sumss"] if row["survey"]=="sumss" else row["askap_scaled_to_nvss"] for i,row in not_matched_askap_sources_should_see.iterrows()]
+            self.logger.info("No not matched ASKAP sources that should be seen.")
 
 
         self.transients_not_matched_askap_should_see_df=not_matched_askap_sources_should_see
@@ -689,9 +699,15 @@ class crossmatch(object):
 
         #Saving totals
         self.transients_noaskapmatchtocatalog_total=len(self.transients_no_matches_df.index)
-        self.transients_noaskapmatchtocatalog_candidates=len(self.transients_no_matches_df[self.transients_no_matches_df["pipelinetag"]=="Candidate"].index)
+        if "pipelinetag" in self.transients_no_matches_df:
+            self.transients_noaskapmatchtocatalog_candidates=len(self.transients_no_matches_df[self.transients_no_matches_df["pipelinetag"]=="Candidate"].index)
+        else:
+            self.transients_noaskapmatchtocatalog_candidates = 0
         self.transients_nocatalogmatchtoaskap_total=len(self.transients_not_matched_askap_should_see_df.index)
-        self.transients_nocatalogmatchtoaskap_candidates=len(self.transients_not_matched_askap_should_see_df[self.transients_not_matched_askap_should_see_df["pipelinetag"]=="Candidate"].index)
+        if "pipelinetag" in self.transients_not_matched_askap_should_see_df:
+            self.transients_nocatalogmatchtoaskap_candidates=len(self.transients_not_matched_askap_should_see_df[self.transients_not_matched_askap_should_see_df["pipelinetag"]=="Candidate"].index)
+        else:
+            self.transients_nocatalogmatchtoaskap_candidates = 0
         # self.transients_largeratio_total=len(self.transients_large_ratios_df.index)
         # self.transients_largeratio_candidates=len(self.transients_large_ratios_df[self.transients_large_ratios_df["pipelinetag"].str.contains("Match ")])
         self.transients_goodmatches_total=len(self.goodmatches_df_trans.index)
@@ -750,22 +766,53 @@ class crossmatch(object):
         self.transients_master_df["aegean_rms_used"]="False"
         self.transients_master_df["inflated_convolved_flux"]="False"
         askap_freq = self.comp_catalog.frequency
-        self.transients_master_df["aegean_convolved_int_flux_scaled"]=self.transients_master_df["aegean_convolved_int_flux"].apply(self._calculate_scaled_flux, args=(askap_freq, 843.e6))
-        self.transients_master_df["aegean_convolved_err_int_flux_scaled"]=self.transients_master_df["aegean_convolved_err_int_flux"].apply(self._calculate_scaled_flux, args=(askap_freq, 843.e6))
-        self.transients_master_df["aegean_convolved_local_rms_scaled"]=self.transients_master_df["aegean_convolved_local_rms"].apply(self._calculate_scaled_flux, args=(askap_freq, 843.e6))
-        if convolve:
-            self.transients_master_df["aegean_preconvolved_int_flux_scaled"]=self.transients_master_df["aegean_preconvolved_int_flux"].apply(self._calculate_scaled_flux, args=(askap_freq, 843.e6))
-            self.transients_master_df["aegean_preconvolved_err_int_flux_scaled"]=self.transients_master_df["aegean_preconvolved_err_int_flux"].apply(self._calculate_scaled_flux, args=(askap_freq, 843.e6))
-            self.transients_master_df["aegean_preconvolved_local_rms_scaled"]=self.transients_master_df["aegean_preconvolved_local_rms"].apply(self._calculate_scaled_flux, args=(askap_freq, 843.e6))
+        if "aegean_convolved_int_flux" in self.transients_master_df:
+            self.transients_master_df["aegean_convolved_int_flux_scaled"]=self.transients_master_df["aegean_convolved_int_flux"].apply(self._calculate_scaled_flux, args=(askap_freq, 843.e6))
+            self.transients_master_df["aegean_convolved_err_int_flux_scaled"]=self.transients_master_df["aegean_convolved_err_int_flux"].apply(self._calculate_scaled_flux, args=(askap_freq, 843.e6))
+            self.transients_master_df["aegean_convolved_local_rms_scaled"]=self.transients_master_df["aegean_convolved_local_rms"].apply(self._calculate_scaled_flux, args=(askap_freq, 843.e6))
+            if convolve:
+                self.transients_master_df["aegean_preconvolved_int_flux_scaled"]=self.transients_master_df["aegean_preconvolved_int_flux"].apply(self._calculate_scaled_flux, args=(askap_freq, 843.e6))
+                self.transients_master_df["aegean_preconvolved_err_int_flux_scaled"]=self.transients_master_df["aegean_preconvolved_err_int_flux"].apply(self._calculate_scaled_flux, args=(askap_freq, 843.e6))
+                self.transients_master_df["aegean_preconvolved_local_rms_scaled"]=self.transients_master_df["aegean_preconvolved_local_rms"].apply(self._calculate_scaled_flux, args=(askap_freq, 843.e6))
+            else:
+                self.transients_master_df["aegean_preconvolved_int_flux_scaled"]=[0.0 for i in range(len(self.transients_master_df.index))]
+                self.transients_master_df["aegean_preconvolved_err_int_flux_scaled"]=[0.0 for i in range(len(self.transients_master_df.index))]
+                self.transients_master_df["aegean_preconvolved_local_rms_scaled"]=[0.0 for i in range(len(self.transients_master_df.index))]
         else:
-            self.transients_master_df["aegean_preconvolved_int_flux_scaled"]=[0.0 for i in range(len(self.transients_master_df.index))]
-            self.transients_master_df["aegean_preconvolved_err_int_flux_scaled"]=[0.0 for i in range(len(self.transients_master_df.index))]
-            self.transients_master_df["aegean_preconvolved_local_rms_scaled"]=[0.0 for i in range(len(self.transients_master_df.index))]
-        self.transients_master_df["aegean_catalog_int_flux_scaled"]=self.transients_master_df["aegean_catalog_int_flux"].apply(self._calculate_scaled_flux, args=(843.e6, askap_freq))
-        self.transients_master_df["aegean_catalog_err_int_flux_scaled"]=self.transients_master_df["aegean_catalog_err_int_flux"].apply(self._calculate_scaled_flux, args=(843.e6, askap_freq))
-        self.transients_master_df["aegean_catalog_local_rms_scaled"]=self.transients_master_df["aegean_catalog_local_rms"].apply(self._calculate_scaled_flux, args=(843.e6, askap_freq))
+            self.transients_master_df["aegean_convolved_int_flux"]=np.nan
+            self.transients_master_df["aegean_convolved_err_int_flux"]=np.nan
+            self.transients_master_df["aegean_convolved_local_rms"]=np.nan
+            self.transients_master_df["aegean_convolved_int_flux_scaled"]=np.nan
+            self.transients_master_df["aegean_convolved_err_int_flux_scaled"]=np.nan
+            self.transients_master_df["aegean_convolved_local_rms_scaled"]=np.nan
+            if convolve:
+                self.transients_master_df["aegean_preconvolved_int_flux"]=np.nan
+                self.transients_master_df["aegean_preconvolved_err_int_flux"]=np.nan
+                self.transients_master_df["aegean_preconvolved_local_rms"]=np.nan
+                self.transients_master_df["aegean_preconvolved_int_flux_scaled"]=np.nan
+                self.transients_master_df["aegean_preconvolved_err_int_flux_scaled"]=np.nan
+                self.transients_master_df["aegean_preconvolved_local_rms_scaled"]=np.nan
+            else:
+                self.transients_master_df["aegean_preconvolved_int_flux"]=np.nan
+                self.transients_master_df["aegean_preconvolved_err_int_flux"]=np.nan
+                self.transients_master_df["aegean_preconvolved_local_rms"]=np.nan
+                self.transients_master_df["aegean_preconvolved_int_flux_scaled"]=[np.nan for i in range(len(self.transients_master_df.index))]
+                self.transients_master_df["aegean_preconvolved_err_int_flux_scaled"]=[np.nan for i in range(len(self.transients_master_df.index))]
+                self.transients_master_df["aegean_preconvolved_local_rms_scaled"]=[np.nan for i in range(len(self.transients_master_df.index))]
+        if "aegean_catalog_int_flux_scaled" in self.transients_master_df:
+            self.transients_master_df["aegean_catalog_int_flux_scaled"]=self.transients_master_df["aegean_catalog_int_flux"].apply(self._calculate_scaled_flux, args=(843.e6, askap_freq))
+            self.transients_master_df["aegean_catalog_err_int_flux_scaled"]=self.transients_master_df["aegean_catalog_err_int_flux"].apply(self._calculate_scaled_flux, args=(843.e6, askap_freq))
+            self.transients_master_df["aegean_catalog_local_rms_scaled"]=self.transients_master_df["aegean_catalog_local_rms"].apply(self._calculate_scaled_flux, args=(843.e6, askap_freq))
+        else:
+            self.transients_master_df["aegean_catalog_int_flux"]= np.nan
+            self.transients_master_df["aegean_catalog_err_int_flux"]=np.nan
+            self.transients_master_df["aegean_catalog_local_rms"]=np.nan
+            self.transients_master_df["aegean_catalog_int_flux_scaled"]= np.nan
+            self.transients_master_df["aegean_catalog_err_int_flux_scaled"]=np.nan
+            self.transients_master_df["aegean_catalog_local_rms_scaled"]=np.nan
 
         for i,row in self.transients_master_df.iterrows():
+            self.logger.debug(row["type"])
             if row["type"] == "goodmatch":
                 if not pd.isna(row["aegean_convolved_int_flux_scaled"]):
                     if row["aegean_convolved_int_flux_scaled"] < 0.0 or row["aegean_convolved_int_flux_scaled"] < 3.*row["aegean_convolved_local_rms_scaled"]:

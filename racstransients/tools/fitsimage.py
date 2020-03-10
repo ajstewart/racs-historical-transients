@@ -24,7 +24,7 @@ class Askapimage(object):
     """docstring for fitsimage"""
     def __new__(cls,arg,readinfo=False,logger=None):
         if not os.path.isfile(arg):
-            raise ValueError("Dataset does not seem to exist, check path!")
+            raise ValueError("%s does not seem to exist, check path!", arg)
             return None
         else:
             return super(Askapimage, cls).__new__(cls)

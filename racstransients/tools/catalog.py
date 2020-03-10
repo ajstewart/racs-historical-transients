@@ -250,7 +250,7 @@ class Catalog(object):
         #some SUMSS fits files are missing
         mask = self.df["Mosaic"].isin(missing)
         self.df["Mosaic"] = np.where(mask, "SKIP", self.df["Mosaic"])
-        full_paths = [os.path.join(sumss_mosaic_dir, i+".FITS") for i in self.df["Mosaic"].tolist()]
+        full_paths = [os.path.join(sumss_mosaic_dir, i.decode("utf-8")+".FITS") for i in self.df["Mosaic"].tolist()]
         rms_values = [sumss_mosaic_data[sumss_mosaic_data["image"]==i.decode("utf-8")+".FITS"].iloc[0]["rms"] for i in self.df["Mosaic"].tolist()]
         self.logger.debug("RMS values {}".format(rms_values))
         self.logger.info("Adding SUMSS mosaic full path information.")
@@ -313,7 +313,7 @@ class Catalog(object):
         # find the next index if needed
         sorted_seps = sorted(seps.deg)
         backup_indexes = [list(seps.deg).index(i) for i in sorted_seps[1:attempts]]
-        image = images_data.iloc[min_index]["image"].decode("utf-8")
+        image = images_data.iloc[min_index]["image"]
         self.logger.debug(image)
         if check:
             check_result = self._image_check(ra, dec, image, sumss_mosaic_dir=sumss_mosaic_dir, nvss_mosaic_dir=nvss_mosaic_dir)
