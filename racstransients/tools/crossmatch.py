@@ -1392,6 +1392,9 @@ class crossmatch(object):
         to_write = to_write.sort_values(by=["pipelinetag","ratio"], ascending=[True, False])
         new_type_vals = {"goodmatch":"Good match", "nocatalogmatch":"No catalog match", "noaskapmatch":"No askap match"}
         to_write["transient_type"]=[new_type_vals[i] for i in to_write["transient_type"].values]
+
+        to_write["catalog_mosaic"] = to_write["catalog_mosaic"].str.decode('utf8')
+
         values = {"catalog_name":"N/A", "askap_name":"N/A", "askap_non_conv_d2d":0.0,
                     "catalog_iflux":-1.0, #done
                     "catalog_iflux_e":-1.0, #done
