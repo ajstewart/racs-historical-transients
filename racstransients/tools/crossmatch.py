@@ -205,6 +205,9 @@ class crossmatch(object):
                 min_index = np.argmin(seps.deg)
                 # print d2d_sumss.deg[min_index]
                 # print min_index
+                if seps[min_index].arcmin > 1.0:
+                    self.logger.debug("No crossmatch within 1 arcmin.")
+                    return False
                 matching_source = pre_conv_crossmatch.comp_catalog.df.iloc[min_index]
                 self.logger.debug("matching source: {}".format(matching_source))
                 matching_island = matching_source["island"]
@@ -1011,23 +1014,43 @@ class crossmatch(object):
         else:
             return np.nan
 
-    def _check_for_edge_case(self, ra, dec, img_wcs, img_data, num_pixels=50):
+    def _check_for_edge_case(self, ra, dec, img_wcs, img_data, num_pixels=24):
         #Works with ASKAP Image for now
-        coord = SkyCoord(ra*u.degree, dec*u.degree)
-        cutout = Cutout2D(img_data, coord, num_pixels*2., wcs=img_wcs)
+        pixels = img_wcs.wcs_world2pix(ra, dec, 1)
+        size = img_data.shape
+        # coord = SkyCoord(ra*u.degree, dec*u.degree)
+        # cutout = Cutout2D(img_data, coord, num_pixels*2., wcs=img_wcs)
+
+        pixel_x_min = int(pixels[0]) - size
+        pixel_x_max = int(pixels[0]) + size
+
+        pixel_y_min = int(pixels[1]) - size
+        pixel_y_max = int(pixels[1]) + size
+
+        if pixel_y_min < 0:
+            pixel_y_min = 0
+
+        if pixel_x_min < 0:
+            pixel_x_min = 0
+
+        if pixel_x_max > size[1]:
+            pixel_x_max = size[1]
+
+        if pixel_y_max > size[0]:
+            pixel_y_max = size[0]
+
+        try:
+            cutout_data = img_data[pixel_y_min:pixel_y_max, pixel_x_min:pixel_x_max]
 
         if np.isnan(cutout.data).any():
             return True
 
-        pixels = img_wcs.wcs_world2pix(ra, dec, 1)
-
-        size = img_data.shape
-
-        if pixels[0] > size[0]-num_pixels:
-            return True
-
-        if pixels[1] > size[1]-num_pixels:
-            return True
+        # commented due to now using combined images
+        # if pixels[0] > size[0]-num_pixels:
+        #     return True
+        #
+        # if pixels[1] > size[1]-num_pixels:
+        #     return True
 
         return False
 
@@ -1392,9 +1415,6 @@ class crossmatch(object):
         to_write = to_write.sort_values(by=["pipelinetag","ratio"], ascending=[True, False])
         new_type_vals = {"goodmatch":"Good match", "nocatalogmatch":"No catalog match", "noaskapmatch":"No askap match"}
         to_write["transient_type"]=[new_type_vals[i] for i in to_write["transient_type"].values]
-
-        to_write["catalog_mosaic"] = to_write["catalog_mosaic"].str.decode('utf8')
-
         values = {"catalog_name":"N/A", "askap_name":"N/A", "askap_non_conv_d2d":0.0,
                     "catalog_iflux":-1.0, #done
                     "catalog_iflux_e":-1.0, #done
