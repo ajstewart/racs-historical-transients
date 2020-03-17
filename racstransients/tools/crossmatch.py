@@ -415,6 +415,7 @@ class crossmatch(object):
             aegean_to_extract_df["pa"]=image_beam_pa
 
             aegean_results = self.force_extract_aegean(aegean_to_extract_df, askap_image.image)
+            self.logger.debug("aegean results: {}".format(aegean_results[aegean_results.int_flux.isna()]))
             no_matches = self._merge_forced_aegean(no_matches, aegean_results, tag="aegean_convolved")
             # no_matches.join(aegean_results, rsuffix="aegean")
 
@@ -509,6 +510,9 @@ class crossmatch(object):
                 # no_matches["pipelinetag"]="N/A"
         else:
             self.logger.info("No sources without an ASKAP match.")
+            no_matches['measured_askap_local_rms'] = []
+            if pre_conv_crossmatch != None:
+                no_matches['measured_preconv_askap_peak_flux'] = []
 
         self.transients_no_matches_df=no_matches
         no_matches.to_csv("transients_sources_no_askap_match.csv", index=False)
@@ -1021,11 +1025,11 @@ class crossmatch(object):
         # coord = SkyCoord(ra*u.degree, dec*u.degree)
         # cutout = Cutout2D(img_data, coord, num_pixels*2., wcs=img_wcs)
 
-        pixel_x_min = int(pixels[0]) - size
-        pixel_x_max = int(pixels[0]) + size
+        pixel_x_min = int(pixels[0]) - num_pixels
+        pixel_x_max = int(pixels[0]) + num_pixels
 
-        pixel_y_min = int(pixels[1]) - size
-        pixel_y_max = int(pixels[1]) + size
+        pixel_y_min = int(pixels[1]) - num_pixels
+        pixel_y_max = int(pixels[1]) + num_pixels
 
         if pixel_y_min < 0:
             pixel_y_min = 0
@@ -1039,10 +1043,10 @@ class crossmatch(object):
         if pixel_y_max > size[0]:
             pixel_y_max = size[0]
 
-        try:
-            cutout_data = img_data[pixel_y_min:pixel_y_max, pixel_x_min:pixel_x_max]
+        cutout_data = img_data[pixel_y_min:pixel_y_max, pixel_x_min:pixel_x_max]
 
-        if np.isnan(cutout.data).any():
+
+        if np.isnan(cutout_data).any():
             return True
 
         # commented due to now using combined images
@@ -1065,13 +1069,34 @@ class crossmatch(object):
             return 0.0
         return themax
 
-    def _get_local_rms(self, ra, dec, img_wcs, img_data, num_pixels=300, sumss=False, max_iter=10, sigma=4):
+    def _get_local_rms(self, row, ra_col, dec_col, img_wcs, img_data, num_pixels=300, max_iter=10, sigma=4):
         #Works with ASKAP Image for now
-        coord = SkyCoord(ra*u.degree, dec*u.degree)
-        cutout = Cutout2D(img_data, coord, num_pixels*2., wcs=img_wcs)
-        cutout_clip_mean, cutout_clip_median, cutout_clip_std = sigma_clipped_stats(cutout.data, sigma=sigma, maxiters=max_iter)
+        # coord = SkyCoord(ra*u.degree, dec*u.degree)
+        size = img_data.shape
+        pixels=img_wcs.wcs_world2pix(row[ra_col], row[dec_col], 1)
+        # cutout = Cutout2D(img_data, coord, num_pixels*2., wcs=img_wcs)
+        pixel_x_min = int(pixels[0]) - num_pixels
+        pixel_x_max = int(pixels[0]) + num_pixels
+
+        pixel_y_min = int(pixels[1]) - num_pixels
+        pixel_y_max = int(pixels[1]) + num_pixels
+
+        if pixel_y_min < 0:
+            pixel_y_min = 0
+
+        if pixel_x_min < 0:
+            pixel_x_min = 0
+
+        if pixel_x_max > size[1]:
+            pixel_x_max = size[1]
+
+        if pixel_y_max > size[0]:
+            pixel_y_max = size[0]
+
+        cutout_data = img_data[pixel_y_min:pixel_y_max, pixel_x_min:pixel_x_max]
+
+        cutout_clip_mean, cutout_clip_median, cutout_clip_std = sigma_clipped_stats(cutout_data, sigma=sigma, maxiters=max_iter)
         # return cutout_clip_std
-        # pixels=img_wcs.wcs_world2pix(ra, dec, 1)
         # y,x = pixels
         # self.logger.debug("x:{} y:{}".format(x,y))
         # y = int(y)
@@ -1090,7 +1115,7 @@ class crossmatch(object):
         if cutout_clip_std == 0:
             self.logger.warning("Local RMS returned 0 or null. Setting to 1.0 mJy.")
             cutout_clip_std = 1.0e-3
-        return cutout_clip_std
+        return float(cutout_clip_std)
 
     def _Median_clip(self, arr, sigma=3, max_iter=3, ftol=0.01, xtol=0.05, full_output=False, axis=None):
         """Median_clip(arr, sigma, max_iter=3, ftol=0.01, xtol=0.05, full_output=False, axis=None)
@@ -1174,19 +1199,23 @@ class crossmatch(object):
         else:
             ra_col="master_ra"
             dec_col="master_dec"
-        askap_local_rms=[]
-        preconv_askap_local_rms=[]
-        for i, row in no_matches.iterrows():
-            askap_local_rms_val=self._get_local_rms(row[ra_col], row[dec_col], askap_img_wcs, askap_img_data)
+        # askap_local_rms=[]
+        # preconv_askap_local_rms=[]
+        # for i, row in no_matches.iterrows():
+        if no_matches.empty is False:
+            no_matches["measured_askap_local_rms"] = no_matches[[ra_col, dec_col]].apply(self._get_local_rms, args=(ra_col, dec_col, askap_img_wcs, askap_img_data), axis=1)
+            # askap_local_rms_val=self._get_local_rms(row[ra_col], row[dec_col], askap_img_wcs, askap_img_data)
             if using_pre_conv:
-                preconv_askap_local_rms_val=self._get_local_rms(row[ra_col], row[dec_col], preconv_askap_img_wcs, preconv_askap_img_data)
+                no_matches["measured_preconv_askap_local_rms"] = no_matches.apply(self._get_local_rms, args=(ra_col, dec_col, preconv_askap_img_wcs, preconv_askap_img_data), axis=1)
+                # preconv_askap_local_rms_val=self._get_local_rms(row[ra_col], row[dec_col], preconv_askap_img_wcs, preconv_askap_img_data)
             else:
-                preconv_askap_local_rms_val=0.0
-            askap_local_rms.append(askap_local_rms_val)
-            preconv_askap_local_rms.append(preconv_askap_local_rms_val)
+                no_matches["measured_preconv_askap_local_rms"] = 0.0
+        else:
+            no_matches["measured_askap_local_rms"] = []
+            no_matches["measured_preconv_askap_local_rms"] = []
 
-        no_matches["measured_askap_local_rms"]=askap_local_rms
-        no_matches["measured_preconv_askap_local_rms"]=preconv_askap_local_rms
+            # askap_local_rms.append(askap_local_rms_val)
+            # preconv_askap_local_rms.append(preconv_askap_local_rms_val)
 
         return no_matches
 

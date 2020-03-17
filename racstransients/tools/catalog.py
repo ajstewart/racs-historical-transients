@@ -58,6 +58,12 @@ class Catalog(object):
         self.df["flux_int"]=self.df["flux_int"].astype(float)/1.e3
         self.df["flux_peak"]=self.df["flux_peak"].astype(float)/1.e3
 
+        # check for 0 int flux values
+        zero_int_flux = self.df[self.df.flux_int == 0.0]
+        if not zero_int_flux.shape[0] == 0:
+            self.logger.warning("%s integrated fluxes of 0.0 detected! Will use their peak.", zero_int_flux.shape[0])
+            self.df.loc[zero_int_flux.index, 'flux_int'] = self.df.loc[zero_int_flux.index].flux_peak
+
         self.df.rename(columns=cols_map, inplace=True)
 
         self.logger.info("Selavy conversion successful.")
@@ -282,7 +288,7 @@ class Catalog(object):
         self.df["Mosaic_rms"] = images_rms
 
 
-    def _image_check(self, ra, dec, image, sumss_mosaic_dir="", nvss_mosaic_dir=""):
+    def _image_check(self, ra, dec, image, sumss_mosaic_dir="", nvss_mosaic_dir="", loaded_data={}):
         if image.startswith("J"):
             full_image = os.path.join(sumss_mosaic_dir, image)
             sumss=True
@@ -293,18 +299,23 @@ class Catalog(object):
             self.logger.error("Cannot perform image check as image type unrecongised.")
             return True
 
-        fits_image=Askapimage(full_image)
-        fits_image.load_wcs()
-        fits_image.load_fits_data()
-        naned=self._check_for_nan_image(ra, dec, fits_image.wcs, fits_image.data, sumss=sumss)
+        if image not in loaded_data:
+            fits_image=Askapimage(full_image)
+            fits_image.load_wcs()
+            fits_image.load_fits_data()
+            loaded_data[image] = fits_image.data
+            loaded_data[image+"_wcs"] = fits_image.wcs
+            del fits_image
+
+        naned=self._check_for_nan_image(ra, dec, loaded_data[image+"_wcs"], loaded_data[image], sumss=sumss)
 
         #Switch this around to make it more logical - True return = check passed.
         if naned:
-            return False
+            return False, loaded_data
         else:
-            return True
+            return True, loaded_data
 
-    def _find_matching_image(self,ra, dec, centres, images_data, rms=False, check=False, attempts=4, sumss_mosaic_dir="", nvss_mosaic_dir=""):
+    def _find_matching_image(self,ra, dec, centres, images_data, rms=False, check=False, attempts=4, sumss_mosaic_dir="", nvss_mosaic_dir="", loaded_data={}):
         target=SkyCoord(ra=ra*u.deg, dec=dec*u.deg)
         seps = target.separation(centres)
         min_index = np.argmin(seps.deg)
@@ -316,7 +327,7 @@ class Catalog(object):
         image = images_data.iloc[min_index]["image"]
         self.logger.debug(image)
         if check:
-            check_result = self._image_check(ra, dec, image, sumss_mosaic_dir=sumss_mosaic_dir, nvss_mosaic_dir=nvss_mosaic_dir)
+            check_result,loaded_data = self._image_check(ra, dec, image, sumss_mosaic_dir=sumss_mosaic_dir, nvss_mosaic_dir=nvss_mosaic_dir, loaded_data=loaded_data)
                 # print image
                 # print askap_target.to_string('hmsdms')
 
@@ -328,7 +339,7 @@ class Catalog(object):
                     for i in backup_indexes:
                         this_image = images_data.iloc[i]["image"]
                         self.logger.debug(this_image)
-                        check_result = self._image_check(ra, dec, this_image, sumss_mosaic_dir=sumss_mosaic_dir, nvss_mosaic_dir=nvss_mosaic_dir)
+                        check_result, loaded_data = self._image_check(ra, dec, this_image, sumss_mosaic_dir=sumss_mosaic_dir, nvss_mosaic_dir=nvss_mosaic_dir, loaded_data=loaded_data)
                         if check_result:
                             self.logger.debug("Match found!")
                             image = this_image
@@ -348,9 +359,10 @@ class Catalog(object):
         # print image
         # print askap_target.to_string('hmsdms')
         if rms:
-            return image, rms
+            return image, rms, loaded_data
         else:
-            return image
+            rms = 0.0
+            return image, rms, loaded_data
 
 
     def _check_for_nan_image(self, ra, dec, img_wcs, img_data, num_pixels=10, sumss=False):
@@ -378,7 +390,7 @@ class Catalog(object):
         self.logger.debug(data_selection)
         return np.isnan(data_selection).any()
 
-    def find_matching_catalog_image(self, sumss_mosaic_dir="", nvss_mosaic_dir="", sumss=True, nvss=False, dualmode=False):
+    def find_matching_catalog_image(self, sumss_mosaic_dir="", nvss_mosaic_dir="", sumss=True, nvss=False, dualmode=False, loaded_data={}):
         self.logger.info("Searching and checking for matching catalogue images.")
         if sumss:
             try:
@@ -435,7 +447,7 @@ class Catalog(object):
                     survey.append("sumss")
 
 
-            image,rms = self._find_matching_image(row[self.ra_col], row[self.dec_col], centers_to_use, mosaic_data_to_use, rms=True, check=True, sumss_mosaic_dir=sumss_mosaic_dir,
+            image,rms, loaded_data = self._find_matching_image(row[self.ra_col], row[self.dec_col], centers_to_use, mosaic_data_to_use, rms=True, check=True, sumss_mosaic_dir=sumss_mosaic_dir,
                 nvss_mosaic_dir=nvss_mosaic_dir)
             self.logger.debug("{} matched to catalog mosaic {}.".format(row["name"], image))
             images.append(image)
@@ -446,6 +458,8 @@ class Catalog(object):
         self.df["catalog_Mosaic_path"] = images_full_path
         self.df["catalog_Mosaic_rms"] = images_rms
         self.df["survey_used"] = survey
+
+        return loaded_data
 
 
     def _merge_askap_non_convolved_catalogue(self, non_conv_cat, sumss=False, nvss=False):

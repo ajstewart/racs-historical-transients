@@ -236,9 +236,9 @@ class Askapimage(object):
             self.load_position_dimensions()
         if np.abs(self.size_x-self.size_y) > max([self.size_x,self.size_y])*0.05:
             self.logger.warning("Non square image detected! Will pad the Vizier search area by 2.0 (default 1.5).")
-            pad=2.0
+            pad=2.5
         else:
-            pad=1.5
+            pad=2.0
         # if not self.data:
         #     self.load_data()
         v = Vizier(columns=["_r", "_RAJ2000","_DEJ2000", "**"])
@@ -321,7 +321,7 @@ class Askapimage(object):
             #Get rid of any negative ones, these can wrap around if not handled.
             if (ra < 0) or (dec < 0):
                 isnan=True
-            elif (ra > self.size_x) or (dec > self.size_y):
+            elif (ra > self.size_x - 1) or (dec > self.size_y - 1):
                 isnan=True
             elif boundary_value=="nan":
                 try:
