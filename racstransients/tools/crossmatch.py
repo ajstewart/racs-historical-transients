@@ -415,8 +415,9 @@ class crossmatch(object):
             aegean_to_extract_df["pa"]=image_beam_pa
 
             aegean_results = self.force_extract_aegean(aegean_to_extract_df, askap_image.image)
-            self.logger.debug("aegean results: {}".format(aegean_results[aegean_results.int_flux.isna()]))
-            no_matches = self._merge_forced_aegean(no_matches, aegean_results, tag="aegean_convolved")
+            no_matches = self._merge_forced_aegean(no_matches, aegean_results, tag="aegean_convolved", drop_missing=True)
+            if no_matches.shape[0] != aegean_to_extract_df.shape[0]:
+                aegean_to_extract_df = aegean_to_extract_df.loc[no_matches.index.values]
             # no_matches.join(aegean_results, rsuffix="aegean")
 
             if pre_conv_crossmatch is not None:
@@ -863,9 +864,14 @@ class crossmatch(object):
                 distance_from_centre = row["askap_distance_from_centre"]
 
             elif row["type"] == "noaskapmatch":
-                if row["aegean_convolved_int_flux_scaled"] < 0.0 or row["aegean_convolved_int_flux_scaled"] < 3.*row["aegean_convolved_local_rms_scaled"]:
-                    flux_to_use = 3.* row["aegean_convolved_local_rms_scaled"]
-                    err_to_use = row["aegean_convolved_local_rms_scaled"]
+                if row["aegean_convolved_local_rms_scaled"] == 0.:
+                    self.logger.debug("aegean has reported a 0 local rms. Replacing with measured value.")
+                    rms_to_use = row["measured_askap_local_rms"]
+                else:
+                    rms_to_use = row["aegean_convolved_local_rms_scaled"]
+                if row["aegean_convolved_int_flux_scaled"] < 0.0 or row["aegean_convolved_int_flux_scaled"] < 3.* rms_to_use:
+                    flux_to_use = 3.* rms_to_use
+                    err_to_use = rms_to_use
                     used_rms = True
                 else:
                     flux_to_use = row["aegean_convolved_int_flux_scaled"]
@@ -1032,16 +1038,16 @@ class crossmatch(object):
         pixel_y_max = int(pixels[1]) + num_pixels
 
         if pixel_y_min < 0:
-            pixel_y_min = 0
+            return True
 
         if pixel_x_min < 0:
-            pixel_x_min = 0
+            return True
 
         if pixel_x_max > size[1]:
-            pixel_x_max = size[1]
+            return True
 
         if pixel_y_max > size[0]:
-            pixel_y_max = size[0]
+            return True
 
         cutout_data = img_data[pixel_y_min:pixel_y_max, pixel_x_min:pixel_x_max]
 
@@ -1289,7 +1295,7 @@ class crossmatch(object):
 
         return results
 
-    def _merge_forced_aegean(self, df, aegean_results, tag="aegean", ra_col="master_ra", dec_col="master_dec"):
+    def _merge_forced_aegean(self, df, aegean_results, tag="aegean", ra_col="master_ra", dec_col="master_dec", drop_missing=False):
         #AEGEAN SEEMS TO RANDOMISE THE ORDER THAT THE SOURCES ARE ENTERED INTO THE RESULTS FILE (PROBABLY THREADING)
         #Need to crossmatch the results
         aegean_results.columns=["{}_{}".format(tag, i) for i in aegean_results.columns]
@@ -1324,6 +1330,9 @@ class crossmatch(object):
         new_index = [indexes_map[i] for i in sorted(indexes_map)] + indexes_missing
         aegean_results.index=new_index
         newdf = df.join(aegean_results)
+        # finally drop the missing if selected
+        if drop_missing:
+            newdf = newdf.drop(index=indexes_missing)
 
         return newdf
 
@@ -1444,6 +1453,9 @@ class crossmatch(object):
         to_write = to_write.sort_values(by=["pipelinetag","ratio"], ascending=[True, False])
         new_type_vals = {"goodmatch":"Good match", "nocatalogmatch":"No catalog match", "noaskapmatch":"No askap match"}
         to_write["transient_type"]=[new_type_vals[i] for i in to_write["transient_type"].values]
+
+        to_write["catalog_mosaic"] = to_write["catalog_mosaic"].str.decode('utf8')
+
         values = {"catalog_name":"N/A", "askap_name":"N/A", "askap_non_conv_d2d":0.0,
                     "catalog_iflux":-1.0, #done
                     "catalog_iflux_e":-1.0, #done

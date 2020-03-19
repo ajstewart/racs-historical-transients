@@ -129,7 +129,7 @@ class TransientFilter(django_filters.FilterSet):
     except:
         users = []
 
-    users = [(i["username"],i["username"]) for i in sorted(users)]+[("N/A", "Unchecked")]
+    users = [(i["username"],i["username"]) for i in sorted(users, key=lambda users: users['username'])]+[("N/A", "Unchecked")]
 
     checkedby = django_filters.ChoiceFilter(field_name = 'checkedby', choices=users)
 

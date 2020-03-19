@@ -273,33 +273,6 @@ class Askapimage(object):
             self.sumss_sources=self._filter_catalogue(self.raw_sumss_sources, boundary_value=boundary_value)
             return self.sumss_sources
 
-    # def get_nvss_catalogue(self, boundary_value="nan"):
-    #     cat_ids={"NVSS":"VIII/65/nvss"}
-    #     if not self.wcs:
-    #         self.load_wcs()
-    #     if not self.header:
-    #         self.load_header()
-    #     if not self.centre:
-    #         self.load_position_dimensions()
-    #     if np.abs(self.size_x-self.size_y) > max([self.size_x,self.size_y])*0.05:
-    #         self.logger.warning("Non square image detected! Will pad the Vizier search area by 1.2.")
-    #         pad=1.2
-    #     else:
-    #         pad=1.0
-    #     # if not self.data:
-    #     #     self.load_data()
-    #     v = Vizier(columns=["_r", "_RAJ2000","_DEJ2000", "**"])
-    #     v.ROW_LIMIT=-1
-    #     self.logger.info("Querying NVSS using Vizier...")
-    #     nvss_result=v.query_region(self.centre, radius=self.radius*pad, catalog="NVSS")
-    #     nvss_result=nvss_result[cat_ids["NVSS"]].to_pandas()
-    #     self.raw_nvss_sources=nvss_result
-    #     self.logger.info("NVSS sources obtained.")
-    #     self.logger.info("Filtering NVSS sources to only those within the image area...")
-    #     self.nvss_sources=self._filter_sumss_catalogue(self.raw_nvss_sources, boundary_value=boundary_value)
-    #     return self.sumss_sources
-
-
     def _filter_catalogue(self, tofilter, boundary_value="nan"):
         self.logger.info("{} sources before filtering.".format(len(tofilter.index)))
         #First gather all the coordinates of the SUMSS sources in to an array
@@ -321,7 +294,7 @@ class Askapimage(object):
             #Get rid of any negative ones, these can wrap around if not handled.
             if (ra < 0) or (dec < 0):
                 isnan=True
-            elif (ra > self.size_x - 1) or (dec > self.size_y - 1):
+            elif (ra > self.size_x) or (dec > self.size_y):
                 isnan=True
             elif boundary_value=="nan":
                 try:
