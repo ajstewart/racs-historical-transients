@@ -104,5 +104,6 @@ venv.bak/
 .mypy_cache/
 
 web_server/web_server/settings.py
-web_server/static/media/*
-web_server/*/migrations
+web_server/static/media/*/*
+
+.DS_store

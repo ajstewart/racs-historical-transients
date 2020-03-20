@@ -7,13 +7,16 @@ import numpy as np
 import pkg_resources
 import pandas as pd
 import os
-from askapdiagnostic.tools.fitsimage import askapimage
+from racstransients.tools.fitsimage import Askapimage
 
 class Catalog(object):
     """docstring for survey"""
-    def __init__(self, df, survey_name, ref_name, ra_col="_RAJ2000", dec_col="_DEJ2000", flux_col="St", frequency=846e6, add_name_col=False, logger=None):
+    def __init__(self, df, survey_name, ref_name, ra_col="_RAJ2000", dec_col="_DEJ2000", flux_col="St",
+            frequency=846e6, add_name_col=False, logger=None, convert_from_selavy=False):
         self.logger = logger or logging.getLogger(__name__)
         self.df = df
+        if convert_from_selavy:
+            self.convert_selavy_to_aegean()
         self.survey_name=survey_name
         self.ref_name=ref_name
         self.ra_col=ra_col
@@ -25,17 +28,57 @@ class Catalog(object):
             self._add_name_col()
         super(Catalog, self).__init__()
 
-        
+    def convert_selavy_to_aegean(self):
+        cols_map = {"island_id":"island",
+                    "component_id":"source",
+                    "rms_image":"local_rms",
+                    "ra_deg_cont":"ra",
+                    "ra_err":"err_ra",
+                    "dec_deg_cont":"dec",
+                    "dec_err":"err_dec",
+                    "flux_peak":"peak_flux",
+                    "flux_peak_err":"err_peak_flux",
+                    "flux_int":"int_flux",
+                    "flux_int_err":"err_int_flux",
+                    "maj_axis":"a",
+                    "maj_axis_err":"err_a",
+                    "min_axis":"b",
+                    "min_axis_err":"err_b",
+                    "pos_ang":"pa",
+                    "pos_ang_err":"err_pa",
+                    "maj_axis_deconv":"psf_a",
+                    "min_axis_deconv":"psf_b",
+                    "pos_ang_deconv":"psf_pa",
+                    "flag_c4":"flags"
+                    }
+
+        self.df["flux_peak_err"]=self.df["flux_peak_err"].astype(float)/1.e3
+        self.df["flux_int_err"]=self.df["flux_int_err"].astype(float)/1.e3
+        self.df["rms_image"]=self.df["rms_image"].astype(float)/1.e3
+        self.df["flux_int"]=self.df["flux_int"].astype(float)/1.e3
+        self.df["flux_peak"]=self.df["flux_peak"].astype(float)/1.e3
+
+        # check for 0 int flux values
+        zero_int_flux = self.df[self.df.flux_int == 0.0]
+        if not zero_int_flux.shape[0] == 0:
+            self.logger.warning("%s integrated fluxes of 0.0 detected! Will use their peak.", zero_int_flux.shape[0])
+            self.df.loc[zero_int_flux.index, 'flux_int'] = self.df.loc[zero_int_flux.index].flux_peak
+
+        self.df.rename(columns=cols_map, inplace=True)
+
+        self.logger.info("Selavy conversion successful.")
+
+
     def _gen_catalog_for_crossmatch(self):
         cat_ra=self.df[self.ra_col].values
         cat_dec=self.df[self.dec_col].values
-        
+
         self._crossmatch_catalog = SkyCoord(ra=cat_ra*u.degree, dec=cat_dec*u.degree)
-        
+
     def _add_name_col(self):
         self.df["name"]=self._crossmatch_catalog.to_string('hmsdms')
         self.df["name"]=self.df["name"].str.replace(" ", "_")
-        
+
     def add_telescope_beam_columns(self, mode, manual_bmaj=45.0, manual_bmin=45.0):
         allowed_modes=["sumss", "nvss", "manual"]
         if mode not in allowed_modes:
@@ -50,17 +93,17 @@ class Catalog(object):
         else:
             self.df["telescope_bmaj"]=manual_bmaj
             self.df["telescope_bmin"]=manual_bmin
-     
+
     def _sumss_rms(self,dec):
         if dec>-50:
             return 0.002
         else:
             return 0.0012
-    
+
     def _calculate_sumss_beam_bmaj(self):
         img_sumss_bmaj = 45.*(1./np.sin(np.deg2rad(np.abs(self.df[self.dec_col]))))
         return img_sumss_bmaj
-    
+
     def add_single_val_col(self, colname, value, clobber=False):
         if colname in self.df.columns:
             if not clobber:
@@ -69,33 +112,35 @@ class Catalog(object):
             else:
                 self.logger.warning("Overwriting column {} with new value {}.".format(colname, value))
         self.df[colname] = value
-        
+
     def get_col(self, columname):
         return self.df[columname].values
-        
+
     def remove_extended(self, threshold=1.2, ellipse_a="MajAxis", ellipse_b="MinAxis", beam_a=45., beam_b=45., ellipse_unit="arcsec", sumss_psf=False, nvss_psf=False):
         if sumss_psf:
-            sumss_bmaj = 45.*(1./np.sin(np.deg2rad(np.abs(self.df[self.dec_col]))))
+            sumss_bmaj = 45.*(1./np.sin(np.deg2rad(np.abs(self.df[self.dec_col].median()))))
             sumss_bmin = 45.
-            self.sumss_no_ext_cat = self.df[(self.df[ellipse_a] <= threshold*sumss_bmaj) & 
+            self.logger.debug("SUMSS beam: {} x {} arcsec".format(sumss_bmaj, sumss_bmin))
+            self.sumss_no_ext_cat = self.df[(self.df[ellipse_a] <= threshold*sumss_bmaj) &
                 (self.df[ellipse_b] <= threshold*sumss_bmin)].reset_index(drop=True)
-            self.sumss_ext_cat = self.df[(self.df[ellipse_a] > threshold*sumss_bmaj) | 
+            self.sumss_ext_cat = self.df[(self.df[ellipse_a] > threshold*sumss_bmaj) |
                 (self.df[ellipse_b] > threshold*sumss_bmin)].reset_index(drop=True)
             return self.sumss_no_ext_cat
         elif nvss_psf:
             nvss_bmaj = 45.
             nvss_bmin = 45.
-            self.nvss_no_ext_cat = self.df[(self.df[ellipse_a] <= threshold*nvss_bmaj) & 
+            self.nvss_no_ext_cat = self.df[(self.df[ellipse_a] <= threshold*nvss_bmaj) &
                 (self.df[ellipse_b] <= threshold*nvss_bmin)].reset_index(drop=True)
-            self.nvss_ext_cat = self.df[(self.df[ellipse_a] > threshold*nvss_bmaj) | 
+            self.nvss_ext_cat = self.df[(self.df[ellipse_a] > threshold*nvss_bmaj) |
                 (self.df[ellipse_b] > threshold*nvss_bmin)].reset_index(drop=True)
             return self.nvss_no_ext_cat
         else:
             # askap_beam = 45.*45.*(1./np.sin(np.deg2rad(np.abs(self.df[self.dec_col]))))
+            self.logger.debug("ASKAP beam: {} x {} arcsec".format(beam_a, beam_b))
             self.askap_no_ext_cat=self.df[(self.df[ellipse_a] <= threshold*beam_a) & (self.df[ellipse_b] <= threshold*beam_b)].reset_index(drop=True)
             self.askap_ext_cat=self.df[(self.df[ellipse_a] > threshold*beam_a) | (self.df[ellipse_b] > threshold*beam_b)].reset_index(drop=True)
             return self.askap_no_ext_cat
-            
+
     def askap_remove_out_of_sumss_bounds(self, max_dec):
         #add two SUMSS beam width as a buffer
         max_dec+=2.*(45./3600.)
@@ -104,27 +149,27 @@ class Catalog(object):
         self.df = self.df[self.df[self.dec_col] < max_dec].reset_index(drop=True)
         after = len(self.df.index)
         self.logger.info("{} sources removed leaving {}.".format(before-after, after))
-        
+
     def add_distance_from_pos(self, position, label="centre"):
         self.df["distance_from_{}".format(label)]=position.separation(self._crossmatch_catalog).deg
-     
+
     def write_ann(self, name="", color="GREEN", ellipse_a="MajAxis", ellipse_b="MinAxis", ellipse_pa="PA", ellipse_unit="arcsec"):
         conversions={"arcsec":3600., "arcmin":60., "deg":1.}
         if name=="":
             name=self.survey_name+".ann"
         catalog = SkyCoord(ra=self.df[self.ra_col], dec=self.df[self.dec_col], unit=(u.deg, u.deg))
-        
+
         with open(name, 'w') as f:
             f.write("COORD W\n")
             f.write("PA STANDARD\n")
             f.write("COLOR {}\n".format(color))
             f.write("FONT hershey14\n")
             for i,val in enumerate(catalog):
-                f.write("ELLIPSE {} {} {} {} {}\n".format(val.ra.deg, val.dec.deg, 
+                f.write("ELLIPSE {} {} {} {} {}\n".format(val.ra.deg, val.dec.deg,
                 self.df[ellipse_a].iloc[i]/conversions[ellipse_unit], self.df[ellipse_b].iloc[i]/conversions[ellipse_unit], self.df[ellipse_pa].iloc[i]))
-                
+
         self.logger.info("Wrote annotation file {}.".format(name))
-        
+
     def add_sumss_sn(self, flux_col="int_flux", dec_col="dec", flux_scaling=1., use_image_rms=False):
         if use_image_rms:
             if self.survey_name.lower()=="sumss":
@@ -141,7 +186,7 @@ class Catalog(object):
                 self.df["sumss_snr"]=snrs
         else:
             self.df["sumss_snr"]=(flux_scaling*self.df[flux_col])/self.df[dec_col].apply(self._sumss_rms)
-        
+
     def add_nvss_sn(self, flux_col="S1.4", dec_col="_DEJ2000", flux_scaling=1., use_image_rms=False):
         if use_image_rms:
             if self.survey_name.lower()=="nvss":
@@ -158,26 +203,26 @@ class Catalog(object):
                 self.df["nvss_snr"]=snrs
         else:
             self.df["nvss_snr"]=(flux_scaling*self.df[flux_col])/0.0005
-        
+
     def _add_askap_sn(self):
         try:
             self.df["askap_snr"]=self.df["int_flux"]/self.df["local_rms"]
         except:
             self.logger.error("Adding ASKAP SNR not supported for this dataframe.")
-            
+
     def add_manual_sn(self, rms, sn_col_name, flux_col="St", flux_scaling=1.):
         self.df[sn_col_name]=(flux_scaling*self.df[flux_col])/rms
-    
+
     def _scale_flux(self, freq1, freq2, flux_col, si=-0.8):
         return ((freq1/freq2)**(si))*self.df[flux_col]
-        
+
     def calculate_scaled_flux(self, label, frequency=-1, to_catalog="none", flux_col="int_flux", si=-0.8):
         to_catalog=to_catalog.lower()
         frequencies={
             "sumss":843.e6,
             'nvss':1400.e6
         }
-        
+
         if to_catalog!="none":
             if to_catalog not in frequencies:
                 self.logger.error("Catalog '{}' not recongised for flux scaling".format(to_catalog))
@@ -188,15 +233,15 @@ class Catalog(object):
         else:
             this_freq=frequency
             label=label
-        
+
             if this_freq==-1:
                 self.logger.error("No catalog or frequency defined for flux scaling.")
                 return
-                
-        
+
+
         self.df["{}_scaled_to_{}".format(self.survey_name, label)]=self._scale_flux(this_freq, self.frequency, flux_col, si=si)
         self.logger.info("Fluxes scaled to {} catalogue frequency ({} MHz)".format(label, this_freq/1.e6))
-        
+
     def _add_sumss_mosaic_info(self, sumss_mosaic_dir):
         missing = []
         if self.survey_name.lower()!="sumss":
@@ -211,14 +256,14 @@ class Catalog(object):
         #some SUMSS fits files are missing
         mask = self.df["Mosaic"].isin(missing)
         self.df["Mosaic"] = np.where(mask, "SKIP", self.df["Mosaic"])
-        full_paths = [os.path.join(sumss_mosaic_dir, i+".FITS") for i in self.df["Mosaic"].tolist()]
-        rms_values = [sumss_mosaic_data[sumss_mosaic_data["image"]==i+".FITS"].iloc[0]["rms"] for i in self.df["Mosaic"].tolist()]
+        full_paths = [os.path.join(sumss_mosaic_dir, i.decode("utf-8")+".FITS") for i in self.df["Mosaic"].tolist()]
+        rms_values = [sumss_mosaic_data[sumss_mosaic_data["image"]==i.decode("utf-8")+".FITS"].iloc[0]["rms"] for i in self.df["Mosaic"].tolist()]
         self.logger.debug("RMS values {}".format(rms_values))
         self.logger.info("Adding SUMSS mosaic full path information.")
         self.df["Mosaic_path"]= full_paths
         self.logger.info("Adding SUMSS mosaic rms information.")
         self.df["Mosaic_rms"]= rms_values
-        
+
     def _find_nvss_mosaic_info(self, nvss_mosaic_dir):
         if self.survey_name.lower()!="nvss":
             self.logger.error("Catalog is not defined as a NVSS catalog. Cannot add NVSS mosaic directory information.")
@@ -241,9 +286,9 @@ class Catalog(object):
         self.df["Mosaic"] = images
         self.df["Mosaic_path"] = images_full_path
         self.df["Mosaic_rms"] = images_rms
-            
-    
-    def _image_check(self, ra, dec, image, sumss_mosaic_dir="", nvss_mosaic_dir=""):
+
+
+    def _image_check(self, ra, dec, image, sumss_mosaic_dir="", nvss_mosaic_dir="", loaded_data={}):
         if image.startswith("J"):
             full_image = os.path.join(sumss_mosaic_dir, image)
             sumss=True
@@ -253,19 +298,24 @@ class Catalog(object):
         else:
             self.logger.error("Cannot perform image check as image type unrecongised.")
             return True
-            
-        fits_image=askapimage(full_image)
-        fits_image.load_wcs()
-        fits_image.load_fits_data()
-        naned=self._check_for_nan_image(ra, dec, fits_image.wcs, fits_image.data, sumss=sumss)
-        
+
+        if image not in loaded_data:
+            fits_image=Askapimage(full_image)
+            fits_image.load_wcs()
+            fits_image.load_fits_data()
+            loaded_data[image] = fits_image.data
+            loaded_data[image+"_wcs"] = fits_image.wcs
+            del fits_image
+
+        naned=self._check_for_nan_image(ra, dec, loaded_data[image+"_wcs"], loaded_data[image], sumss=sumss)
+
         #Switch this around to make it more logical - True return = check passed.
         if naned:
-            return False
+            return False, loaded_data
         else:
-            return True
-   
-    def _find_matching_image(self,ra, dec, centres, images_data, rms=False, check=False, attempts=3, sumss_mosaic_dir="", nvss_mosaic_dir=""):
+            return True, loaded_data
+
+    def _find_matching_image(self,ra, dec, centres, images_data, rms=False, check=False, attempts=4, sumss_mosaic_dir="", nvss_mosaic_dir="", loaded_data={}):
         target=SkyCoord(ra=ra*u.deg, dec=dec*u.deg)
         seps = target.separation(centres)
         min_index = np.argmin(seps.deg)
@@ -275,11 +325,12 @@ class Catalog(object):
         sorted_seps = sorted(seps.deg)
         backup_indexes = [list(seps.deg).index(i) for i in sorted_seps[1:attempts]]
         image = images_data.iloc[min_index]["image"]
+        self.logger.debug(image)
         if check:
-            check_result = self._image_check(ra, dec, image, sumss_mosaic_dir=sumss_mosaic_dir, nvss_mosaic_dir=nvss_mosaic_dir)
+            check_result,loaded_data = self._image_check(ra, dec, image, sumss_mosaic_dir=sumss_mosaic_dir, nvss_mosaic_dir=nvss_mosaic_dir, loaded_data=loaded_data)
                 # print image
-                # print askap_target.to_string('hmsdms')    
-            
+                # print askap_target.to_string('hmsdms')
+
             if not check_result:
                 self.logger.debug("Coordinates out of range for closest image (Coord: {} Image: {}).".format(target.to_string("hmsdms"), image))
                 if attempts>1:
@@ -287,7 +338,8 @@ class Catalog(object):
                     found=False
                     for i in backup_indexes:
                         this_image = images_data.iloc[i]["image"]
-                        check_result = self._image_check(ra, dec, this_image, sumss_mosaic_dir=sumss_mosaic_dir, nvss_mosaic_dir=nvss_mosaic_dir)
+                        self.logger.debug(this_image)
+                        check_result, loaded_data = self._image_check(ra, dec, this_image, sumss_mosaic_dir=sumss_mosaic_dir, nvss_mosaic_dir=nvss_mosaic_dir, loaded_data=loaded_data)
                         if check_result:
                             self.logger.debug("Match found!")
                             image = this_image
@@ -302,16 +354,17 @@ class Catalog(object):
                         self.logger.debug("No more attempts to be made. Image for {} will be out of range".format(target.to_string('hmsdms')))
                 else:
                     self.debug("No more attempts to be made. Image for {} will be out of range".format(target.to_string('hmsdms')))
-                    
+
         rms = images_data.iloc[min_index]["rms"]
         # print image
         # print askap_target.to_string('hmsdms')
         if rms:
-            return image, rms
+            return image, rms, loaded_data
         else:
-            return image
-        
-    
+            rms = 0.0
+            return image, rms, loaded_data
+
+
     def _check_for_nan_image(self, ra, dec, img_wcs, img_data, num_pixels=10, sumss=False):
         #Works with ASKAP Image for now
         pixels=img_wcs.wcs_world2pix(ra, dec, 1)
@@ -327,17 +380,17 @@ class Catalog(object):
         row_idx = np.array([range(x-num_pixels, x+num_pixels+1)])
         col_idx = np.array([range(y-num_pixels, y+num_pixels+1)])
         try:
-            if sumss:
-                data_selection=img_data[row_idx[:, None], col_idx]
-            else:
-                data_selection=img_data[0,0,row_idx[:, None], col_idx]
+            # if sumss:
+            data_selection=img_data[row_idx[:, None], col_idx]
+            # else:
+                # data_selection=img_data[row_idx[:, None], col_idx]
         except:
             self.logger.debug("Measuring failed - returning nan.")
             data_selection=[np.nan]
         self.logger.debug(data_selection)
         return np.isnan(data_selection).any()
-    
-    def find_matching_catalog_image(self, sumss_mosaic_dir="", nvss_mosaic_dir="", sumss=True, nvss=False, dualmode=False):
+
+    def find_matching_catalog_image(self, sumss_mosaic_dir="", nvss_mosaic_dir="", sumss=True, nvss=False, dualmode=False, loaded_data={}):
         self.logger.info("Searching and checking for matching catalogue images.")
         if sumss:
             try:
@@ -351,7 +404,7 @@ class Catalog(object):
             except:
                 self.logger.error("SUMSS mosaic data cannot be found!")
                 return
-    
+
         if nvss:
                 try:
                     self.logger.info("Loading NVSS image data.")
@@ -363,12 +416,12 @@ class Catalog(object):
                         path_dir = nvss_mosaic_dir
                 except:
                     sel.flogger.error("NVSS mosaic data cannot be found!")
-                    
+
         images = []
         images_full_path = []
         images_rms = []
         survey = []
-        
+
         for i,row in self.df.iterrows():
             if dualmode:
                 if row[self.dec_col]<=-30:
@@ -392,20 +445,22 @@ class Catalog(object):
                     mosaic_data_to_use = sumss_mosaic_data
                     path_dir = sumss_mosaic_dir
                     survey.append("sumss")
-                    
-                    
-            image,rms = self._find_matching_image(row[self.ra_col], row[self.dec_col], centers_to_use, mosaic_data_to_use, rms=True, check=True, sumss_mosaic_dir=sumss_mosaic_dir,
+
+
+            image,rms, loaded_data = self._find_matching_image(row[self.ra_col], row[self.dec_col], centers_to_use, mosaic_data_to_use, rms=True, check=True, sumss_mosaic_dir=sumss_mosaic_dir,
                 nvss_mosaic_dir=nvss_mosaic_dir)
             self.logger.debug("{} matched to catalog mosaic {}.".format(row["name"], image))
             images.append(image)
             images_full_path.append(os.path.join(path_dir, image))
             images_rms.append(rms)
-           
+
         self.df["catalog_Mosaic"] = images
         self.df["catalog_Mosaic_path"] = images_full_path
         self.df["catalog_Mosaic_rms"] = images_rms
         self.df["survey_used"] = survey
-        
+
+        return loaded_data
+
 
     def _merge_askap_non_convolved_catalogue(self, non_conv_cat, sumss=False, nvss=False):
         """
@@ -425,12 +480,12 @@ class Catalog(object):
         newnames={}
         for i in cols_to_copy:
             newnames[i] = "non_conv_{}".format(i)
-        matches=matches.rename(str, columns=newnames)
+        matches=matches.rename(columns=newnames)
         # matches["non_conv_name"] = matches['non_conv_name'].astype(basestring)
         matches.index=range(len(matches.index))
         self.df=self.df.merge(matches, left_index=True, right_index=True, how="left")
         self.df["non_conv_d2d"]=d2d.arcsec
         self.logger.info("Non-convolved cross-matches added to ASKAP catalog.")
-    
+
 
 

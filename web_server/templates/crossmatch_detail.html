@@ -359,7 +359,8 @@ Investigate: <a href="{% url 'crossmatch_detail' pk=image.pk querytype=type cros
     aladin.gotoPosition({{ crossmatch_source.ra }}, {{ crossmatch_source.dec }});
     var sumss = aladin.createImageSurvey('SUMSS', 'SUMSS', 'http://alasky.u-strasbg.fr/SUMSS', 'equatorial', 6, {imgFormat: 'png'});
     var nvss = aladin.createImageSurvey('NVSS', 'NVSS', 'http://alasky.u-strasbg.fr/NVSS/intensity/', 'equatorial', 5, {imgFormat: 'jpg'});
-    aladin.setImageSurvey(sumss);
+    let survey = ({{ crossmatch_source.dec }}< -30) ? sumss : nvss;
+    aladin.setImageSurvey(survey);
     aladin.getBaseImageLayer().getColorMap().reverse();
     
 </script>
@@ -393,7 +394,7 @@ Investigate: <a href="{% url 'crossmatch_detail' pk=image.pk querytype=type cros
             </div>
             </div></p>
             <center>
-            <i>Default catalogs: Left: SUMSS, Right: RACS. Other catalogs available from the menu.</i>
+            <i>Default catalogs: Left: SUMSS or NVSS, Right: RACS. Other catalogs available from the menu.</i>
         </center>
         </div>
     </div>

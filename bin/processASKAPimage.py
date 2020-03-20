@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
-import askapdiagnostic.main
+import racstransients.main
 
 if __name__ == "__main__":
     #launch the pipeline
-    askapdiagnostic.main.main()
+    racstransients.main.main()
