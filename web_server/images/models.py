@@ -98,6 +98,8 @@ class Crossmatches(models.Model):
     transient_type = models.CharField(max_length=50, unique=False, default="")
     aegean_rms_used = models.CharField(max_length=6, unique=False, default="False")
     inflated_convolved_flux = models.CharField("Flux Convolved Error", max_length=6, unique=False, default="False")
+    vs = models.DecimalField("Vs", max_digits=20, decimal_places=12, default=0)
+    m = models.DecimalField(max_digits=20, decimal_places=12, default=0)
 
     def __str__(self):
         return self.sumss_name

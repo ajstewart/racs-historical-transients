@@ -90,23 +90,28 @@ class CrossmatchDetailFluxTable(tables.Table):
     askap_non_conv_flux = RMSColumn(verbose_name= 'Non-convolved Int. Flux (mJy)')
     # measured_askap_local_rms = RMSColumn(verbose_name= 'Local RMS (mJy)')
     # measured_askap_local_rms_2 = RMSColumn(verbose_name= 'Non-convolved local RMS (mJy)')
-    catalog_iflux = RMSColumn(verbose_name= 'Cat. Int. Flux (mJy)')
+    # catalog_iflux = RMSColumn(verbose_name= 'Cat. Int. Flux (mJy)')
     ratio_askap_flux = RMSColumn(verbose_name= 'Ratio ASKAP Int. Flux (mJy)')
+    ratio_askap_flux_err = RMSColumn(verbose_name= 'Ratio ASKAP Int. Flux Error (mJy)')
     ratio_catalog_flux = RMSColumn(verbose_name= 'Ratio Cat. Int. Flux (mJy)')
+    ratio_catalog_flux_err = RMSColumn(verbose_name= 'Ratio Cat. Int. Flux Error (mJy)')
     # catalog_scale_flux = FloatColumn(verbose_name= 'Scaled Cat. Int. Flux (mJy)')
     ratio = FloatColumn(verbose_name= 'Int. Flux Ratio')
     ratio_e = FloatColumn(verbose_name= 'Int. Flux Ratio Error')
     # askap_non_conv_scaled_flux = RMSColumn(verbose_name= 'Scaled Non-convolved Int. Flux (mJy)')
     # askap_non_conv_d2d = FloatColumn(verbose_name= 'Distance to ASKAP Convolved Source (arcsec)')
-    survey = CapitalColumn(verbose_name= 'Survey Used')
+    # survey = CapitalColumn(verbose_name= 'Survey Used')
     aegean_rms_used = tables.Column(verbose_name = "3x RMS Used")
     inflated_convolved_flux = tables.Column(verbose_name = "Conv. Ratio Error")
+    vs = FloatColumn(verbose_name= 'Vs')
+    m = FloatColumn(verbose_name= '|m|')
 
     class Meta:
         model = Crossmatches
         template_name = 'django_tables2/bootstrap4.html'
-        fields = ("id","askap_iflux", "askap_scale_flux","askap_non_conv_flux", "catalog_iflux",
-        "ratio_askap_flux", "ratio_catalog_flux", "ratio", "ratio_e", "survey")
+        fields = ("id","aegean_rms_used", "inflated_convolved_flux", "askap_iflux", "askap_scale_flux","askap_non_conv_flux",
+        "ratio_askap_flux", "ratio_askap_flux_err", "ratio_catalog_flux", "ratio_catalog_flux_err", "ratio", "ratio_e",
+        "vs", "m")
         attrs = {"th":{"bgcolor":"#EBEDEF"}}
 
 
@@ -152,6 +157,8 @@ class CrossmatchTable(tables.Table):
     ra = RAColumn(attrs={"td":{"style":"white-space:nowrap;"}}, verbose_name= 'RA' )
     dec = DecColumn(attrs={"td":{"style":"white-space:nowrap;"}}, verbose_name= 'Dec')
     ratio = FloatColumn(verbose_name='Freq. Scaled Ratio')
+    vs = FloatColumn(verbose_name='Vs')
+    m = FloatColumn(verbose_name='m')
     askap_iflux = RMSColumn(verbose_name= 'ASKAP Int. Flux (mJy)')
     # askap_snr = tables.Column(verbose_name= 'Local ASKAP SNR')
     catalog_iflux = RMSColumn(verbose_name= 'Cat. Int. Flux (mJy)')
@@ -174,7 +181,8 @@ class CrossmatchTable(tables.Table):
     class Meta:
         model = Crossmatches
         template_name = 'django_tables2/bootstrap4.html'
-        fields = ("id","image_id","master_name", "ra", "dec", "askap_iflux","catalog_iflux", "ratio", "d2d_askap_centre", "survey", "transient_type", "pipelinetag", "usertag", "userreason", "checkedby")
+        fields = ("id","image_id","master_name", "ra", "dec", "askap_iflux","catalog_iflux", "ratio", "vs", "m",
+        "d2d_askap_centre", "survey", "transient_type", "pipelinetag", "usertag", "userreason", "checkedby")
         attrs = {"th":{"bgcolor":"#EBEDEF"}}
         row_attrs = {
                 'highlight': lambda record: 'true' if (record.ratio >= 2.0 and record.pipelinetag == "Candidate" and record.checkedby != "N/A") else 'false'
@@ -187,6 +195,8 @@ class CrossmatchTableAll(tables.Table):
     ra = RAColumn(attrs={"td":{"style":"white-space:nowrap;"}}, verbose_name= 'RA' )
     dec = DecColumn(attrs={"td":{"style":"white-space:nowrap;"}}, verbose_name= 'Dec')
     ratio = FloatColumn(verbose_name='Freq. Scaled Ratio')
+    vs = FloatColumn(verbose_name='Vs')
+    m = FloatColumn(verbose_name='m')
     askap_iflux = RMSColumn(verbose_name= 'ASKAP Int. Flux (mJy)')
     # askap_snr = tables.Column(verbose_name= 'Local ASKAP SNR')
     catalog_iflux = RMSColumn(verbose_name= 'Cat. Int. Flux (mJy)')
@@ -210,7 +220,7 @@ class CrossmatchTableAll(tables.Table):
     class Meta:
         model = Crossmatches
         template_name = 'django_tables2/bootstrap4.html'
-        fields = ("id","image_id","master_name", "ra", "dec", "askap_iflux","catalog_iflux", "ratio", "d2d_askap_centre", "survey", "transient_type", "pipelinetag", "usertag", "userreason", "checkedby")
+        fields = ("id","image_id","master_name", "ra", "dec", "askap_iflux","catalog_iflux", "ratio", "vs", "m", "d2d_askap_centre", "survey", "transient_type", "pipelinetag", "usertag", "userreason", "checkedby")
         attrs = {"th":{"bgcolor":"#EBEDEF"}}
         row_attrs = {
                 'highlight': lambda record: 'true' if (record.ratio >= 2.0 and record.pipelinetag == "Candidate") else 'false'
@@ -224,6 +234,8 @@ class CrossmatchQueryTable(tables.Table):
     ra = RAColumn(attrs={"td":{"style":"white-space:nowrap;"}}, verbose_name= 'RA' )
     dec = DecColumn(attrs={"td":{"style":"white-space:nowrap;"}}, verbose_name= 'Dec')
     ratio = FloatColumn(verbose_name='Freq. Scaled Ratio')
+    vs = FloatColumn(verbose_name='Vs')
+    m = FloatColumn(verbose_name='m')
     askap_iflux = RMSColumn(verbose_name= 'ASKAP Int. Flux (mJy)')
     askap_non_conv_flux = RMSColumn(verbose_name= 'ASKAP Raw Int. Flux (mJy)')
     # askap_snr = tables.Column(verbose_name= 'Local ASKAP SNR')
@@ -248,7 +260,9 @@ class CrossmatchQueryTable(tables.Table):
     class Meta:
         model = Crossmatches
         template_name = 'django_tables2/bootstrap4.html'
-        fields = ("id","image_id","master_name", "ra", "dec", "askap_iflux","catalog_iflux", "ratio", "d2d_askap_centre", "survey", "transient_type", "pipelinetag", "usertag", "userreason", "checkedby")
+        fields = ("id","image_id","master_name", "ra", "dec", "askap_iflux","catalog_iflux", "ratio",
+        "vs", "m", "d2d_askap_centre",
+        "survey", "transient_type", "pipelinetag", "usertag", "userreason", "checkedby")
         attrs = {"th":{"bgcolor":"#EBEDEF"}}
         row_attrs = {
                 'highlight': lambda record: 'true' if (record.checkedby != "N/A") else 'false'

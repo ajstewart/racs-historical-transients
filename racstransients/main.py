@@ -248,6 +248,7 @@ def main():
         "write_ann":False,
         "produce_overlays":True,
         "boundary_value":"nan",
+        "askap_flux_error":0.0,
         "diagnostic_max_separation":5.0,
         "transient_max_separation":45.0,
         "postage_stamps":False,
@@ -332,6 +333,7 @@ def main():
     parser.add_argument("--write-ann", type=str2bool, help="Create kvis annotation files of the catalogues.")
     parser.add_argument("--produce-overlays", type=str2bool, help="Create overlay figures of the sources on the ASKAP image.")
     parser.add_argument("--boundary-value", type=str, choices=["nan", "zero"], help="Define whether the out-of-bounds value in the ASKAP FITS is 'nan' or 'zero'.")
+    parser.add_argument("--askap-flux-error", type=str2float, help="Percentage error to apply to flux errors.")
     # parser.add_argument("--crossmatch-base", type=str, help="Define the base catalogue in the cross matching (currently not supported).", default="sumss")
     parser.add_argument("--diagnostic-max-separation", type=str2float, help="Maximum crossmatch distance (in arcsec) to be consdiered when creating the diagnostic plots.")
     parser.add_argument("--transient-max-separation", type=str2float, help="Maximum crossmatch distance (in arcsec) to be consdiered when searching for transients.")
@@ -483,18 +485,6 @@ def main():
                     postage_options.append("transients")
             else:
                 postage_options = [postage_options]
-                # if "good" in postage_options and "bad" in postage_options:
-                #     if "transients" in postage_options:
-                #         postage_options=["all", "transients"]
-                #     else:
-                #         postage_options=["all"]
-                # if "transients" in postage_options and not args.transients:
-                #     logger.error("'transients' included in postage stamp options but '--transients' is not selected.")
-                #     logger.error("Please confirm settings and launch again")
-                #     exit(logger)
-                # else:
-                #     for i in postage_options:
-                #         logger.info(i)
 
         #Check if catalogues have been provided
         if args.askap_csv != None:
@@ -596,6 +586,7 @@ def main():
             non_conv_askap_cat = Catalog(non_conv_askap_cat, "askap", "{}".format(theimg.imagename.replace(".fits", "_askap")), ra_col="ra",
                 dec_col="dec", flux_col="int_flux", frequency=theimg.freq, add_name_col=True, convert_from_selavy=need_converting)
             non_conv_askap_cat._add_askap_sn()
+            non_conv_askap_cat.add_error_uncertainty(args.askap_flux_error)
             if sumss:
                 non_conv_askap_cat.calculate_scaled_flux("sumss", to_catalog="sumss")
                 non_conv_askap_cat.calculate_scaled_flux("sumss_err", to_catalog="sumss", flux_col="err_int_flux")
@@ -676,6 +667,7 @@ def main():
         askap_catalog=Catalog(askap_catalog, "askap", "{}".format(theimg.imagename.replace(".fits", "_askap")), ra_col="ra", dec_col="dec",
             flux_col="int_flux", frequency=theimg.freq, add_name_col=True, convert_from_selavy=need_converting)
         askap_catalog._add_askap_sn()
+        askap_catalog.add_error_uncertainty(args.askap_flux_error)
         askap_catalog.add_distance_from_pos(theimg.centre)
         askap_catalog.add_single_val_col("rms", theimg.rms)
         askap_catalog.add_telescope_beam_columns("manual", manual_bmaj=theimg.bmaj*3600., manual_bmin=theimg.bmin*3600.)
