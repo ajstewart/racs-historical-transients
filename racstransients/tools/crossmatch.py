@@ -415,7 +415,7 @@ class crossmatch(object):
             aegean_to_extract_df["pa"]=image_beam_pa
 
             aegean_results = self.force_extract_aegean(aegean_to_extract_df, askap_image.image)
-            no_matches = self._merge_forced_aegean(no_matches, aegean_results, tag="aegean_convolved", drop_missing=True)
+            no_matches = self._merge_forced_aegean(no_matches, aegean_results, tag="aegean_convolved")
             if no_matches.shape[0] != aegean_to_extract_df.shape[0]:
                 aegean_to_extract_df = aegean_to_extract_df.loc[no_matches.index.values]
             # no_matches.join(aegean_results, rsuffix="aegean")
@@ -740,6 +740,9 @@ class crossmatch(object):
         #Check for null entries and mark as failed:
         self.validate_master_table()
 
+        self.logger.info("Calculating two-epoch metrics...")
+        self.calculate_metrics()
+
         self.transients_master_df.to_csv("transients_master.csv")
         self.logger.info("Written master transient table as 'transients_master.csv'.")
 
@@ -1015,6 +1018,21 @@ class crossmatch(object):
             self.logger.info("No ratio failures.")
             return
 
+
+    def calculate_metrics(self):
+        mask = (self.transients_master_df.master_ratio == 0.0) & (self.transients_master_df.master_ratio.isna())
+        self.transients_master_df["Vs"] = 0.0
+        self.transients_master_df["m"] = 0.0
+        to_calc = self.transients_master_df[~mask]
+        self.transients_master_df.loc[to_calc.index, "Vs"] = np.abs(
+            (to_calc.ratio_askap_flux - to_calc.ratio_catalog_flux) /
+            np.hypot(to_calc.ratio_askap_flux_err, to_calc.ratio_catalog_flux_err)
+        )
+        self.transients_master_df.loc[to_calc.index, "m"] = np.abs(
+            (to_calc.ratio_askap_flux - to_calc.ratio_catalog_flux) /
+            ((to_calc.ratio_askap_flux + to_calc.ratio_catalog_flux) / 2.)
+        )
+
     def _calculate_ratio_error(self, ratio, x, dx, y, dy):
         return np.abs(ratio) * np.sqrt( ((dx/x)*(dx/x)) + ((dy/y)*(dy/y)))
 
@@ -1054,13 +1072,6 @@ class crossmatch(object):
 
         if np.isnan(cutout_data).any():
             return True
-
-        # commented due to now using combined images
-        # if pixels[0] > size[0]-num_pixels:
-        #     return True
-        #
-        # if pixels[1] > size[1]-num_pixels:
-        #     return True
 
         return False
 
@@ -1102,21 +1113,7 @@ class crossmatch(object):
         cutout_data = img_data[pixel_y_min:pixel_y_max, pixel_x_min:pixel_x_max]
 
         cutout_clip_mean, cutout_clip_median, cutout_clip_std = sigma_clipped_stats(cutout_data, sigma=sigma, maxiters=max_iter)
-        # return cutout_clip_std
-        # y,x = pixels
-        # self.logger.debug("x:{} y:{}".format(x,y))
-        # y = int(y)
-        # x = int(x)
-        # #Search 50 pixels around, see if in nan is in there
-        # row_idx = np.array([range(x-num_pixels, x+num_pixels+1)])
-        # col_idx = np.array([range(y-num_pixels, y+num_pixels+1)])
-        # data_selection=img_data[0,0,row_idx[:, None], col_idx]
-        # data_selection = np.nan_to_num(data_selection)
-        # angle=angle
-        # bscale=bscale
-        # data_selection=data_selection.squeeze()
-        # data_selection=data_selection*bscale
-        # med, std, mask = self._Median_clip(data_selection, full_output=True, ftol=0.0, max_iter=max_iter, sigma=sigma)
+
 
         if cutout_clip_std == 0:
             self.logger.warning("Local RMS returned 0 or null. Setting to 1.0 mJy.")
@@ -1295,7 +1292,7 @@ class crossmatch(object):
 
         return results
 
-    def _merge_forced_aegean(self, df, aegean_results, tag="aegean", ra_col="master_ra", dec_col="master_dec", drop_missing=False):
+    def _merge_forced_aegean(self, df, aegean_results, tag="aegean", ra_col="master_ra", dec_col="master_dec"):
         #AEGEAN SEEMS TO RANDOMISE THE ORDER THAT THE SOURCES ARE ENTERED INTO THE RESULTS FILE (PROBABLY THREADING)
         #Need to crossmatch the results
         aegean_results.columns=["{}_{}".format(tag, i) for i in aegean_results.columns]
@@ -1360,45 +1357,6 @@ class crossmatch(object):
         if "askap_rms_preconv" not in self.transients_master_df.columns:
             self.transients_master_df["askap_rms_preconv"]=-1.0
 
-        # db_col_names_order = ["image_id", #need to add
-        #                 # "match_id", #need to add
-        #                 "master_name", #done
-        #                 "askap_name", #done
-        #                 "catalog_name", #done
-        #                 "ra", #done
-        #                 "dec", #done
-        #                 "catalog_iflux", #done
-        #                 "catalog_iflux_e", #done
-        #                 "catalog_rms", #done
-        #                 # "catalog_local_rms", #done
-        #                 "catalog_mosaic",
-        #                 "askap_iflux", #need to add
-        #                 "askap_iflux_e", #need to add
-        #                 "askap_scale_flux", #need to add
-        #                 "askap_scale_flux_e", #need to add
-        #                 "askap_non_conv_flux",
-        #                 "askap_non_conv_flux_e",
-        #                 "askap_non_conv_scaled_flux",
-        #                 "askap_non_conv_scaled_flux_e",
-        #                 "askap_non_conv_d2d", #need to add
-        #                 "d2d_askap_centre",   #need to add
-        #                 "askap_rms",
-        #                 "askap_rms_2",
-        #                 "ratio",
-        #                 "ratio_e",
-        #                 "ratio_catalog_flux"
-        #                 "ratio_catalog_flux_err"
-        #                 "ratio_askap_flux"
-        #                 "ratio_askap_flux_err"
-        #                 "ploturl",  #done
-        #                 "pipelinetag",  #done
-        #                 "usertag", #need to add
-        #                 "userreason", #need to add
-        #                 "checkedby", #need to add
-        #                 "survey",
-        #                 "nearest_sources",
-        #                 "type"] #done
-
         db_col_names_map = {"image_id":"image_id", #need to add
                         # "match_id", #need to add
                         "master_name":"master_name", #done
@@ -1440,7 +1398,9 @@ class crossmatch(object):
                         "aegean_rms_used":"aegean_rms_used",
                         "askap_image":"askap_image",
                         "askap_image_2":"askap_image_2",
-                        "inflated_convolved_flux":"inflated_convolved_flux"} #done
+                        "inflated_convolved_flux":"inflated_convolved_flux",
+                        "Vs":"vs",
+                        "m":"m"} #done
 
         filter_list = [i for i in db_col_names_map]
 

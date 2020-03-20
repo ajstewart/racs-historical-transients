@@ -64,6 +64,12 @@ class Catalog(object):
             self.logger.warning("%s integrated fluxes of 0.0 detected! Will use their peak.", zero_int_flux.shape[0])
             self.df.loc[zero_int_flux.index, 'flux_int'] = self.df.loc[zero_int_flux.index].flux_peak
 
+        # check for 0 int error flux values
+        zero_int_flux = self.df[self.df.flux_int_err == 0.0]
+        if not zero_int_flux.shape[0] == 0:
+            self.logger.warning("%s integrated flux error of 0.0 detected! Will set as 0.001.", zero_int_flux.shape[0])
+            self.df.loc[zero_int_flux.index, 'flux_int_err'] = 0.001
+
         self.df.rename(columns=cols_map, inplace=True)
 
         self.logger.info("Selavy conversion successful.")
@@ -241,6 +247,14 @@ class Catalog(object):
 
         self.df["{}_scaled_to_{}".format(self.survey_name, label)]=self._scale_flux(this_freq, self.frequency, flux_col, si=si)
         self.logger.info("Fluxes scaled to {} catalogue frequency ({} MHz)".format(label, this_freq/1.e6))
+
+    def add_error_uncertainty(self, percentage):
+        self.logger.debug("Adding %s\% error to fluxes.", percentage*100.)
+        self.df["err_int_flux_orig"] = self.df["err_int_flux"]
+        self.df["err_int_flux"] = np.hypot(self.df["err_int_flux"].values, self.df["int_flux"] * percentage)
+
+        self.df["err_peak_flux_orig"] = self.df["err_peak_flux"]
+        self.df["err_peak_flux"] = np.hypot(self.df["err_peak_flux"].values, self.df["peak_flux"] * percentage)
 
     def _add_sumss_mosaic_info(self, sumss_mosaic_dir):
         missing = []
