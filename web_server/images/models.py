@@ -29,10 +29,10 @@ class Image(models.Model):
     transients_master_flagged_total=models.IntegerField(default=0)
     claimed_by=models.CharField(max_length=20, unique=False, default="Unclaimed")
     number_candidates_checked = models.IntegerField(default=0)
-    
+
     def __str__(self):
         return self.name
-    
+
 class Processingsettings(models.Model):
     image_id = models.IntegerField()
     output_dir = models.URLField(max_length=300)
@@ -55,7 +55,7 @@ class Processingsettings(models.Model):
     nvss_overlay = models.CharField(max_length=200, unique=False, default="plot")
 
 
-class Transients(models.Model):
+class Crossmatches(models.Model):
     image_id = models.IntegerField()
     # match_id = models.IntegerField()
     master_name = models.CharField(max_length=50, unique=False, default="askap source")
@@ -98,15 +98,15 @@ class Transients(models.Model):
     transient_type = models.CharField(max_length=50, unique=False, default="")
     aegean_rms_used = models.CharField(max_length=6, unique=False, default="False")
     inflated_convolved_flux = models.CharField("Flux Convolved Error", max_length=6, unique=False, default="False")
-        
+
     def __str__(self):
         return self.sumss_name
-       
+
 class Query(models.Model):
     transient_type = models.CharField(max_length=50)
     user_tag = models.CharField(max_length=50)
     user = models.CharField(max_length=50)
-    
+
 class Profile(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE)
     last_query = models.TextField(max_length=200, blank=True)

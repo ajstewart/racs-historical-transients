@@ -52,9 +52,9 @@
   <div class="card-body">
     <p class="card-text">
             <div class="col text-center">
-        <a href="{% url 'transients' image.pk 'candidates' %}" class="btn btn-success mx-auto">Transients Candidates Only ({{ image.transients_master_candidates_total }})</a>
-        <a href="{% url 'transients' image.pk 'flagged' %}" class="btn btn-danger mx-auto">Transients Flagged Candidates ({{ image.transients_master_flagged_total }})</a>
-        <a href="{% url 'transients' image.pk 'all' %}" class="btn btn-primary mx-auto">View all Crossmatch Output ({{ image.transients_master_total }})</a>
+        <a href="{% url 'crossmatches' image.pk 'candidates' %}" class="btn btn-success mx-auto">Transients Candidates Only ({{ image.transients_master_candidates_total }})</a>
+        <a href="{% url 'crossmatches' image.pk 'flagged' %}" class="btn btn-danger mx-auto">Transients Flagged Candidates ({{ image.transients_master_flagged_total }})</a>
+        <a href="{% url 'crossmatches' image.pk 'all' %}" class="btn btn-primary mx-auto">View all Crossmatch Output ({{ image.transients_master_total }})</a>
     </div>
   </div>
 </div>

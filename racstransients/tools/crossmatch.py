@@ -277,18 +277,18 @@ class crossmatch(object):
                      threshold=3, transient_sep=max_separation):
                     tag = "Large island source"
                 else:
-                    tag = "Candidate"
+                    tag = "Good"
             else:
                 if self._check_for_large_island(row["master_name"], row["askap_name"], row["askap_island"], pre_conv_crossmatch, askap_cat_islands_df=askap_cat_islands_df,
                     non_convolved_isl_cat_df=non_convolved_isl_cat_df, threshold=3, transient_sep=max_separation):
                     tag = "Large island source"
                 else:
-                    tag = "Candidate"
+                    tag = "Good"
         elif self._check_for_large_island(row["master_name"], row["askap_name"], row["askap_island"], pre_conv_crossmatch, askap_cat_islands_df=askap_cat_islands_df,
                 threshold=3, transient_sep=max_separation):
             tag = "Large island source"
         else:
-            tag = "Candidate"
+            tag = "Good"
         return tag
         # else:
             # large_ratios_postage_stamps.append("source_{}_BAD_sidebyside.jpg".format(row["master_name"]))
@@ -491,14 +491,14 @@ class crossmatch(object):
                     elif self._check_for_edge_case(row["master_ra"], row["master_dec"], askap_img_wcs, askap_img_data):
                         pipeline_tags.append("Edge of ASKAP image")
                     else:
-                        pipeline_tags.append("Candidate")
+                        pipeline_tags.append("Good")
                 else:
                     if (row["nvss_MajAxis"] > (1.75 * 45.)) or (row["nvss_MinAxis"] > (1.75 * 45.)):
                         pipeline_tags.append("Likely diffuse/extended")
                     elif self._check_for_edge_case(row["master_ra"], row["master_dec"], askap_img_wcs, askap_img_data):
                         pipeline_tags.append("Edge of ASKAP image")
                     else:
-                        pipeline_tags.append("Candidate")
+                        pipeline_tags.append("Good")
                 # print d2d_sumss.deg[min_index]
                 # print min_index
                 nearest_good_match_sources=self._find_nearest_sources(row["master_ra"], row["master_dec"], row["master_name"], self.goodmatches_df_trans)
@@ -675,7 +675,7 @@ class crossmatch(object):
                 elif (pre_conv_crossmatch != None) and (row["non_conv_d2d"] < 10.) and (row["non_conv_askap_scaled_to_{}".format(row["survey"])]/row["catalog_Mosaic_rms"] < 5.):
                     pipeline_tags.append("Convolved flux error")
                 else:
-                    pipeline_tags.append("Candidate")
+                    pipeline_tags.append("Good")
 
                 nearest_good_match_sources=self._find_nearest_sources(row["ra"], row["dec"], row["name"], self.goodmatches_df_trans)
                 nearest_sources.append(",".join(nearest_good_match_sources["master_name"].tolist()))
@@ -708,12 +708,12 @@ class crossmatch(object):
         #Saving totals
         self.transients_noaskapmatchtocatalog_total=len(self.transients_no_matches_df.index)
         if "pipelinetag" in self.transients_no_matches_df:
-            self.transients_noaskapmatchtocatalog_candidates=len(self.transients_no_matches_df[self.transients_no_matches_df["pipelinetag"]=="Candidate"].index)
+            self.transients_noaskapmatchtocatalog_candidates=len(self.transients_no_matches_df[self.transients_no_matches_df["pipelinetag"]=="Good"].index)
         else:
             self.transients_noaskapmatchtocatalog_candidates = 0
         self.transients_nocatalogmatchtoaskap_total=len(self.transients_not_matched_askap_should_see_df.index)
         if "pipelinetag" in self.transients_not_matched_askap_should_see_df:
-            self.transients_nocatalogmatchtoaskap_candidates=len(self.transients_not_matched_askap_should_see_df[self.transients_not_matched_askap_should_see_df["pipelinetag"]=="Candidate"].index)
+            self.transients_nocatalogmatchtoaskap_candidates=len(self.transients_not_matched_askap_should_see_df[self.transients_not_matched_askap_should_see_df["pipelinetag"]=="Good"].index)
         else:
             self.transients_nocatalogmatchtoaskap_candidates = 0
         # self.transients_largeratio_total=len(self.transients_large_ratios_df.index)
@@ -722,7 +722,7 @@ class crossmatch(object):
 
         #Create overall transient table - merge goodmatches, bad matches and askap should be seen
 
-        self.goodmatches_df_trans["type"]="goodmatch"
+        self.goodmatches_df_trans["type"]="match"
         self.transients_no_matches_df["type"]="noaskapmatch"
         self.transients_not_matched_askap_should_see_df["type"]="nocatalogmatch"
         self.transients_master_df = self.goodmatches_df_trans.append(self.transients_no_matches_df).reset_index(drop=True)
@@ -732,8 +732,8 @@ class crossmatch(object):
         self.sort_master_transient_table(convolve=convolve)
 
         self.transients_master_total=len(self.transients_master_df.index)
-        candidate_mask = ((self.transients_master_df["pipelinetag"]=="Candidate") & (self.transients_master_df["master_ratio"]>=2.0))
-        flagged_mask = ((self.transients_master_df["pipelinetag"]!="Candidate") & (self.transients_master_df["master_ratio"]>=2.0))
+        candidate_mask = ((self.transients_master_df["pipelinetag"]=="Good") & (self.transients_master_df["master_ratio"]>=2.0))
+        flagged_mask = ((self.transients_master_df["pipelinetag"]!="Good") & (self.transients_master_df["master_ratio"]>=2.0))
         self.transients_master_candidates_total = len(self.transients_master_df[candidate_mask].index)
         self.transients_master_flagged_total = len(self.transients_master_df[flagged_mask].index)
 
@@ -821,7 +821,7 @@ class crossmatch(object):
 
         for i,row in self.transients_master_df.iterrows():
             self.logger.debug(row["type"])
-            if row["type"] == "goodmatch":
+            if row["type"] == "match":
                 if not pd.isna(row["aegean_convolved_int_flux_scaled"]):
                     if row["aegean_convolved_int_flux_scaled"] < 0.0 or row["aegean_convolved_int_flux_scaled"] < 3.*row["aegean_convolved_local_rms_scaled"]:
                         flux_to_use = 3.* row["aegean_convolved_local_rms_scaled"]
@@ -941,14 +941,14 @@ class crossmatch(object):
 
             #For candidate sources we need to check whether the non-convolved flux brings the ratio back down when convolved is used.
             #Apart from noaskapmatch
-            convolve_check = ["goodmatch", "nocatalogmatch"]
+            convolve_check = ["match", "nocatalogmatch"]
 
 
             if flux_to_use > other_flux_to_use:
                 ratio=flux_to_use/other_flux_to_use
                 ratio_error = self._calculate_ratio_error(ratio, flux_to_use, err_to_use,
                     other_flux_to_use, other_error_to_use)
-                if convolve and (row["type"] in convolve_check) and (row["pipelinetag"]=="Candidate") and (ratio >= 2.0):
+                if convolve and (row["type"] in convolve_check) and (row["pipelinetag"]=="Good") and (ratio >= 2.0):
                     try:
                         non_convolve_ratio = scaled_askap_flux_to_use_2 / other_flux_to_use
                     except:
@@ -963,7 +963,7 @@ class crossmatch(object):
                 ratio=other_flux_to_use/flux_to_use
                 ratio_error = self._calculate_ratio_error(ratio, other_flux_to_use, other_error_to_use,
                     flux_to_use, err_to_use)
-                if convolve and (row["type"] in convolve_check) and (row["pipelinetag"]=="Candidate") and (ratio >= 2.0):
+                if convolve and (row["type"] in convolve_check) and (row["pipelinetag"]=="Good") and (ratio >= 2.0):
                     try:
                         non_convolve_ratio =  other_flux_to_use / scaled_askap_flux_to_use_2
                     except:
@@ -1451,7 +1451,7 @@ class crossmatch(object):
         to_write["ploturl"]=[os.path.join("media/{}/stamps/{}".format(image_id, i)) for i in to_write["ploturl"].values]
 
         to_write = to_write.sort_values(by=["pipelinetag","ratio"], ascending=[True, False])
-        new_type_vals = {"goodmatch":"Good match", "nocatalogmatch":"No catalog match", "noaskapmatch":"No askap match"}
+        new_type_vals = {"match":"Match", "nocatalogmatch":"No catalog match", "noaskapmatch":"No askap match"}
         to_write["transient_type"]=[new_type_vals[i] for i in to_write["transient_type"].values]
 
         to_write["catalog_mosaic"] = to_write["catalog_mosaic"].str.decode('utf8')
@@ -1475,4 +1475,4 @@ class crossmatch(object):
                     "ratio_e":-1.0
                     }
         to_write.fillna(value=values, inplace=True)
-        to_write.to_sql("images_transients", engine, if_exists="append", index=False)
+        to_write.to_sql("images_crossmatches", engine, if_exists="append", index=False)
