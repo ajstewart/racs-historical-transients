@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 import django_tables2 as tables
-from .models import Image, Transients
+from .models import Image, Crossmatches
 from django_tables2.utils import A
 from images.templatetags import units
 
@@ -16,27 +16,27 @@ class DecColumn(tables.Column):
         return units.deg_to_dms(value)
     def value(self, value):
         return value
-        
+
 class RMSColumn(tables.Column):
     def render(self, value):
         return "{:.2f}".format(units.jy_to_mjy(value))
-        
+
 class FloatColumn(tables.Column):
     def render(self, value):
         return "{:.2f}".format(value)
     def value(self,value):
         return value
-        
+
 class FloatCoordColumn(tables.Column):
     def render(self, value):
         return "{:.3f}".format(value)
     def value(self,value):
         return value
-        
+
 class CapitalColumn(tables.Column):
     def render(self, value):
         return value.upper()
-    
+
 
 class ImageTable(tables.Table):
     export_formats = ['csv',]
@@ -64,8 +64,8 @@ class ImageTable(tables.Table):
         row_attrs = {
                 'complete': lambda record: 'true' if (record.number_candidates_checked >= record.transients_master_candidates_total) else 'false'
                 }
- 
-    
+
+
 class CrossmatchDetailTable(tables.Table):
     id = tables.Column(verbose_name= 'ID')
     image_id = tables.LinkColumn('image_detail', args=[A('image_id'),], orderable=True, verbose_name= 'Img. ID')
@@ -78,11 +78,11 @@ class CrossmatchDetailTable(tables.Table):
     transient_type = tables.Column(verbose_name = 'Candidate Type')
 
     class Meta:
-        model = Transients
+        model = Crossmatches
         template_name = 'django_tables2/bootstrap4.html'
         fields = ("id","image_id", "master_name", "ra", "dec", "d2d_askap_centre", "survey", "catalog_mosaic", "transient_type")
-        attrs = {"th":{"bgcolor":"#EBEDEF"}}      
-    
+        attrs = {"th":{"bgcolor":"#EBEDEF"}}
+
 class CrossmatchDetailFluxTable(tables.Table):
     id = tables.Column(verbose_name= 'ID')
     askap_iflux = RMSColumn(verbose_name= 'ASKAP Int. Flux (mJy)')
@@ -103,16 +103,16 @@ class CrossmatchDetailFluxTable(tables.Table):
     inflated_convolved_flux = tables.Column(verbose_name = "Conv. Ratio Error")
 
     class Meta:
-        model = Transients
+        model = Crossmatches
         template_name = 'django_tables2/bootstrap4.html'
-        fields = ("id","askap_iflux", "askap_scale_flux","askap_non_conv_flux", "catalog_iflux", 
+        fields = ("id","askap_iflux", "askap_scale_flux","askap_non_conv_flux", "catalog_iflux",
         "ratio_askap_flux", "ratio_catalog_flux", "ratio", "ratio_e", "survey")
-        attrs = {"th":{"bgcolor":"#EBEDEF"}}   
-        
-        
+        attrs = {"th":{"bgcolor":"#EBEDEF"}}
+
+
 class NearestSourceDetailFluxTable(tables.Table):
     id = tables.Column(verbose_name= 'ID')
-    master_name = tables.LinkColumn('crossmatch_detail', args=[A('image_id'), "transients", A('id')], orderable=True, verbose_name= 'Name')
+    master_name = tables.LinkColumn('crossmatch_detail', args=[A('image_id'), "crossmatches", A('id')], orderable=True, verbose_name= 'Name')
     askap_iflux = RMSColumn(verbose_name= 'ASKAP Int. Flux (mJy)')
     askap_scale_flux = RMSColumn(verbose_name= 'Scaled ASKAP Int. Flux (mJy)')
     catalog_iflux = RMSColumn(verbose_name= 'Cat. Int. Flux (mJy)')
@@ -120,16 +120,16 @@ class NearestSourceDetailFluxTable(tables.Table):
     survey = CapitalColumn(verbose_name= 'Survey Used')
 
     class Meta:
-        model = Transients
+        model = Crossmatches
         template_name = 'django_tables2/bootstrap4.html'
         fields = ("id","master_name", "askap_iflux", "askap_scale_flux", "catalog_iflux", "ratio", "survey")
-        attrs = {"th":{"bgcolor":"#EBEDEF"}}  
-        
-        
+        attrs = {"th":{"bgcolor":"#EBEDEF"}}
+
+
 class AssocFluxTable(tables.Table):
     id = tables.Column(verbose_name= 'ID')
     image_id = tables.LinkColumn('image_detail', args=[A('image_id'),], orderable=True, verbose_name= 'Img. ID')
-    master_name = tables.LinkColumn('crossmatch_detail', args=[A('image_id'), "transients", A('id')], orderable=True, verbose_name= 'Name')
+    master_name = tables.LinkColumn('crossmatch_detail', args=[A('image_id'), "crossmatches", A('id')], orderable=True, verbose_name= 'Name')
     askap_iflux = RMSColumn(verbose_name= 'ASKAP Int. Flux (mJy)')
     askap_scale_flux = RMSColumn(verbose_name= 'Scaled ASKAP Int. Flux (mJy)')
     catalog_iflux = RMSColumn(verbose_name= 'Cat. Int. Flux (mJy)')
@@ -138,17 +138,17 @@ class AssocFluxTable(tables.Table):
     survey = CapitalColumn(verbose_name= 'Survey Used')
 
     class Meta:
-        model = Transients
+        model = Crossmatches
         template_name = 'django_tables2/bootstrap4.html'
         fields = ("id","image_id", "master_name", "askap_iflux", "askap_scale_flux", "catalog_iflux", "ratio","d2d_askap_centre", "survey")
-        attrs = {"th":{"bgcolor":"#EBEDEF"}}  
-        
-        
-class TransientTable(tables.Table):
+        attrs = {"th":{"bgcolor":"#EBEDEF"}}
+
+
+class CrossmatchTable(tables.Table):
     export_formats = ['csv',]
     id = tables.Column(verbose_name= 'ID')
     image_id = tables.LinkColumn('image_detail', args=[A('image_id'),], orderable=True, verbose_name= 'Img. ID')
-    master_name = tables.LinkColumn('crossmatch_detail', args=[A('image_id'), "transients", A('id')], orderable=True, verbose_name= 'Name')
+    master_name = tables.LinkColumn('crossmatch_detail', args=[A('image_id'), "crossmatches", A('id')], orderable=True, verbose_name= 'Name')
     ra = RAColumn(attrs={"td":{"style":"white-space:nowrap;"}}, verbose_name= 'RA' )
     dec = DecColumn(attrs={"td":{"style":"white-space:nowrap;"}}, verbose_name= 'Dec')
     ratio = FloatColumn(verbose_name='Freq. Scaled Ratio')
@@ -165,25 +165,25 @@ class TransientTable(tables.Table):
     checkedby = tables.Column(verbose_name= 'Checked By')
     askap_image = tables.Column()
     catalog_mosaic = tables.Column()
-    
+
     def before_render(self, request):
         self.columns.hide("d2d_askap_centre")
         self.columns.hide("askap_image")
         self.columns.hide("catalog_mosaic")
-    
+
     class Meta:
-        model = Transients
+        model = Crossmatches
         template_name = 'django_tables2/bootstrap4.html'
         fields = ("id","image_id","master_name", "ra", "dec", "askap_iflux","catalog_iflux", "ratio", "d2d_askap_centre", "survey", "transient_type", "pipelinetag", "usertag", "userreason", "checkedby")
         attrs = {"th":{"bgcolor":"#EBEDEF"}}
         row_attrs = {
-                'highlight': lambda record: 'true' if (record.ratio >= 2.0 and record.pipelinetag == "Candidate" and record.checkedby != "N/A") else 'false' 
+                'highlight': lambda record: 'true' if (record.ratio >= 2.0 and record.pipelinetag == "Candidate" and record.checkedby != "N/A") else 'false'
                 }
-                
-class TransientTableAll(tables.Table):
+
+class CrossmatchTableAll(tables.Table):
     id = tables.Column(verbose_name= 'ID')
     image_id = tables.LinkColumn('image_detail', args=[A('image_id'),], orderable=True, verbose_name= 'Img. ID')
-    master_name = tables.LinkColumn('crossmatch_detail', args=[A('image_id'), "transients", A('id')], orderable=True, verbose_name= 'Name')
+    master_name = tables.LinkColumn('crossmatch_detail', args=[A('image_id'), "crossmatches", A('id')], orderable=True, verbose_name= 'Name')
     ra = RAColumn(attrs={"td":{"style":"white-space:nowrap;"}}, verbose_name= 'RA' )
     dec = DecColumn(attrs={"td":{"style":"white-space:nowrap;"}}, verbose_name= 'Dec')
     ratio = FloatColumn(verbose_name='Freq. Scaled Ratio')
@@ -200,23 +200,23 @@ class TransientTableAll(tables.Table):
     checkedby = tables.Column(verbose_name= 'Checked By')
     askap_image = tables.Column()
     catalog_mosaic = tables.Column()
-    
+
     def before_render(self, request):
         self.columns.hide("d2d_askap_centre")
         self.columns.hide("askap_image")
         self.columns.hide("catalog_mosaic")
-        
-    
+
+
     class Meta:
-        model = Transients
+        model = Crossmatches
         template_name = 'django_tables2/bootstrap4.html'
         fields = ("id","image_id","master_name", "ra", "dec", "askap_iflux","catalog_iflux", "ratio", "d2d_askap_centre", "survey", "transient_type", "pipelinetag", "usertag", "userreason", "checkedby")
-        attrs = {"th":{"bgcolor":"#EBEDEF"}}  
+        attrs = {"th":{"bgcolor":"#EBEDEF"}}
         row_attrs = {
-                'highlight': lambda record: 'true' if (record.ratio >= 2.0 and record.pipelinetag == "Candidate") else 'false' 
+                'highlight': lambda record: 'true' if (record.ratio >= 2.0 and record.pipelinetag == "Candidate") else 'false'
                 }
 
-class TransientQueryTable(tables.Table):
+class CrossmatchQueryTable(tables.Table):
     export_formats = ['csv',]
     id = tables.Column(verbose_name= 'ID')
     image_id = tables.LinkColumn('image_detail', args=[A('image_id'),], orderable=True, verbose_name= 'Img. ID')
@@ -238,18 +238,18 @@ class TransientQueryTable(tables.Table):
     checkedby = tables.Column(verbose_name= 'Checked By')
     askap_image = tables.Column()
     catalog_mosaic = tables.Column()
-    
+
     def before_render(self, request):
         self.columns.hide("d2d_askap_centre")
         self.columns.hide("askap_image")
         self.columns.hide("catalog_mosaic")
         self.columns.hide("askap_non_conv_flux")
-    
+
     class Meta:
-        model = Transients
+        model = Crossmatches
         template_name = 'django_tables2/bootstrap4.html'
         fields = ("id","image_id","master_name", "ra", "dec", "askap_iflux","catalog_iflux", "ratio", "d2d_askap_centre", "survey", "transient_type", "pipelinetag", "usertag", "userreason", "checkedby")
         attrs = {"th":{"bgcolor":"#EBEDEF"}}
         row_attrs = {
-                'highlight': lambda record: 'true' if (record.checkedby != "N/A") else 'false' 
+                'highlight': lambda record: 'true' if (record.checkedby != "N/A") else 'false'
                 }

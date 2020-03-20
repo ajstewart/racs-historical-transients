@@ -21,7 +21,7 @@
 {% if query %}      
 <a href="{% url 'query' %}" class="btn btn-primary mx-auto">Back to Query</a>
 {% else %}
-<a href="{% url 'transients' image.pk transient_filter %}" class="btn btn-primary mx-auto">Back to {{ title }}</a>
+<a href="{% url 'crossmatches' image.pk transient_filter %}" class="btn btn-primary mx-auto">Back to {{ title }}</a>
 {% endif %}
 </div>
 </div>
@@ -44,7 +44,7 @@ There are <b>{{ total }}</b> sources listed below.
      <img src="{% static e.ploturl %}" class="mx-auto d-block" width="95%" height="95%"/></a>
 {% else %}
 <b>{{ e.pipelinetag }} </b> {{ e.master_name }} ({{ e.survey }}) ({{ e.transient_type }})
-     <a href="{% url 'crossmatch_detail' image.pk 'transients' e.id %}" >
+     <a href="{% url 'crossmatch_detail' image.pk 'crossmatches' e.id %}" >
      <img src="{% static e.ploturl %}" class="mx-auto d-block" width="95%" height="95%"/></a>
 {% endif %}
 {% endfor %}

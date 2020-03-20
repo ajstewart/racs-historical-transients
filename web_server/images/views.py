@@ -11,8 +11,8 @@ from django_tables2.export.export import TableExport
 # Create your views here.
 from django.http import HttpResponse
 
-from .models import Image, Processingsettings, Query, Transients
-from .tables import ImageTable, CrossmatchDetailFluxTable, NearestSourceDetailFluxTable, TransientTable, TransientTableAll, CrossmatchDetailTable, TransientQueryTable, AssocFluxTable
+from .models import Image, Processingsettings, Query, Crossmatches
+from .tables import ImageTable, CrossmatchDetailFluxTable, NearestSourceDetailFluxTable, CrossmatchTable, CrossmatchTableAll, CrossmatchDetailTable, CrossmatchQueryTable, AssocFluxTable
 from .forms import TagForm
 from .filters import TransientFilter
 
@@ -27,15 +27,15 @@ def home(request):
     if TableExport.is_valid_format(export_format):
         exporter = TableExport(export_format, table)
         return exporter.response('images.{}'.format(export_format))
-        
+
     try:
         hotkeys_off = request.GET["hotkeys_off"]
         request.session["hotkeys"]="false"
     except:
         pass
-        
+
     return render(request, 'home.html', {'images': images, 'table':table})
-    
+
 def image_detail(request, pk):
     image = Image.objects.get(pk=pk)
     processing_options = Processingsettings.objects.get(image_id=pk)
@@ -53,9 +53,9 @@ def image_detail_claim(request, pk):
         claimed_success = True
     else:
         claimed_success = False
-        
+
     return render(request, 'image_detail.html', {'image':image, "processing_options":processing_options, "claimed_success":claimed_success, "claim_attempt":True})
-    
+
 def image_detail_reset(request, pk):
     user = request.user
     username = user.get_username()
@@ -65,23 +65,23 @@ def image_detail_reset(request, pk):
     if user.is_staff or username == image.claimed_by:
         image.claimed_by = "Unclaimed"
         image.save()
-        
+
     return render(request, 'image_detail.html', {'image':image, "processing_options":processing_options, "claimed_success":False, "claim_attempt":False})
-    
+
 
 def transients(request,pk,transient_filter):
     image = Image.objects.get(pk=pk)
     if transient_filter == "all":
-        transient_sources = Transients.objects.all().filter(image_id=pk).order_by("id")
-        table = TransientTableAll(transient_sources)
+        transient_sources = Crossmatches.objects.all().filter(image_id=pk).order_by("id")
+        table = CrossmatchTableAll(transient_sources)
         total = image.transients_master_total
     elif transient_filter == "flagged":
-        transient_sources = Transients.objects.all().filter(image_id=pk).exclude(pipelinetag="Candidate").filter(ratio__gte=2.0).order_by("id")
-        table = TransientTable(transient_sources)
+        transient_sources = Crossmatches.objects.all().filter(image_id=pk).exclude(pipelinetag="Candidate").filter(ratio__gte=2.0).order_by("id")
+        table = CrossmatchTable(transient_sources)
         total = image.transients_master_flagged_total
     else:
-        transient_sources = Transients.objects.all().filter(image_id=pk).filter(pipelinetag="Candidate").filter(ratio__gte=2.0).order_by("id")
-        table = TransientTable(transient_sources)
+        transient_sources = Crossmatches.objects.all().filter(image_id=pk).filter(pipelinetag="Candidate").filter(ratio__gte=2.0).order_by("id")
+        table = CrossmatchTable(transient_sources)
         total = image.transients_master_candidates_total
     RequestConfig(request, paginate={'per_page': 100}).configure(table)
     export_format = request.GET.get('_export', None)
@@ -89,8 +89,8 @@ def transients(request,pk,transient_filter):
     if TableExport.is_valid_format(export_format):
         exporter = TableExport(export_format, table)
         return exporter.response('transients_image{}.{}'.format(pk, export_format))
-    return render(request, 'transients.html', {'transient_sources':transient_sources, 'image':image, "table":table, "querytype":"transients", "total":total, "view_type":transient_filter})
-    
+    return render(request, 'transients.html', {'transient_sources':transient_sources, 'image':image, "table":table, "querytype":"crossmatches", "total":total, "view_type":transient_filter})
+
 def query_queries(request):
     if request.method == "POST":
         form = TagForm(request.POST or None)
@@ -107,43 +107,43 @@ def query_queries(request):
         context={"form":form}
 
     return render(request, 'search.html', context)
-    
+
 def search_results(request, transient_type, user_tag, user):
-    transient_sources = Transients.objects.all().filter(usertag=user_tag).order_by("id")
+    transient_sources = Crossmatches.objects.all().filter(usertag=user_tag).order_by("id")
     if user != "all":
         transient_sources = transient_sources.filter(checkedby=user)
-    table = TransientTable(transient_sources)
+    table = CrossmatchTable(transient_sources)
     RequestConfig(request, paginate={'per_page': 100}).configure(table)
-    friendly_type = "Transients"
+    friendly_type = "Crossmatches"
 
     export_format = request.GET.get('_export', None)
 
     if TableExport.is_valid_format(export_format):
         exporter = TableExport(export_format, table)
         return exporter.response('search_results_{}_{}_{}.{}'.format(friendly_type.lower().replace(" ", "-"), user_tag, user, export_format))
-        
+
     return render(request, "search_results.html", {"transient_type":friendly_type, "user_tag":user_tag, "table":table, "user":user})
 
 def crossmatch_detail(request,pk,querytype,cross_id):
-    object_from_query={"transients":Transients,}
-    title ={"transients":"Transients",}
-    html ={"transients":"transients",}
-    
+    object_from_query={"crossmatches":Crossmatches,}
+    title ={"crossmatches":"Crossmatches",}
+    html ={"crossmatches":"crossmatches",}
+
     allsources = object_from_query[querytype].objects.all()
     imagesources = object_from_query[querytype].objects.all().filter(image_id=pk)
     min_id = min(list(imagesources.values_list('id', flat=True)))
     max_id = max(list(imagesources.values_list('id', flat=True)))
-    
+
     total=max_id-min_id+1
-    
+
     prev_id = int(cross_id) - 1
     if prev_id < min_id:
         prev_id = cross_id
-        
+
     next_id = int(cross_id) + 1
     if next_id > max_id:
         next_id = cross_id
-    
+
     #See if we are turning on hotkeys
     try:
         hotkeys_on = request.GET["hotkeys_on"]
@@ -152,7 +152,7 @@ def crossmatch_detail(request,pk,querytype,cross_id):
         #     "subquery_type":subquery_type, "transient_filter":transient_filter})
     except:
         pass
-        
+
     try:
         hotkeys_off = request.GET["hotkeys_off"]
         request.session["hotkeys"]="false"
@@ -160,7 +160,7 @@ def crossmatch_detail(request,pk,querytype,cross_id):
         #     "subquery_type":subquery_type, "transient_filter":transient_filter})
     except:
         pass
-    
+
     #Check if a navigation hotkey has been used
     try:
         go_to = request.GET['go_to']
@@ -174,10 +174,10 @@ def crossmatch_detail(request,pk,querytype,cross_id):
             next_id = int(the_url.split("/")[-2])-1
             if next_id < min_id:
                 next_id += 1
-        return redirect('crossmatch_detail', pk=image_id, querytype="transients", cross_id=next_id)
+        return redirect('crossmatch_detail', pk=image_id, querytype="crossmatches", cross_id=next_id)
     except:
         go_to = False
-    
+
     crossmatch_source = object_from_query[querytype].objects.get(image_id=pk, id=cross_id)
     detail_table = CrossmatchDetailTable(allsources.filter(id=cross_id))
     ratio_table = CrossmatchDetailFluxTable(allsources.filter(id=cross_id))
@@ -185,7 +185,7 @@ def crossmatch_detail(request,pk,querytype,cross_id):
     #Also as large ratio we can fetch the nearest sources table
     nearest_sources = crossmatch_source.nearest_sources
     nearest_sources = nearest_sources.split(",")
-    nearest_sources = Transients.objects.all().filter(image_id=pk, master_name__in=nearest_sources)
+    nearest_sources = Crossmatches.objects.all().filter(image_id=pk, master_name__in=nearest_sources)
     nearest_sources_table = NearestSourceDetailFluxTable(nearest_sources)
     radius = 5./3600.
     ra=float(crossmatch_source.ra)
@@ -197,33 +197,33 @@ def crossmatch_detail(request,pk,querytype,cross_id):
     simbad_query="http://simbad.u-strasbg.fr/simbad/sim-coo?CooEpoch=2000&Coord={}d{}d&Radius.unit=arcmin&CooEqui=2000&CooFrame=FK5&Radius=10".format(crossmatch_source.ra, crossmatch_source.dec)
     ned_query="https://ned.ipac.caltech.edu/conesearch?search_type=Near%20Position%20Search&coordinates={}d%20{}d&radius=2.0&in_csys=Equatorial&in_equinox=J2000.0&out_csys=Equatorial&out_equinox=J2000.0&hconst=67.8&omegam=0.308&omegav=0.692&wmap=4&corr_z=1".format(crossmatch_source.ra, crossmatch_source.dec)
     follow_up_page = "http://ada.physics.usyd.edu.au:8015/docs/ratio_query/{}_{}_followup.html".format(crossmatch_source.image_id, crossmatch_source.id)
-    
+
     #Check if an assign button has been used.
     try:
         assign = request.GET['assign']
         usertag = request.GET['usertag']
         userreason = request.GET['userreason']
         hotkey = request.GET['hotkey']
-    
+
         user = request.user
         username = user.get_username()
-    
+
         #Have to be logged in to submit a category and to own the image
         if not user.is_authenticated:
-            return render(request, 'crossmatch_detail.html', {'crossmatch_source':crossmatch_source, 'image':image, 'type':querytype, 
+            return render(request, 'crossmatch_detail.html', {'crossmatch_source':crossmatch_source, 'image':image, 'type':querytype,
                                                                 'title':title_to_use, 'type_url':url_to_use, 'max_id':max_id, 'min_id':min_id, 'total':total, "saved":False, "updated":False, "conflict":False,
                                                             'simbad_query':simbad_query, 'ned_query':ned_query, 'detail_table':detail_table, "ratio_table":ratio_table, 'nearest_sources_table':nearest_sources_table,
                                                             'query':False, 'possible_assoc_table':possible_assoc_table, 'follow_up_page':follow_up_page},)
-        else: 
+        else:
             if username!=image.claimed_by:
                 if user.is_staff:
                     pass
                 else:
-                    return render(request, 'crossmatch_detail.html', {'crossmatch_source':crossmatch_source, 'image':image, 'type':querytype, 
+                    return render(request, 'crossmatch_detail.html', {'crossmatch_source':crossmatch_source, 'image':image, 'type':querytype,
                                                                     'title':title_to_use, 'type_url':url_to_use, 'max_id':max_id, 'min_id':min_id, 'total':total, "saved":False, "updated":False, "conflict":False,
                                                                 'simbad_query':simbad_query, 'ned_query':ned_query, 'detail_table':detail_table, "ratio_table":ratio_table, 'nearest_sources_table':nearest_sources_table,
                                                                 'query':False, 'possible_assoc_table':possible_assoc_table, 'follow_up_page':follow_up_page},)
-            
+
             if crossmatch_source.checkedby.lower()=="n/a":
                 crossmatch_source.checkedby=username
                 crossmatch_source.usertag=usertag
@@ -234,12 +234,12 @@ def crossmatch_detail(request,pk,querytype,cross_id):
                 conflict=False
                 image = Image.objects.get(pk=pk)
                 #update image checked:
-                transient_sources = Transients.objects.all().filter(image_id=pk).filter(pipelinetag="Candidate").filter(ratio__gte=2.0).exclude(checkedby="N/A")
+                transient_sources = Crossmatches.objects.all().filter(image_id=pk).filter(pipelinetag="Candidate").filter(ratio__gte=2.0).exclude(checkedby="N/A")
                 total_checked = len(list(transient_sources.values_list('id', flat=True)))
                 image.number_candidates_checked = total_checked
                 image.save()
                 if hotkey=="true":
-                    return redirect(reverse('crossmatch_detail', kwargs={"pk":pk, "querytype":"transients", "cross_id":next_id}) + '?hotkeyassign=true&update=false')
+                    return redirect(reverse('crossmatch_detail', kwargs={"pk":pk, "querytype":"crossmatches", "cross_id":next_id}) + '?hotkeyassign=true&update=false')
             elif crossmatch_source.checkedby == username:
                 crossmatch_source.checkedby=username
                 crossmatch_source.usertag=usertag
@@ -250,12 +250,12 @@ def crossmatch_detail(request,pk,querytype,cross_id):
                 conflict = False
                 image = Image.objects.get(pk=pk)
                 #update image checked:
-                transient_sources = Transients.objects.all().filter(image_id=pk).filter(pipelinetag="Candidate").filter(ratio__gte=2.0).exclude(checkedby="N/A")
+                transient_sources = Crossmatches.objects.all().filter(image_id=pk).filter(pipelinetag="Candidate").filter(ratio__gte=2.0).exclude(checkedby="N/A")
                 total_checked = len(list(transient_sources.values_list('id', flat=True)))
                 image.number_candidates_checked = total_checked
                 image.save()
                 if hotkey=="true":
-                    return redirect(reverse('crossmatch_detail', kwargs={"pk":pk, "querytype":"transients", "cross_id":next_id}) + '?hotkeyassign=true&update=true')
+                    return redirect(reverse('crossmatch_detail', kwargs={"pk":pk, "querytype":"crossmatches", "cross_id":next_id}) + '?hotkeyassign=true&update=true')
             else:
                 if user.is_staff:
                     crossmatch_source.checkedby=username
@@ -264,7 +264,7 @@ def crossmatch_detail(request,pk,querytype,cross_id):
                     crossmatch_source.save()
                     image = Image.objects.get(pk=pk)
                     #update image checked:
-                    transient_sources = Transients.objects.all().filter(image_id=pk).filter(pipelinetag="Candidate").filter(ratio__gte=2.0).exclude(checkedby="N/A")
+                    transient_sources = Crossmatches.objects.all().filter(image_id=pk).filter(pipelinetag="Candidate").filter(ratio__gte=2.0).exclude(checkedby="N/A")
                     total_checked = len(list(transient_sources.values_list('id', flat=True)))
                     image.number_candidates_checked = total_checked
                     image.save()
@@ -272,12 +272,12 @@ def crossmatch_detail(request,pk,querytype,cross_id):
                     saved=False
                     conflict = False
                     if hotkey=="true":
-                        return redirect(reverse('crossmatch_detail', kwargs={"pk":pk, "querytype":"transients", "cross_id":next_id}) + '?hotkeyassign=true&update=true')
+                        return redirect(reverse('crossmatch_detail', kwargs={"pk":pk, "querytype":"crossmatches", "cross_id":next_id}) + '?hotkeyassign=true&update=true')
                 else:
                     saved=False
                     updated=False
                     conflict=True
-        
+
     except:
         assign = False
         saved=False
@@ -297,16 +297,16 @@ def crossmatch_detail(request,pk,querytype,cross_id):
             prev_crossmatch_source = object_from_query[querytype].objects.get(image_id=pk, id=prev_id)
             hotkey_usertag = prev_crossmatch_source.usertag
             hotkey_userreason = prev_crossmatch_source.userreason
-            return render(request, 'crossmatch_detail.html', {'crossmatch_source':crossmatch_source, 'image':image, 'type':querytype, 
+            return render(request, 'crossmatch_detail.html', {'crossmatch_source':crossmatch_source, 'image':image, 'type':querytype,
                                                                 'title':title_to_use, 'type_url':url_to_use, 'max_id':max_id, 'min_id':min_id, 'total':total, "saved":saved, "updated":updated, "conflict":conflict,
-                                                            'simbad_query':simbad_query, 'ned_query':ned_query, 'detail_table':detail_table, "ratio_table":ratio_table, 'nearest_sources_table':nearest_sources_table, 
+                                                            'simbad_query':simbad_query, 'ned_query':ned_query, 'detail_table':detail_table, "ratio_table":ratio_table, 'nearest_sources_table':nearest_sources_table,
                                                             "hotkey_assign":True, "hotkey_prev_id":prev_id, "hotkey_usertag":hotkey_usertag, "hotkey_userreason":hotkey_userreason, "hotkey_updated":hotkey_updated,
                                                             'query':False, 'possible_assoc_table':possible_assoc_table, 'follow_up_page':follow_up_page},)
     except:
         pass
 
 
-    return render(request, 'crossmatch_detail.html', {'crossmatch_source':crossmatch_source, 'image':image, 'type':querytype, 
+    return render(request, 'crossmatch_detail.html', {'crossmatch_source':crossmatch_source, 'image':image, 'type':querytype,
                                                         'title':title_to_use, 'type_url':url_to_use, 'max_id':max_id, 'min_id':min_id, 'total':total, "saved":saved, "updated":updated, "conflict":conflict,
                                                     'simbad_query':simbad_query, 'ned_query':ned_query, 'detail_table':detail_table, "ratio_table":ratio_table, 'nearest_sources_table':nearest_sources_table,
                                                     'query':False, 'possible_assoc_table':possible_assoc_table, 'follow_up_page':follow_up_page},)
@@ -317,10 +317,10 @@ def crossmatch_quickview(request,pk,querytype,transient_filter):
     #     type = request.GET['type']
     # except:
     #     type = "all"
-    object_from_query={"transients":Transients,}
-    title ={"transients":"Transient",}
-    html ={"transients":"transients",}
-    if querytype=="transients":
+    object_from_query={"crossmatches":Crossmatches,}
+    title ={"crossmatches":"Crossmatch",}
+    html ={"crossmatches":"crossmatches",}
+    if querytype=="crossmatches":
         if transient_filter=="candidates":
             allsources = object_from_query[querytype].objects.all().filter(image_id=pk).filter(ratio__gte=2.0).filter(pipelinetag="Candidate").order_by("id")
             subquery_type = "Candidate"
@@ -333,12 +333,12 @@ def crossmatch_quickview(request,pk,querytype,transient_filter):
     image = Image.objects.get(pk=pk)
     title_to_use = title[querytype]
     total = len(list(allsources.values_list('id', flat=True)))
-    return render(request, 'crossmatch_quickview.html', {"crossmatch_sources":allsources,"image":image, "querytype":querytype, "title":title_to_use, "total":total, "html":html[querytype], 
+    return render(request, 'crossmatch_quickview.html', {"crossmatch_sources":allsources,"image":image, "querytype":querytype, "title":title_to_use, "total":total, "html":html[querytype],
         "subquery_type":subquery_type, "transient_filter":transient_filter})
 
 def crossmatch_quickview_query(request):
     try:
-        crossmatch_sources = [Transients.objects.get(id=id) for id in request.session['query_ids']]
+        crossmatch_sources = [Crossmatches.objects.get(id=id) for id in request.session['query_ids']]
     except:
         crossmatch_sources = []
 
@@ -347,19 +347,19 @@ def crossmatch_quickview_query(request):
 
 def turn_on_hotkeys(request):
     request.session['hotkeys']='true'
-    
+
 def turn_off_hotkeys(request):
-    request.session['hotkeys']='false'  
-    
+    request.session['hotkeys']='false'
+
 def transient_query(request):
-    transients = Transients.objects.all()
+    transients = Crossmatches.objects.all()
     transients_filter = TransientFilter(request.GET, queryset=transients)
-    table = TransientQueryTable(transients_filter.qs)
-    
+    table = CrossmatchQueryTable(transients_filter.qs)
+
     #save the queryset IDs to the session
     query_ids = [t.id for t in transients_filter.qs]
     request.session['query_ids'] = query_ids
-    
+
     user = request.user
     user_id = user.id
 
@@ -371,22 +371,22 @@ def transient_query(request):
             user_obj = User.objects.get(pk=user_id)
             user_obj.profile.last_query = query_string[-1]
             user_obj.save()
-    
+
     RequestConfig(request).configure(table)
     export_format = request.GET.get('_export', None)
 
     if TableExport.is_valid_format(export_format):
         exporter = TableExport(export_format, table)
         return exporter.response('query_result.{}'.format(export_format))
-    
+
     return render(request, 'transients_list.html', {'filter': transients_filter, 'table':table})
 
 
 def crossmatch_detail_query(request,cross_id):
-    object_from_query={"transients":Transients,}
-    title ={"transients":"Transients",}
-    html ={"transients":"transients",}
-    
+    object_from_query={"crossmatches":Crossmatches,}
+    title ={"crossmatches":"Crossmatches",}
+    html ={"crossmatches":"crossmatches",}
+
     #Get the query id list to sort out next and previous
     try:
         query_ids = request.session['query_ids']
@@ -407,9 +407,9 @@ def crossmatch_detail_query(request,cross_id):
         prev_id=-1
         total = 0
         this_index = -1
-    
-    allsources = Transients.objects.all()
-    
+
+    allsources = Crossmatches.objects.all()
+
     #See if we are turning on hotkeys
     try:
         hotkeys_on = request.GET["hotkeys_on"]
@@ -418,7 +418,7 @@ def crossmatch_detail_query(request,cross_id):
         #     "subquery_type":subquery_type, "transient_filter":transient_filter})
     except:
         pass
-        
+
     try:
         hotkeys_off = request.GET["hotkeys_off"]
         request.session["hotkeys"]="false"
@@ -426,7 +426,7 @@ def crossmatch_detail_query(request,cross_id):
         #     "subquery_type":subquery_type, "transient_filter":transient_filter})
     except:
         pass
-    
+
     #Check if a navigation hotkey has been used
     try:
         go_to = request.GET['go_to']
@@ -437,44 +437,44 @@ def crossmatch_detail_query(request,cross_id):
         return redirect('crossmatch_detail_query', cross_id=go_to_id)
     except:
         go_to = False
-    
-    crossmatch_source = Transients.objects.get(id=cross_id)
+
+    crossmatch_source = Crossmatches.objects.get(id=cross_id)
     detail_table = CrossmatchDetailTable(allsources.filter(id=cross_id))
     ratio_table = CrossmatchDetailFluxTable(allsources.filter(id=cross_id))
     image = Image.objects.get(pk=crossmatch_source.image_id)
     #Also as large ratio we can fetch the nearest sources table
     nearest_sources = crossmatch_source.nearest_sources
     nearest_sources = nearest_sources.split(",")
-    nearest_sources = Transients.objects.all().filter(image_id=image.id, master_name__in=nearest_sources)
+    nearest_sources = Crossmatches.objects.all().filter(image_id=image.id, master_name__in=nearest_sources)
     nearest_sources_table = NearestSourceDetailFluxTable(nearest_sources)
     radius = 5./3600.
     ra=float(crossmatch_source.ra)
     dec=float(crossmatch_source.dec)
     possible_assoc = allsources.extra(where=["q3c_radial_query(ra, dec, {:.6f}, {:.6f}, {:.6f})".format(ra,dec,radius)]).exclude(id=cross_id)
-    possible_assoc_table = AssocFluxTable(possible_assoc) 
-    title_to_use = "Transients"
-    url_to_use = "transients"
+    possible_assoc_table = AssocFluxTable(possible_assoc)
+    title_to_use = "Crossmatches"
+    url_to_use = "crossmatches"
     simbad_query="http://simbad.u-strasbg.fr/simbad/sim-coo?CooEpoch=2000&Coord={}d{}d&Radius.unit=arcmin&CooEqui=2000&CooFrame=FK5&Radius=10".format(crossmatch_source.ra, crossmatch_source.dec)
     ned_query="https://ned.ipac.caltech.edu/conesearch?search_type=Near%20Position%20Search&coordinates={}d%20{}d&radius=2.0&in_csys=Equatorial&in_equinox=J2000.0&out_csys=Equatorial&out_equinox=J2000.0&hconst=67.8&omegam=0.308&omegav=0.692&wmap=4&corr_z=1".format(crossmatch_source.ra, crossmatch_source.dec)
     follow_up_page = "http://ada.physics.usyd.edu.au:8015/docs/ratio_query/{}_{}_followup.html".format(crossmatch_source.image_id, crossmatch_source.id)
-    
+
     #Check if an assign button has been used.
     try:
         assign = request.GET['assign']
         usertag = request.GET['usertag']
         userreason = request.GET['userreason']
         hotkey = request.GET['hotkey']
-    
+
         user = request.user
         username = user.get_username()
-    
+
         #Have to be logged in to submit a category and to own the image
         if not user.is_authenticated:
-            return render(request, 'crossmatch_detail.html', {'crossmatch_source':crossmatch_source, 'image':image, 'type':"transients", 
+            return render(request, 'crossmatch_detail.html', {'crossmatch_source':crossmatch_source, 'image':image, 'type':"crossmatches",
                                                                 'title':title_to_use, 'type_url':url_to_use, 'next_id':next_id, 'prev_id':prev_id, 'this_index':this_index+1, 'total':total, "saved":False, "updated":False, "conflict":False,
                                                             'simbad_query':simbad_query, 'ned_query':ned_query, 'detail_table':detail_table, "ratio_table":ratio_table, 'nearest_sources_table':nearest_sources_table,
                                                         'query':True, 'possible_assoc_table':possible_assoc_table, 'follow_up_page':follow_up_page},)
-        else: 
+        else:
 
             if crossmatch_source.checkedby.lower()=="n/a":
                 crossmatch_source.checkedby=username
@@ -484,9 +484,9 @@ def crossmatch_detail_query(request,cross_id):
                 saved=True
                 updated=False
                 conflict=False
-                
+
                 #update image checked:
-                transient_sources = Transients.objects.all().filter(image_id=image.id).filter(pipelinetag="Candidate").filter(ratio__gte=2.0).exclude(checkedby="N/A")
+                transient_sources = Crossmatches.objects.all().filter(image_id=image.id).filter(pipelinetag="Candidate").filter(ratio__gte=2.0).exclude(checkedby="N/A")
                 total_checked = len(list(transient_sources.values_list('id', flat=True)))
                 image.number_candidates_checked = total_checked
                 image.save()
@@ -494,7 +494,7 @@ def crossmatch_detail_query(request,cross_id):
                     if next_id != -1:
                         return redirect(reverse('crossmatch_detail_query', kwargs={"cross_id":next_id}) + '?hotkeyassign=true&update=false')
                     else:
-                        return render(request, 'crossmatch_detail.html', {'crossmatch_source':crossmatch_source, 'image':image, 'type':"transients", 
+                        return render(request, 'crossmatch_detail.html', {'crossmatch_source':crossmatch_source, 'image':image, 'type':"crossmatches",
                                                                             'title':title_to_use, 'type_url':url_to_use, 'next_id':next_id, 'prev_id':prev_id, 'this_index':this_index+1, 'total':total, "saved":saved, "updated":updated, "conflict":conflict,
                                                                         'simbad_query':simbad_query, 'ned_query':ned_query, 'detail_table':detail_table, "ratio_table":ratio_table, 'nearest_sources_table':nearest_sources_table,
                                                                         'query':True, 'possible_assoc_table':possible_assoc_table, 'follow_up_page':follow_up_page},)
@@ -507,7 +507,7 @@ def crossmatch_detail_query(request,cross_id):
                 saved=False
                 conflict = False
                 #update image checked:
-                transient_sources = Transients.objects.all().filter(image_id=image.id).filter(pipelinetag="Candidate").filter(ratio__gte=2.0).exclude(checkedby="N/A")
+                transient_sources = Crossmatches.objects.all().filter(image_id=image.id).filter(pipelinetag="Candidate").filter(ratio__gte=2.0).exclude(checkedby="N/A")
                 total_checked = len(list(transient_sources.values_list('id', flat=True)))
                 image.number_candidates_checked = total_checked
                 image.save()
@@ -515,7 +515,7 @@ def crossmatch_detail_query(request,cross_id):
                     if next_id != -1:
                         return redirect(reverse('crossmatch_detail_query', kwargs={"cross_id":next_id}) + '?hotkeyassign=true&update=true')
                     else:
-                        return render(request, 'crossmatch_detail.html', {'crossmatch_source':crossmatch_source, 'image':image, 'type':"transients", 
+                        return render(request, 'crossmatch_detail.html', {'crossmatch_source':crossmatch_source, 'image':image, 'type':"crossmatches",
                                                                             'title':title_to_use, 'type_url':url_to_use, 'next_id':next_id, 'prev_id':prev_id, 'this_index':this_index+1, 'total':total, "saved":saved, "updated":updated, "conflict":conflict,
                                                                         'simbad_query':simbad_query, 'ned_query':ned_query, 'detail_table':detail_table, "ratio_table":ratio_table, 'nearest_sources_table':nearest_sources_table,
                                                                         'query':True, 'possible_assoc_table':possible_assoc_table, 'follow_up_page':follow_up_page},)
@@ -527,7 +527,7 @@ def crossmatch_detail_query(request,cross_id):
                     crossmatch_source.save()
                     # image = Image.objects.get(pk=pk)
                     #update image checked:
-                    transient_sources = Transients.objects.all().filter(image_id=image.id).filter(pipelinetag="Candidate").filter(ratio__gte=2.0).exclude(checkedby="N/A")
+                    transient_sources = Crossmatches.objects.all().filter(image_id=image.id).filter(pipelinetag="Candidate").filter(ratio__gte=2.0).exclude(checkedby="N/A")
                     total_checked = len(list(transient_sources.values_list('id', flat=True)))
                     image.number_candidates_checked = total_checked
                     image.save()
@@ -538,7 +538,7 @@ def crossmatch_detail_query(request,cross_id):
                         if next_id!=-1:
                             return redirect(reverse('crossmatch_detail_query', kwargs={"cross_id":next_id}) + '?hotkeyassign=true&update=true')
                         else:
-                            return render(request, 'crossmatch_detail.html', {'crossmatch_source':crossmatch_source, 'image':image, 'type':"transients", 
+                            return render(request, 'crossmatch_detail.html', {'crossmatch_source':crossmatch_source, 'image':image, 'type':"crossmatches",
                                                                                 'title':title_to_use, 'type_url':url_to_use, 'next_id':next_id, 'prev_id':prev_id, 'this_index':this_index+1, 'total':total, "saved":saved, "updated":updated, "conflict":conflict,
                                                                             'simbad_query':simbad_query, 'ned_query':ned_query, 'detail_table':detail_table, "ratio_table":ratio_table, 'nearest_sources_table':nearest_sources_table,
                                                                             'query':True, 'possible_assoc_table':possible_assoc_table, 'follow_up_page':follow_up_page},)
@@ -546,7 +546,7 @@ def crossmatch_detail_query(request,cross_id):
                     saved=False
                     updated=False
                     conflict=True
-        
+
     except:
         assign = False
         saved=False
@@ -563,19 +563,19 @@ def crossmatch_detail_query(request,cross_id):
                 hotkey_updated=True
             else:
                 hotkey_updated=False
-            prev_crossmatch_source = Transients.objects.get(id=prev_id)
+            prev_crossmatch_source = Crossmatches.objects.get(id=prev_id)
             hotkey_usertag = prev_crossmatch_source.usertag
             hotkey_userreason = prev_crossmatch_source.userreason
-            return render(request, 'crossmatch_detail.html', {'crossmatch_source':crossmatch_source, 'image':image, 'type':"transients", 
+            return render(request, 'crossmatch_detail.html', {'crossmatch_source':crossmatch_source, 'image':image, 'type':"crossmatches",
                                                                 'title':title_to_use, 'type_url':url_to_use, 'next_id':next_id, 'prev_id':prev_id, 'this_index':this_index+1, 'total':total, "saved":saved, "updated":updated, "conflict":conflict,
-                                                            'simbad_query':simbad_query, 'ned_query':ned_query, 'detail_table':detail_table, "ratio_table":ratio_table, 'nearest_sources_table':nearest_sources_table, 
+                                                            'simbad_query':simbad_query, 'ned_query':ned_query, 'detail_table':detail_table, "ratio_table":ratio_table, 'nearest_sources_table':nearest_sources_table,
                                                             "hotkey_assign":True, "hotkey_prev_id":prev_id, "hotkey_usertag":hotkey_usertag, "hotkey_userreason":hotkey_userreason, "hotkey_updated":hotkey_updated,
                                                             'query':True, 'possible_assoc_table':possible_assoc_table, 'follow_up_page':follow_up_page},)
     except:
         pass
 
 
-    return render(request, 'crossmatch_detail.html', {'crossmatch_source':crossmatch_source, 'image':image, 'type':"transients", 
+    return render(request, 'crossmatch_detail.html', {'crossmatch_source':crossmatch_source, 'image':image, 'type':"crossmatches",
                                                         'title':title_to_use, 'type_url':url_to_use, 'next_id':next_id, 'prev_id':prev_id, 'this_index':this_index+1, 'total':total, "saved":saved, "updated":updated, "conflict":conflict,
                                                     'simbad_query':simbad_query, 'ned_query':ned_query, 'detail_table':detail_table, "ratio_table":ratio_table, 'nearest_sources_table':nearest_sources_table,
                                                     'query':True, 'possible_assoc_table':possible_assoc_table, 'follow_up_page':follow_up_page},)

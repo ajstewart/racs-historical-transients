@@ -327,11 +327,11 @@ Investigate: <a href="{% url 'crossmatch_detail' pk=image.pk querytype=type cros
     </div>
 </div>
 <p></p>
-{% if type != "goodmatch" %}
+{% if type != "match" %}
 <div class="container">
     <div class="row">
         <div class="col text-center">
-            <h5>Nearest Good Match Sources (in same image)</h5>
+            <h5>Nearest 'Match' Sources (in same image)</h5>
        {% render_table nearest_sources_table %} 
     </div>
     </div>

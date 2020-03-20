@@ -1,5 +1,5 @@
-from .models import Transients
-from .tables import TransientTable
+from .models import Crossmatches
+from .tables import CrossmatchTable
 import django_filters
 from django_filters.widgets import RangeWidget
 from crispy_forms.bootstrap import InlineField
@@ -103,7 +103,7 @@ class TransientFilter(django_filters.FilterSet):
     catalog_iflux__gt = MyRangeFilter(field_name = 'catalog_iflux', widget=MyRangeWidget(from_attrs={'placeholder': 'Min (mJy)'}, to_attrs={'placeholder':'Max (mJy)'}), label="Catalogue Integrated Flux")
 
     pipelinetag_choices = (
-        ('Candidate', 'Candidate'),
+        ('Good', 'Good'),
         ('Convolved flux error', 'Convolved flux error'),
         ('Created convolved source', 'Created convolved source'),
         ('Edge of ASKAP image', 'Edge of ASKAP image'),
@@ -134,7 +134,7 @@ class TransientFilter(django_filters.FilterSet):
     checkedby = django_filters.ChoiceFilter(field_name = 'checkedby', choices=users)
 
     transient_type_choices = (
-        ('Good match', 'Good match'),
+        ('Match', 'Match'),
         ('No askap match', 'No ASKAP match'),
         ('No catalog match', 'No catalogue match'),
         )
@@ -193,5 +193,5 @@ class TransientFilter(django_filters.FilterSet):
     sort_by = ConeSearchFilter(field_name = 'sort_by', widget=forms.widgets.Select(choices=sortby_choices), method="sort_by_filter", label="Sort By")
 
     class Meta:
-        model = Transients
+        model = Crossmatches
         fields = []
