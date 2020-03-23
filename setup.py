@@ -27,9 +27,9 @@ setup(name='racstransients',
                         'django-crispy-forms',
                         'django-rest-auth',
                         'django-allauth',
-                        'django-keyboard-shortcuts'
+                        'django-keyboard-shortcuts',
+                        'slackclient',
                         ],
       scripts=["bin/processASKAPimage.py"],
       dependency_links=[],
       include_package_data=True)
-      

@@ -45,7 +45,7 @@ INSTALLED_APPS = [
     'django_comments',
     'comment_app',
     'django_filters',
-    'crispy_forms'
+    'crispy_forms',
 ]
 
 MIDDLEWARE = [
@@ -71,10 +71,15 @@ TEMPLATES = [
                 'django.template.context_processors.request',
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
+                'django.template.loaders.app_directories.Loader',
             ],
         },
     },
 ]
+
+TEMPLATE_LOADERS = (
+    'django.template.loaders.app_directories.load_template_source',
+)
 
 WSGI_APPLICATION = 'web_server.wsgi.application'
 
@@ -140,8 +145,8 @@ STATICFILES_DIRS = [
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 MEDIA_URL = '/media/'
 
-LOGOUT_REDIRECT_URL = 'home'
-LOGIN_REDIRECT_URL = 'home'
+# LOGOUT_REDIRECT_URL = 'home'
+# LOGIN_REDIRECT_URL = 'home'
 LOGIN_URL = 'login'
 
 DJANGO_TABLES2_TEMPLATE = 'django_tables2/bootstrap4.html'
@@ -179,8 +184,10 @@ HOTKEYS = [
             'link': '?assign=true&usertag=problem&userreason=askap%20artefact&hotkey=true'},
             {'keys': 's',  # go home
             'link': '?assign=true&usertag=problem&userreason=src.%20ext.%20error&hotkey=true'},
-            {'keys': 't',  # go home
+            {'keys': 'o',  # go home
             'link': '?assign=true&usertag=problem&userreason=too%20noisy&hotkey=true'},
+            {'keys': 't',  # go home
+            'link': '?assign=true&usertag=transient&userreason=transient&hotkey=true'},
             {'keys': 'RIGHT ARROW',  # go home
             'link': '?go_to=next'},
             {'keys': 'LEFT ARROW',  # go home
@@ -193,3 +200,7 @@ SITE_ID = 1
 COMMENTS_APP = 'comment_app'
 
 CRISPY_TEMPLATE_PACK = 'bootstrap4'
+
+SLACK_TOKEN = 'your slack token here'
+
+SLACK_CHANNEL_ID='channel id here'

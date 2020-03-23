@@ -28,7 +28,7 @@
     </button>
     <div class="collapse navbar-collapse" id="mainMenu">
     {% if request.session.hotkeys == 'true' %}
-    <a href="{% url 'home' %}?hotkeys_off=true" class="btn btn-danger mx-auto">WARNING! Hotkeys are on. Click here to turn off.</a>
+    <a href="{% url 'home' %}?hotkeys_off=true&next={{request.path}}" class="btn btn-danger mx-auto">WARNING! Hotkeys are on. Click here to turn off.</a>
     {% endif %}
       {% if user.is_authenticated %}
       <ul class="navbar-nav ml-auto">
@@ -46,7 +46,7 @@
               <a class="dropdown-item" href="{% url 'password_change' %}">Change password</a>
               <a class="dropdown-item" href="#">My saved sources</a>
               <div class="dropdown-divider"></div>
-              <a class="dropdown-item" href="{% url 'logout' %}">Log out</a>
+              <a class="dropdown-item" href="{% url 'logout' %}?next={{request.path}}">Log out</a>
             </div>
           </li>
         </ul>

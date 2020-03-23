@@ -55,11 +55,12 @@ class ImageTable(tables.Table):
     # transients_largeratio_total = tables.Column(verbose_name= '# Large Ratio')
     # transients_goodmatches_total = tables.Column(verbose_name= '# Good Matches')
     runby = tables.Column(verbose_name= 'Run By')
-    claimed_by = tables.Column(verbose_name= 'Claimed By')
+    # claimed_by = tables.Column(verbose_name= 'Claimed By')
     class Meta:
         model = Image
         template_name = 'django_tables2/bootstrap4.html'
-        fields = ("id", "name", "description", "ra", "dec", "matched_to", "number_askap_sources", "number_sumss_sources", "number_nvss_sources", "transients_master_candidates_total", "runtime", "runby", "claimed_by")
+        fields = ("id", "name", "description", "ra", "dec", "matched_to", "number_askap_sources", "number_sumss_sources",
+         "number_nvss_sources", "transients_master_candidates_total", "runtime", "runby")
         attrs = {"th":{"bgcolor":"#EBEDEF"},}
         row_attrs = {
                 'complete': lambda record: 'true' if (record.number_candidates_checked >= record.transients_master_candidates_total) else 'false'
