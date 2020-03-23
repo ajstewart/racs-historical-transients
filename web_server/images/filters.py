@@ -100,7 +100,7 @@ class TransientFilter(django_filters.FilterSet):
     ratio__gt = django_filters.RangeFilter(field_name = 'ratio', widget=MyRangeWidget(from_attrs={'placeholder': 'Min'}, to_attrs={'placeholder':'Max'}))
 
     vs__gt = django_filters.RangeFilter(field_name = 'vs', widget=MyRangeWidget(from_attrs={'placeholder': 'Min'}, to_attrs={'placeholder':'Max'}))
-    m__gt = django_filters.RangeFilter(field_name = 'm', widget=MyRangeWidget(from_attrs={'placeholder': 'Min'}, to_attrs={'placeholder':'Max'}))
+    m__gt = django_filters.RangeFilter(field_name = 'm', widget=MyRangeWidget(from_attrs={'placeholder': 'Min'}, to_attrs={'placeholder':'Max'}), label="m")
 
     askap_iflux__gt = MyRangeFilter(field_name = 'askap_iflux', widget=MyRangeWidget(from_attrs={'placeholder': 'Min (mJy)'}, to_attrs={'placeholder':'Max (mJy)'}), label="ASKAP Integrated Flux")
     catalog_iflux__gt = MyRangeFilter(field_name = 'catalog_iflux', widget=MyRangeWidget(from_attrs={'placeholder': 'Min (mJy)'}, to_attrs={'placeholder':'Max (mJy)'}), label="Catalogue Integrated Flux")
@@ -180,6 +180,9 @@ class TransientFilter(django_filters.FilterSet):
 
     ra__gt = django_filters.RangeFilter(field_name = 'ra', widget=MyRangeWidget(from_attrs={'placeholder': 'Min (deg)'}, to_attrs={'placeholder':'Max (deg)'}), label="Right Ascension")
     dec__gt = django_filters.RangeFilter(field_name = 'dec', widget=MyRangeWidget(from_attrs={'placeholder': 'Min (deg)'}, to_attrs={'placeholder':'Max (deg)'}), label="Declination")
+
+    gal_l__gt = django_filters.RangeFilter(field_name = 'gal_l', widget=MyRangeWidget(from_attrs={'placeholder': 'Min (deg)'}, to_attrs={'placeholder':'Max (deg)'}), label="Galactic l")
+    gal_b__gt = django_filters.RangeFilter(field_name = 'gal_b', widget=MyRangeWidget(from_attrs={'placeholder': 'Min (deg)'}, to_attrs={'placeholder':'Max (deg)'}), label="Galactic b")
 
     cone_search = ConeSearchFilter(field_name = 'cone_search', widget=ConeSearchWidget(), method="cone_search_filter", label="Cone Search")
 

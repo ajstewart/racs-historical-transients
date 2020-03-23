@@ -24,6 +24,8 @@ class Migration(migrations.Migration):
                 ('catalog_name', models.CharField(default='catalog source', max_length=50)),
                 ('ra', models.DecimalField(decimal_places=7, max_digits=10)),
                 ('dec', models.DecimalField(decimal_places=7, max_digits=10)),
+                ('gal_l', models.DecimalField(decimal_places=7, max_digits=10)),
+                ('gal_b', models.DecimalField(decimal_places=7, max_digits=10)),
                 ('catalog_iflux', models.DecimalField(decimal_places=12, default=0, max_digits=20)),
                 ('catalog_iflux_e', models.DecimalField(decimal_places=12, default=0, max_digits=20)),
                 ('catalog_rms', models.DecimalField(decimal_places=12, default=0, max_digits=20)),
