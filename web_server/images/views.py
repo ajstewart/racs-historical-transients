@@ -330,6 +330,9 @@ def crossmatch_detail(request,pk,querytype,cross_id):
             client = slack.WebClient(token=settings.SLACK_TOKEN)
             url = request.build_absolute_uri().split("?")[0]
             urltogo = url + "?slack_sent=true"
+            # direct users to source via image url, not query
+            if "query" in url:
+                url = url.replace("/query/", "/image/{}/crossmatches/".format(crossmatch_source.image_id))
             response = client.files_upload(
                 channels=settings.SLACK_CHANNEL_ID,
                 initial_comment="User *{}* wants to share the following source:\n\nLink: {}\n\nSee the thread for more information!".format(username, url),
@@ -346,6 +349,22 @@ def crossmatch_detail(request,pk,querytype,cross_id):
                         "type": "mrkdwn",
                         "text": "Details of {}:".format(crossmatch_source.master_name),
                     }
+                },
+                {
+                    "type": "section",
+                    "fields": [
+                    {
+                        "type": "mrkdwn",
+                        "text": "*RA, Dec:*\n{:.03f}, {:.03f}".format(crossmatch_source.ra, crossmatch_source.dec)
+                    },
+                    {
+                        "type": "mrkdwn",
+                        "text": "*Gal l, b:*\n{:.03f}, {:.03f}".format(crossmatch_source.gal_l, crossmatch_source.gal_b)
+                    },
+                    ]
+                },
+                {
+                    "type": "divider"
                 },
                 {
                     "type": "section",
@@ -374,6 +393,14 @@ def crossmatch_detail(request,pk,querytype,cross_id):
                         "type": "mrkdwn",
                         "text": "*m:*\n{:.02f}".format(crossmatch_source.m)
                     },
+                    ]
+                },
+                {
+                    "type": "divider"
+                },
+                {
+                    "type": "section",
+                    "fields": [
                     {
                         "type": "mrkdwn",
                         "text": "*Pipeline Tag:*\n{}".format(crossmatch_source.pipelinetag)
@@ -740,6 +767,22 @@ def crossmatch_detail_query(request,cross_id):
                     "fields": [
                     {
                         "type": "mrkdwn",
+                        "text": "*RA, Dec:*\n{:.03f}, {:.03f}".format(crossmatch_source.ra, crossmatch_source.dec)
+                    },
+                    {
+                        "type": "mrkdwn",
+                        "text": "*Gal l, b:*\n{:.03f}, {:.03f}".format(crossmatch_source.gal_l, crossmatch_source.gal_b)
+                    },
+                    ]
+                },
+                {
+                    "type": "divider"
+                },
+                {
+                    "type": "section",
+                    "fields": [
+                    {
+                        "type": "mrkdwn",
                         "text": "*Type:*\n{} ({})".format(crossmatch_source.transient_type, crossmatch_source.survey.upper())
                     },
                     {
@@ -762,6 +805,14 @@ def crossmatch_detail_query(request,cross_id):
                         "type": "mrkdwn",
                         "text": "*m:*\n{:.02f}".format(crossmatch_source.m)
                     },
+                    ]
+                },
+                {
+                    "type": "divider"
+                },
+                {
+                    "type": "section",
+                    "fields": [
                     {
                         "type": "mrkdwn",
                         "text": "*Pipeline Tag:*\n{}".format(crossmatch_source.pipelinetag)

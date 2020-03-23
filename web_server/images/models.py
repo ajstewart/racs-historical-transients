@@ -63,6 +63,8 @@ class Crossmatches(models.Model):
     catalog_name = models.CharField(max_length=50, unique=False, default="catalog source")
     ra = models.DecimalField(max_digits=10, decimal_places=7)
     dec = models.DecimalField(max_digits=10, decimal_places=7)
+    gal_l = models.DecimalField(max_digits=10, decimal_places=7)
+    gal_b = models.DecimalField(max_digits=10, decimal_places=7)
     catalog_iflux = models.DecimalField(max_digits=20, decimal_places=12, default=0)
     catalog_iflux_e = models.DecimalField(max_digits=20, decimal_places=12, default=0)
     catalog_rms = models.DecimalField(max_digits=20, decimal_places=12, default=0)

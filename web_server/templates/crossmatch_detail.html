@@ -307,7 +307,7 @@ Technical Issue: <a href="{% url 'crossmatch_detail' pk=image.pk querytype=type 
                   {% endif %}
               </div>
            <div class="col text-right">
-          <b>Coords to copy:</b> {{crossmatch_source.ra}},{{crossmatch_source.dec}}
+          <b>Coords to copy:</b> {{crossmatch_source.ra|floatformat:-4}},{{crossmatch_source.dec|floatformat:-4}}
        </div>
          </div>
      <!-- <h5 class="card-title">{{ image.name}} details</h5> -->
@@ -315,12 +315,12 @@ Technical Issue: <a href="{% url 'crossmatch_detail' pk=image.pk querytype=type 
      <img src="{% static crossmatch_source.ploturl %}" class="mx-auto d-block" width="95%" height="95%"/></a>
    <div class="row">
                   <div class="col text-left">
-                      <b>Galactic Coordinates:</b> {{ crossmatch_source.master_name|deg_to_gal }}</p>
+            <a href="{% url 'crossmatch_detail' pk=image.pk querytype=type cross_id=crossmatch_source.id %}#comments">Go to comments.</a>
           </div>
           <div class="col text-center">
           </div>
        <div class="col text-right">
-           <a href="{% url 'crossmatch_detail' pk=image.pk querytype=type cross_id=crossmatch_source.id %}#comments">Go to comments.</a>
+            <b>Galactic Coordinates:</b> {{ crossmatch_source.gal_l|floatformat:-4 }},{{ crossmatch_source.gal_b|floatformat:-4 }}</p>
    </div>
      </div>
         </div>

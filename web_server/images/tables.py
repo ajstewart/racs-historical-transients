@@ -73,6 +73,8 @@ class CrossmatchDetailTable(tables.Table):
     master_name = tables.Column(verbose_name = 'Name')
     ra = RAColumn(verbose_name="RA")
     dec = DecColumn(verbose_name="Dec")
+    gal_l = FloatColumn(verbose_name="Gal. l (deg)")
+    gal_b = FloatColumn(verbose_name="Gal. b (deg)")
     d2d_askap_centre = FloatColumn(verbose_name = "Distance from ASKAP Centre (deg)")
     survey = CapitalColumn(verbose_name= 'Survey Used')
     catalog_mosaic = tables.Column(verbose_name = 'Mosaic')
@@ -81,7 +83,7 @@ class CrossmatchDetailTable(tables.Table):
     class Meta:
         model = Crossmatches
         template_name = 'django_tables2/bootstrap4.html'
-        fields = ("id","image_id", "master_name", "ra", "dec", "d2d_askap_centre", "survey", "catalog_mosaic", "transient_type")
+        fields = ("id","image_id", "master_name", "ra", "dec", "gal_l", "gal_b", "d2d_askap_centre", "survey", "catalog_mosaic", "transient_type")
         attrs = {"th":{"bgcolor":"#EBEDEF"}}
 
 class CrossmatchDetailFluxTable(tables.Table):
@@ -234,6 +236,8 @@ class CrossmatchQueryTable(tables.Table):
     master_name = tables.LinkColumn('crossmatch_detail_query', args=[A('id')], orderable=True, verbose_name= 'Name')
     ra = RAColumn(attrs={"td":{"style":"white-space:nowrap;"}}, verbose_name= 'RA' )
     dec = DecColumn(attrs={"td":{"style":"white-space:nowrap;"}}, verbose_name= 'Dec')
+    gal_l = FloatColumn(verbose_name="Gal. l (deg)")
+    gal_b = FloatColumn(verbose_name="Gal. b (deg)")
     ratio = FloatColumn(verbose_name='Freq. Scaled Ratio')
     vs = FloatColumn(verbose_name='Vs')
     m = FloatColumn(verbose_name='m')
@@ -261,8 +265,8 @@ class CrossmatchQueryTable(tables.Table):
     class Meta:
         model = Crossmatches
         template_name = 'django_tables2/bootstrap4.html'
-        fields = ("id","image_id","master_name", "ra", "dec", "askap_iflux","catalog_iflux", "ratio",
-        "vs", "m", "d2d_askap_centre",
+        fields = ("id","image_id","master_name", "ra", "dec", "gal_l", "gal_b",
+        "askap_iflux","catalog_iflux", "ratio", "vs", "m", "d2d_askap_centre",
         "survey", "transient_type", "pipelinetag", "usertag", "userreason", "checkedby")
         attrs = {"th":{"bgcolor":"#EBEDEF"}}
         row_attrs = {

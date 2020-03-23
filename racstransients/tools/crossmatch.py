@@ -3,7 +3,6 @@
 import matplotlib
 matplotlib.use('Agg')
 import logging
-import aplpy
 from astropy.coordinates import SkyCoord
 from astropy import units as u
 from astropy.stats import sigma_clipped_stats
@@ -119,13 +118,6 @@ class crossmatch(object):
         self.crossmatch_df["askap_{}_ra_offset".format(tag)] = dra.arcsec
         self.crossmatch_df["askap_{}_dec_offset".format(tag)] = ddec.arcsec
             # self.crossmatch_df[output_col_name]= self.crossmatch_df.fillna((self.crossmatch_df[col1]*col1_scaling)-(self.crossmatch_df[col2]*col2_scaling))
-
-    def _plotinitial(self, panels, key, figure, image):
-        panels[key]=aplpy.FITSFigure(image, figure=figure, subplot=(1,2,key+1))
-        panels[key].show_grayscale()
-            # panels[key].show_contour(images[n-1], colors='red', levels=[3.*12e-6, 4.*12.e-6, 8.*12.e-6, 16*12.e-6])
-        panels[key].set_theme('publication')
-        return panels
 
     def produce_postage_stamps(self, askap_data, askap_wcs, selection, nprocs, radius=13./60., contrast=0.2, convolve=False,
             askap_nonconv_image=None, askap_pre_convolve_catalog=None, dualmode=False,
@@ -743,6 +735,8 @@ class crossmatch(object):
         self.logger.info("Calculating two-epoch metrics...")
         self.calculate_metrics()
 
+        self.calculate_galactic_coordinates()
+
         self.transients_master_df.to_csv("transients_master.csv")
         self.logger.info("Written master transient table as 'transients_master.csv'.")
 
@@ -1333,6 +1327,11 @@ class crossmatch(object):
 
         return newdf
 
+    def calculate_galactic_coordinates(self):
+        temp = SkyCoord(self.transients_master_df["master_ra"]*u.degree, self.transients_master_df["master_dec"]*u.degree)
+        self.transients_master_df["gal_l"] = temp.galactic.l.deg
+        self.transients_master_df["gal_b"] = temp.galactic.b.deg
+        del temp
 
     def inject_transients_db(self, image_id, sumss, nvss, db_engine="postgresql",
             db_username="postgres", db_password="postgres", db_host="localhost", db_port="5432", db_database="postgres", max_separation=45.0, dualmode=False, basecat="sumss", askap_image="image", askap_image_2="N/A"):
@@ -1364,6 +1363,8 @@ class crossmatch(object):
                         "{}_name".format(survey):"catalog_name", #done
                         "master_ra":"ra", #done
                         "master_dec":"dec", #done
+                        "gal_l": "gal_l",
+                        "gal_b": "gal_b",
                         "catalog_flux_to_use":"catalog_iflux", #done
                         "catalog_flux_to_use_err":"catalog_iflux_e", #done
                         "master_catalog_Mosaic_rms":"catalog_rms", #done
