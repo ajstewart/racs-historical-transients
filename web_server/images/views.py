@@ -16,6 +16,9 @@ from .tables import ImageTable, CrossmatchDetailFluxTable, NearestSourceDetailFl
 from .forms import TagForm
 from .filters import TransientFilter
 
+import os
+from django.conf import settings
+import slack
 
 
 def home(request):
@@ -31,6 +34,8 @@ def home(request):
     try:
         hotkeys_off = request.GET["hotkeys_off"]
         request.session["hotkeys"]="false"
+        next = request.GET["next"]
+        return render(next)
     except:
         pass
 
@@ -215,14 +220,21 @@ def crossmatch_detail(request,pk,querytype,cross_id):
                                                             'simbad_query':simbad_query, 'ned_query':ned_query, 'detail_table':detail_table, "ratio_table":ratio_table, 'nearest_sources_table':nearest_sources_table,
                                                             'query':False, 'possible_assoc_table':possible_assoc_table, 'follow_up_page':follow_up_page},)
         else:
-            if username!=image.claimed_by:
-                if user.is_staff:
-                    pass
-                else:
-                    return render(request, 'crossmatch_detail.html', {'crossmatch_source':crossmatch_source, 'image':image, 'type':querytype,
-                                                                    'title':title_to_use, 'type_url':url_to_use, 'max_id':max_id, 'min_id':min_id, 'total':total, "saved":False, "updated":False, "conflict":False,
-                                                                'simbad_query':simbad_query, 'ned_query':ned_query, 'detail_table':detail_table, "ratio_table":ratio_table, 'nearest_sources_table':nearest_sources_table,
-                                                                'query':False, 'possible_assoc_table':possible_assoc_table, 'follow_up_page':follow_up_page},)
+            # if username!=image.claimed_by:
+            #     if user.is_staff:
+            #         pass
+            #     else:
+            #         return render(request, 'crossmatch_detail.html', {'crossmatch_source':crossmatch_source, 'image':image, 'type':querytype,
+            #                                                         'title':title_to_use, 'type_url':url_to_use, 'max_id':max_id, 'min_id':min_id, 'total':total, "saved":False, "updated":False, "conflict":False,
+            #                                                     'simbad_query':simbad_query, 'ned_query':ned_query, 'detail_table':detail_table, "ratio_table":ratio_table, 'nearest_sources_table':nearest_sources_table,
+            #                                                     'query':False, 'possible_assoc_table':possible_assoc_table, 'follow_up_page':follow_up_page},)
+
+            if usertag=="transient" and not user.is_staff:
+                return render(request, 'crossmatch_detail.html', {'crossmatch_source':crossmatch_source, 'image':image, 'type':querytype,
+                                                                'title':title_to_use, 'type_url':url_to_use, 'max_id':max_id, 'min_id':min_id, 'total':total, "saved":False, "updated":False, "conflict":False,
+                                                            'simbad_query':simbad_query, 'ned_query':ned_query, 'detail_table':detail_table, "ratio_table":ratio_table, 'nearest_sources_table':nearest_sources_table,
+                                                            'query':False, 'possible_assoc_table':possible_assoc_table, 'follow_up_page':follow_up_page},)
+
 
             if crossmatch_source.checkedby.lower()=="n/a":
                 crossmatch_source.checkedby=username
@@ -302,6 +314,122 @@ def crossmatch_detail(request,pk,querytype,cross_id):
                                                             'simbad_query':simbad_query, 'ned_query':ned_query, 'detail_table':detail_table, "ratio_table":ratio_table, 'nearest_sources_table':nearest_sources_table,
                                                             "hotkey_assign":True, "hotkey_prev_id":prev_id, "hotkey_usertag":hotkey_usertag, "hotkey_userreason":hotkey_userreason, "hotkey_updated":hotkey_updated,
                                                             'query':False, 'possible_assoc_table':possible_assoc_table, 'follow_up_page':follow_up_page},)
+    except:
+        pass
+
+    try:
+        send_slack = request.GET["slack"]
+        ploturl = request.GET["ploturl"]
+        ploturl = "/static/"+ploturl
+        settings_dir = os.path.dirname(__file__)
+        PROJECT_ROOT = os.path.abspath(os.path.dirname(settings_dir))
+        # print(PROJECT_ROOT)
+        ploturl = PROJECT_ROOT + ploturl
+        if send_slack == "true":
+            username = request.user.get_username()
+            client = slack.WebClient(token=settings.SLACK_TOKEN)
+            url = request.build_absolute_uri().split("?")[0]
+            urltogo = url + "?slack_sent=true"
+            response = client.files_upload(
+                channels=settings.SLACK_CHANNEL_ID,
+                initial_comment="User *{}* wants to share the following source:\n\nLink: {}\n\nSee the thread for more information!".format(username, url),
+                file=ploturl,
+                filename=ploturl.split("/")[-1],
+                title=crossmatch_source.master_name
+                )
+            ts = response['file']['shares']['private'][settings.SLACK_CHANNEL_ID][0]['ts']
+
+            blocks = [
+                {
+                    "type": "section",
+                    "text": {
+                        "type": "mrkdwn",
+                        "text": "Details of {}:".format(crossmatch_source.master_name),
+                    }
+                },
+                {
+                    "type": "section",
+                    "fields": [
+                    {
+                        "type": "mrkdwn",
+                        "text": "*Type:*\n{} ({})".format(crossmatch_source.transient_type, crossmatch_source.survey.upper())
+                    },
+                    {
+                        "type": "mrkdwn",
+                        "text": "*Ratio:*\n{:.02f}".format(crossmatch_source.ratio)
+                    },
+                    {
+                        "type": "mrkdwn",
+                        "text": "*ASKAP Flux (scaled):*\n{:.02f} mJy".format(float(crossmatch_source.ratio_askap_flux)*1.e3)
+                    },
+                    {
+                        "type": "mrkdwn",
+                        "text": "*{} Flux:*\n{:.02f} mJy".format(crossmatch_source.survey.upper(), float(crossmatch_source.ratio_catalog_flux)*1.e3)
+                    },
+                    {
+                        "type": "mrkdwn",
+                        "text": "*Vs:*\n{:.02f}".format(crossmatch_source.vs)
+                    },
+                    {
+                        "type": "mrkdwn",
+                        "text": "*m:*\n{:.02f}".format(crossmatch_source.m)
+                    },
+                    {
+                        "type": "mrkdwn",
+                        "text": "*Pipeline Tag:*\n{}".format(crossmatch_source.pipelinetag)
+                    },
+                    {
+                        "type": "mrkdwn",
+                        "text": "*User Tag:*\n{}".format(crossmatch_source.usertag)
+                    },
+                    {
+                        "type": "mrkdwn",
+                        "text": "*Checked by:*\n{}".format(crossmatch_source.checkedby)
+                    },
+                    ]
+                },
+                {
+                    "type": "actions",
+                    "elements": [
+                        {
+                            "type": "button",
+                            "text": {
+                                "type": "plain_text",
+                                "text": "SIMBAD",
+                            },
+                            "url": simbad_query,
+                            "style": "primary",
+                        },
+                        {
+                            "type": "button",
+                            "text": {
+                            "type": "plain_text",
+                            "text": "NED",
+                            },
+                            "url": ned_query,
+                            "style": "primary",
+                        },
+                    ]
+                }
+            ]
+            detail_response = client.chat_postMessage(
+                channel=settings.SLACK_CHANNEL_ID,
+                blocks=blocks,
+                thread_ts=ts,
+            )
+
+        return redirect(urltogo)
+
+    except:
+        pass
+
+    try:
+        slack_sent = request.GET["slack_sent"]
+        if slack_sent:
+            return render(request, 'crossmatch_detail.html', {'crossmatch_source':crossmatch_source, 'image':image, 'type':querytype,
+                                                                'title':title_to_use, 'type_url':url_to_use, 'max_id':max_id, 'min_id':min_id, 'total':total, "saved":saved, "updated":updated, "conflict":conflict,
+                                                            'simbad_query':simbad_query, 'ned_query':ned_query, 'detail_table':detail_table, "ratio_table":ratio_table, 'nearest_sources_table':nearest_sources_table,
+                                                            'query':False, 'possible_assoc_table':possible_assoc_table, 'follow_up_page':follow_up_page, 'slack_sent':True},)
     except:
         pass
 
@@ -574,6 +702,124 @@ def crossmatch_detail_query(request,cross_id):
     except:
         pass
 
+    try:
+        send_slack = request.GET["slack"]
+        ploturl = request.GET["ploturl"]
+        ploturl = "/static/"+ploturl
+        settings_dir = os.path.dirname(__file__)
+        PROJECT_ROOT = os.path.abspath(os.path.dirname(settings_dir))
+        # print(PROJECT_ROOT)
+        ploturl = PROJECT_ROOT + ploturl
+        if send_slack == "true":
+            username = request.user.get_username()
+            client = slack.WebClient(token=settings.SLACK_TOKEN)
+            url = request.build_absolute_uri().split("?")[0]
+            urltogo = url + "?slack_sent=true"
+            # direct users to source via image url, not query
+            if "query" in url:
+                url = url.replace("/query/", "/image/{}/crossmatches/".format(crossmatch_source.image_id))
+            response = client.files_upload(
+                channels=settings.SLACK_CHANNEL_ID,
+                initial_comment="User *{}* wants to share the following source:\n\nLink: {}\n\nSee the thread for more information!".format(username, url),
+                file=ploturl,
+                filename=ploturl.split("/")[-1],
+                title=crossmatch_source.master_name
+                )
+            ts = response['file']['shares']['private'][settings.SLACK_CHANNEL_ID][0]['ts']
+
+            blocks = [
+                {
+                    "type": "section",
+                    "text": {
+                        "type": "mrkdwn",
+                        "text": "Details of {}:".format(crossmatch_source.master_name),
+                    }
+                },
+                {
+                    "type": "section",
+                    "fields": [
+                    {
+                        "type": "mrkdwn",
+                        "text": "*Type:*\n{} ({})".format(crossmatch_source.transient_type, crossmatch_source.survey.upper())
+                    },
+                    {
+                        "type": "mrkdwn",
+                        "text": "*Ratio:*\n{:.02f}".format(crossmatch_source.ratio)
+                    },
+                    {
+                        "type": "mrkdwn",
+                        "text": "*ASKAP Flux (scaled):*\n{:.02f} mJy".format(float(crossmatch_source.ratio_askap_flux)*1.e3)
+                    },
+                    {
+                        "type": "mrkdwn",
+                        "text": "*{} Flux:*\n{:.02f} mJy".format(crossmatch_source.survey.upper(), float(crossmatch_source.ratio_catalog_flux)*1.e3)
+                    },
+                    {
+                        "type": "mrkdwn",
+                        "text": "*Vs:*\n{:.02f}".format(crossmatch_source.vs)
+                    },
+                    {
+                        "type": "mrkdwn",
+                        "text": "*m:*\n{:.02f}".format(crossmatch_source.m)
+                    },
+                    {
+                        "type": "mrkdwn",
+                        "text": "*Pipeline Tag:*\n{}".format(crossmatch_source.pipelinetag)
+                    },
+                    {
+                        "type": "mrkdwn",
+                        "text": "*User Tag:*\n{}".format(crossmatch_source.usertag)
+                    },
+                    {
+                        "type": "mrkdwn",
+                        "text": "*Checked by:*\n{}".format(crossmatch_source.checkedby)
+                    },
+                    ]
+                },
+                {
+                    "type": "actions",
+                    "elements": [
+                        {
+                            "type": "button",
+                            "text": {
+                                "type": "plain_text",
+                                "text": "SIMBAD",
+                            },
+                            "url": simbad_query,
+                            "style": "primary",
+                        },
+                        {
+                            "type": "button",
+                            "text": {
+                            "type": "plain_text",
+                            "text": "NED",
+                            },
+                            "url": ned_query,
+                            "style": "primary",
+                        },
+                    ]
+                }
+            ]
+            detail_response = client.chat_postMessage(
+                channel=settings.SLACK_CHANNEL_ID,
+                blocks=blocks,
+                thread_ts=ts,
+            )
+
+        return redirect(urltogo)
+
+    except:
+        pass
+
+    try:
+        slack_sent = request.GET["slack_sent"]
+        if slack_sent:
+            return render(request, 'crossmatch_detail.html', {'crossmatch_source':crossmatch_source, 'image':image, 'type':"crossmatches",
+                                                        'title':title_to_use, 'type_url':url_to_use, 'next_id':next_id, 'prev_id':prev_id, 'this_index':this_index+1, 'total':total, "saved":saved, "updated":updated, "conflict":conflict,
+                                                    'simbad_query':simbad_query, 'ned_query':ned_query, 'detail_table':detail_table, "ratio_table":ratio_table, 'nearest_sources_table':nearest_sources_table,
+                                                    'query':True, 'possible_assoc_table':possible_assoc_table, 'follow_up_page':follow_up_page, 'slack_sent':True},)
+    except:
+        pass
 
     return render(request, 'crossmatch_detail.html', {'crossmatch_source':crossmatch_source, 'image':image, 'type':"crossmatches",
                                                         'title':title_to_use, 'type_url':url_to_use, 'next_id':next_id, 'prev_id':prev_id, 'this_index':this_index+1, 'total':total, "saved":saved, "updated":updated, "conflict":conflict,

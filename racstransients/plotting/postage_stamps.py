@@ -473,7 +473,7 @@ def produce_postage_stamps_new(row_dict, askap_data, askap_wcs, mos_data, mos_wc
 
     #Now begin the main loop per source
     # debug_num=0
-    if row_dict["type"] == "goodmatch":
+    if row_dict["type"] == "match":
         askap_title = "RACS "+row_dict["askap_name"]
         if np.isnan(row_dict["aegean_convolved_int_flux"]) and convolve:
             askap_title_2 = "RACS "+row_dict["askap_non_conv_name"]
@@ -544,7 +544,7 @@ def produce_postage_stamps_new(row_dict, askap_data, askap_wcs, mos_data, mos_wc
     image_rms = row_dict["master_catalog_Mosaic_rms"]
     snr_col = "{0}_{0}_snr".format(thissurvey.lower())
 
-    if row_dict["type"] == "goodmatch":
+    if row_dict["type"] == "match":
         for p in panels:
             r = SphericalCircle((target.ra, target.dec), 1. * u.arcmin, edgecolor='C9', facecolor='none', transform=panels[p].get_transform('fk5'), linewidth=3)
             panels[p].add_patch(r)
@@ -875,7 +875,7 @@ def produce_postage_stamps(df, askap_fits, cat_extractions, askap_extractions, c
             # debug_num=0
             for i, row in filtered_cross_matches.iterrows():
                 skip=False
-                if row["type"] == "goodmatch":
+                if row["type"] == "match":
                     askap_title = "RACS "+row["askap_name"]
                     if pd.isna(row["aegean_convolved_int_flux"]):
                         askap_title_2 = "RACS "+row["askap_non_conv_name"]
@@ -940,7 +940,7 @@ def produce_postage_stamps(df, askap_fits, cat_extractions, askap_extractions, c
                         break
 
 
-                    if row["type"] == "goodmatch":
+                    if row["type"] == "match":
                         panels[p].show_circles([recentre_ra], [recentre_dec], 120./3600., color='C9', linewidth=3, label="{} source".format(image_type), layer="Cat Source")
                         panels[p].show_circles([row["askap_ra"]], [row["askap_dec"]], 120./3600., color='C1', linewidth=3, label="ASKAP source", layer="ASKAP Source")
                         if p==0:
@@ -1150,9 +1150,9 @@ def produce_postage_stamps(df, askap_fits, cat_extractions, askap_extractions, c
                 logger.info("Saved figure {}.".format(figname))
 
                 for i in panels:
-                    if row["type"] == "goodmatch" or row["type"]=="nocatalogmatch":
+                    if row["type"] == "match" or row["type"]=="nocatalogmatch":
                         panels[i].remove_layer("ASKAP Source")
-                    if row["type"] == "goodmatch" or row["type"]=="noaskapmatch":
+                    if row["type"] == "match" or row["type"]=="noaskapmatch":
                         panels[i].remove_layer("Cat Source")
                         # panels[1].remove_layer("SUMSS Source")
                 if row["type"]=="nocatalogmatch":
@@ -1169,7 +1169,7 @@ def produce_postage_stamps(df, askap_fits, cat_extractions, askap_extractions, c
                 if convolve:
                     askap_snr_text_preconv.set_visible(False)
                 sumss_snr_text.set_visible(False)
-                if row["type"] == "goodmatch":
+                if row["type"] == "match":
                     sep_text.set_visible(False)
                 ratio_text.set_visible(False)
                 # debug_num+=1
