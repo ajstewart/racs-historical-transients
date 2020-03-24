@@ -81,11 +81,11 @@ def transients(request,pk,transient_filter):
         table = CrossmatchTableAll(transient_sources)
         total = image.transients_master_total
     elif transient_filter == "flagged":
-        transient_sources = Crossmatches.objects.all().filter(image_id=pk).exclude(pipelinetag="Candidate").filter(ratio__gte=2.0).order_by("id")
+        transient_sources = Crossmatches.objects.all().filter(image_id=pk).exclude(pipelinetag="Good").filter(ratio__gte=2.0).order_by("id")
         table = CrossmatchTable(transient_sources)
         total = image.transients_master_flagged_total
     else:
-        transient_sources = Crossmatches.objects.all().filter(image_id=pk).filter(pipelinetag="Candidate").filter(ratio__gte=2.0).order_by("id")
+        transient_sources = Crossmatches.objects.all().filter(image_id=pk).filter(pipelinetag="Good").filter(ratio__gte=2.0).order_by("id")
         table = CrossmatchTable(transient_sources)
         total = image.transients_master_candidates_total
     RequestConfig(request, paginate={'per_page': 100}).configure(table)
@@ -246,7 +246,7 @@ def crossmatch_detail(request,pk,querytype,cross_id):
                 conflict=False
                 image = Image.objects.get(pk=pk)
                 #update image checked:
-                transient_sources = Crossmatches.objects.all().filter(image_id=pk).filter(pipelinetag="Candidate").filter(ratio__gte=2.0).exclude(checkedby="N/A")
+                transient_sources = Crossmatches.objects.all().filter(image_id=pk).filter(pipelinetag="Good").filter(ratio__gte=2.0).exclude(checkedby="N/A")
                 total_checked = len(list(transient_sources.values_list('id', flat=True)))
                 image.number_candidates_checked = total_checked
                 image.save()
@@ -262,7 +262,7 @@ def crossmatch_detail(request,pk,querytype,cross_id):
                 conflict = False
                 image = Image.objects.get(pk=pk)
                 #update image checked:
-                transient_sources = Crossmatches.objects.all().filter(image_id=pk).filter(pipelinetag="Candidate").filter(ratio__gte=2.0).exclude(checkedby="N/A")
+                transient_sources = Crossmatches.objects.all().filter(image_id=pk).filter(pipelinetag="Good").filter(ratio__gte=2.0).exclude(checkedby="N/A")
                 total_checked = len(list(transient_sources.values_list('id', flat=True)))
                 image.number_candidates_checked = total_checked
                 image.save()
@@ -276,7 +276,7 @@ def crossmatch_detail(request,pk,querytype,cross_id):
                     crossmatch_source.save()
                     image = Image.objects.get(pk=pk)
                     #update image checked:
-                    transient_sources = Crossmatches.objects.all().filter(image_id=pk).filter(pipelinetag="Candidate").filter(ratio__gte=2.0).exclude(checkedby="N/A")
+                    transient_sources = Crossmatches.objects.all().filter(image_id=pk).filter(pipelinetag="Good").filter(ratio__gte=2.0).exclude(checkedby="N/A")
                     total_checked = len(list(transient_sources.values_list('id', flat=True)))
                     image.number_candidates_checked = total_checked
                     image.save()
@@ -477,10 +477,10 @@ def crossmatch_quickview(request,pk,querytype,transient_filter):
     html ={"crossmatches":"crossmatches",}
     if querytype=="crossmatches":
         if transient_filter=="candidates":
-            allsources = object_from_query[querytype].objects.all().filter(image_id=pk).filter(ratio__gte=2.0).filter(pipelinetag="Candidate").order_by("id")
-            subquery_type = "Candidate"
+            allsources = object_from_query[querytype].objects.all().filter(image_id=pk).filter(ratio__gte=2.0).filter(pipelinetag="Good").order_by("id")
+            subquery_type = "Good"
         elif transient_filter=="flagged":
-            allsources = object_from_query[querytype].objects.all().filter(image_id=pk).filter(ratio__gte=2.0).exclude(pipelinetag="Candidate").order_by("id")
+            allsources = object_from_query[querytype].objects.all().filter(image_id=pk).filter(ratio__gte=2.0).exclude(pipelinetag="Good").order_by("id")
             subquery_type = "Flagged"
         else:
             allsources = object_from_query[querytype].objects.all().filter(image_id=pk).order_by("id")
@@ -641,7 +641,7 @@ def crossmatch_detail_query(request,cross_id):
                 conflict=False
 
                 #update image checked:
-                transient_sources = Crossmatches.objects.all().filter(image_id=image.id).filter(pipelinetag="Candidate").filter(ratio__gte=2.0).exclude(checkedby="N/A")
+                transient_sources = Crossmatches.objects.all().filter(image_id=image.id).filter(pipelinetag="Good").filter(ratio__gte=2.0).exclude(checkedby="N/A")
                 total_checked = len(list(transient_sources.values_list('id', flat=True)))
                 image.number_candidates_checked = total_checked
                 image.save()
@@ -662,7 +662,7 @@ def crossmatch_detail_query(request,cross_id):
                 saved=False
                 conflict = False
                 #update image checked:
-                transient_sources = Crossmatches.objects.all().filter(image_id=image.id).filter(pipelinetag="Candidate").filter(ratio__gte=2.0).exclude(checkedby="N/A")
+                transient_sources = Crossmatches.objects.all().filter(image_id=image.id).filter(pipelinetag="Good").filter(ratio__gte=2.0).exclude(checkedby="N/A")
                 total_checked = len(list(transient_sources.values_list('id', flat=True)))
                 image.number_candidates_checked = total_checked
                 image.save()
@@ -682,7 +682,7 @@ def crossmatch_detail_query(request,cross_id):
                     crossmatch_source.save()
                     # image = Image.objects.get(pk=pk)
                     #update image checked:
-                    transient_sources = Crossmatches.objects.all().filter(image_id=image.id).filter(pipelinetag="Candidate").filter(ratio__gte=2.0).exclude(checkedby="N/A")
+                    transient_sources = Crossmatches.objects.all().filter(image_id=image.id).filter(pipelinetag="Good").filter(ratio__gte=2.0).exclude(checkedby="N/A")
                     total_checked = len(list(transient_sources.values_list('id', flat=True)))
                     image.number_candidates_checked = total_checked
                     image.save()

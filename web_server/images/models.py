@@ -102,6 +102,8 @@ class Crossmatches(models.Model):
     inflated_convolved_flux = models.CharField("Flux Convolved Error", max_length=6, unique=False, default="False")
     vs = models.DecimalField("Vs", max_digits=20, decimal_places=12, default=0)
     m = models.DecimalField(max_digits=20, decimal_places=12, default=0)
+    using_preconv = models.CharField(max_length=6, unique=False, default="False")
+    d2d_nn_askap_cat = models.DecimalField("Distance to nearest ASKAP neighbour", max_digits=20, decimal_places=12, default=0)
 
     def __str__(self):
         return self.sumss_name
