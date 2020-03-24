@@ -270,7 +270,7 @@ def produce_postage_stamps_new(row_dict, askap_data, askap_wcs, mos_data, mos_wc
 
     askap_norm = ImageNormalize(askap_cutout.data, interval=ZScaleInterval(contrast=contrast))
     mos_norm = ImageNormalize(mos_cutout.data, interval=ZScaleInterval(contrast=contrast))
-    if convolve
+    if convolve:
         askap_nonconv_norm = ImageNormalize(askap_nonconv_cutout.data, interval=ZScaleInterval(contrast=contrast))
 
     panels[1] = fig.add_subplot(1,total_panels,1, projection=mos_cutout.wcs)
