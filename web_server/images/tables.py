@@ -70,12 +70,13 @@ class ImageTable(tables.Table):
 class CrossmatchDetailTable(tables.Table):
     id = tables.Column(verbose_name= 'ID')
     image_id = tables.LinkColumn('image_detail', args=[A('image_id'),], orderable=True, verbose_name= 'Img. ID')
-    master_name = tables.Column(verbose_name = 'Name')
+    # master_name = tables.Column(verbose_name = 'Name')
     ra = RAColumn(verbose_name="RA")
     dec = DecColumn(verbose_name="Dec")
     gal_l = FloatColumn(verbose_name="Gal. l (deg)")
     gal_b = FloatColumn(verbose_name="Gal. b (deg)")
     d2d_askap_centre = FloatColumn(verbose_name = "Distance from ASKAP Centre (deg)")
+    d2d_nn_askap_cat = FloatColumn(verbose_name = "Distance from ASKAP neighbour (arcsec)")
     survey = CapitalColumn(verbose_name= 'Survey Used')
     catalog_mosaic = tables.Column(verbose_name = 'Mosaic')
     transient_type = tables.Column(verbose_name = 'Candidate Type')
@@ -83,7 +84,7 @@ class CrossmatchDetailTable(tables.Table):
     class Meta:
         model = Crossmatches
         template_name = 'django_tables2/bootstrap4.html'
-        fields = ("id","image_id", "master_name", "ra", "dec", "gal_l", "gal_b", "d2d_askap_centre", "survey", "catalog_mosaic", "transient_type")
+        fields = ("id","image_id", "ra", "dec", "gal_l", "gal_b", "d2d_askap_centre","d2d_nn_askap_cat", "survey", "catalog_mosaic", "transient_type")
         attrs = {"th":{"bgcolor":"#EBEDEF"}}
 
 class CrossmatchDetailFluxTable(tables.Table):

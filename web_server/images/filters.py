@@ -107,11 +107,11 @@ class TransientFilter(django_filters.FilterSet):
 
     pipelinetag_choices = (
         ('Good', 'Good'),
-        ('Convolved flux error', 'Convolved flux error'),
         ('Created convolved source', 'Created convolved source'),
         ('Edge of ASKAP image', 'Edge of ASKAP image'),
         ('Extended source', 'Extended source'),
         ('Failed', 'Failed'),
+        ('Inflated convolved flux error', 'Inflated convolved flux error'),
         ('Large island source', 'Large island source'),
         ('Likely artefact (bright source)', 'Likely artefact (bright source)'),
         ('Likely diffuse/extended', 'Likely diffuse/extended'),
@@ -183,6 +183,9 @@ class TransientFilter(django_filters.FilterSet):
 
     gal_l__gt = django_filters.RangeFilter(field_name = 'gal_l', widget=MyRangeWidget(from_attrs={'placeholder': 'Min (deg)'}, to_attrs={'placeholder':'Max (deg)'}), label="Galactic l")
     gal_b__gt = django_filters.RangeFilter(field_name = 'gal_b', widget=MyRangeWidget(from_attrs={'placeholder': 'Min (deg)'}, to_attrs={'placeholder':'Max (deg)'}), label="Galactic b")
+
+    d2d_nn_askap_cat__gt = django_filters.RangeFilter(field_name = 'd2d_nn_askap_cat',
+        widget=MyRangeWidget(from_attrs={'placeholder': 'Min (arcsec)'}, to_attrs={'placeholder':'Max (arcsec)'}), label="Distance to nearest ASKAP neighbour.")
 
     cone_search = ConeSearchFilter(field_name = 'cone_search', widget=ConeSearchWidget(), method="cone_search_filter", label="Cone Search")
 

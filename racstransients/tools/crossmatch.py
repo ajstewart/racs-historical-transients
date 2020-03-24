@@ -305,6 +305,7 @@ class crossmatch(object):
         self.logger.info("Creating matched and non-matched lists")
         # First sort out the matched and non-matched
         # Does not care about dual mode or not.
+        self.crossmatch_df["using_preconv"]=False
         no_matches=self.crossmatch_df[self.crossmatch_df["d2d"]>max_separation].reset_index(drop=True)
 
         matches=self.crossmatch_df[self.crossmatch_df["d2d"]<=max_separation].reset_index(drop=True)
@@ -346,6 +347,7 @@ class crossmatch(object):
             preconv_df_no_matches = preconv_df[preconv_df["master_name"].isin(no_matches_names)].reset_index(drop=True)
             #Get which ones of these are within the acceptable max separation and not already matched
             preconv_df_have_match = preconv_df_no_matches[(preconv_df_no_matches["d2d"]<max_separation) & (~preconv_df_no_matches["askap_name"].isin(already_matched_askap_preconv_name))].reset_index(drop=True)
+            preconv_df_have_match["using_preconv"]=True
             #If there are some then we need to replace the info in the good matches with the non-convolved data
             if len(preconv_df_have_match.index)>0:
                 #We need to force measure these sources in the ASKAP convolved image
@@ -388,6 +390,8 @@ class crossmatch(object):
         self.badmatches_df_trans=no_matches
         # Stage 1
         # Consider all SUMSS sources with matches > max_sep to be 'not matched'
+        matches=self.measure_askap_image_local_rms(matches, askap_img_wcs, askap_img_header,
+            askap_img_data, using_pre_conv, preconv_askap_img_wcs, preconv_askap_img_header, preconv_askap_img_data)
         if no_matches.shape[0] > 0:
             self.logger.info("Finding sources with no ASKAP matches...")
             #For moved double matched sources the tag needs to be changed from BAD -> GOOD to load the correct image.
@@ -426,7 +430,6 @@ class crossmatch(object):
             # no_matches=self.measure_askap_image_peak_fluxes(no_matches, askap_img_wcs, askap_img_data, using_pre_conv, preconv_askap_img_wcs, preconv_askap_img_data)
             #also measure local rms
             no_matches=self.measure_askap_image_local_rms(no_matches, askap_img_wcs, askap_img_header, askap_img_data, using_pre_conv, preconv_askap_img_wcs, preconv_askap_img_header, preconv_askap_img_data)
-            matches=self.measure_askap_image_local_rms(matches, askap_img_wcs, askap_img_header, askap_img_data, using_pre_conv, preconv_askap_img_wcs, preconv_askap_img_header, preconv_askap_img_data)
 
             #Now check the sources to assign guesstimate type
             #First check bright source proximity
@@ -662,10 +665,10 @@ class crossmatch(object):
                     pipeline_tags.append("Large island source")
                 elif self._check_for_edge_case(askap_target.ra.degree, askap_target.dec.degree, askap_img_wcs, askap_img_data):
                     pipeline_tags.append("Edge of ASKAP image")
-                elif (pre_conv_crossmatch != None) and (row["non_conv_d2d"] > 10.):
+                elif (pre_conv_crossmatch != None) and (row["non_conv_d2d"] >= 2 * preconv_askap_image.bmaj * 3600.):
                     pipeline_tags.append("Created convolved source")
-                elif (pre_conv_crossmatch != None) and (row["non_conv_d2d"] < 10.) and (row["non_conv_askap_scaled_to_{}".format(row["survey"])]/row["catalog_Mosaic_rms"] < 5.):
-                    pipeline_tags.append("Convolved flux error")
+                elif (pre_conv_crossmatch != None) and (row["non_conv_d2d"] < 2 * preconv_askap_image.bmaj * 3600.) and (row["non_conv_askap_scaled_to_{}".format(row["survey"])]/row["catalog_Mosaic_rms"] < 5.):
+                    pipeline_tags.append("Inflated convolved flux error")
                 else:
                     pipeline_tags.append("Good")
 
@@ -721,7 +724,7 @@ class crossmatch(object):
         self.transients_master_df = self.transients_master_df.append(self.transients_not_matched_askap_should_see_df).reset_index(drop=True)
 
         #Now go through and sort the master table
-        self.sort_master_transient_table(convolve=convolve)
+        self.sort_master_transient_table(convolve=convolve, preconv_askap_image=preconv_askap_image)
 
         self.transients_master_total=len(self.transients_master_df.index)
         candidate_mask = ((self.transients_master_df["pipelinetag"]=="Good") & (self.transients_master_df["master_ratio"]>=2.0))
@@ -737,10 +740,12 @@ class crossmatch(object):
 
         self.calculate_galactic_coordinates()
 
+        self.calculate_nearest_askap_neighbour(pre_conv_crossmatch)
+
         self.transients_master_df.to_csv("transients_master.csv")
         self.logger.info("Written master transient table as 'transients_master.csv'.")
 
-    def sort_master_transient_table(self, convolve=True):
+    def sort_master_transient_table(self, convolve=True, preconv_askap_image=None):
         self.logger.info("Processing transient table...")
         #Generate the master ratio column along with the error
         #1. for good types, we just take askap scaled and SUMSS int + errors.
@@ -846,10 +851,16 @@ class crossmatch(object):
                     scaled_askap_flux_to_use_err = row["askap_askap_scaled_to_{}_err".format(row.survey_used)]
                     used_rms = False
                     if convolve:
-                        askap_flux_to_use_2 = row["askap_non_conv_int_flux"]
-                        askap_flux_to_use_2_err = row["askap_non_conv_err_int_flux"]
-                        scaled_askap_flux_to_use_2 = row["askap_non_conv_askap_scaled_to_{}".format(row.survey_used)]
-                        scaled_askap_flux_to_use_2_err = 0.0
+                        if row["askap_non_conv_d2d"] >= 2 * preconv_askap_image.bmaj * 3600.:
+                            askap_flux_to_use_2 = 0.0
+                            askap_flux_to_use_2_err = 0.0
+                            scaled_askap_flux_to_use_2 = 0.0
+                            scaled_askap_flux_to_use_2_err = 0.0
+                        else:
+                            askap_flux_to_use_2 = row["askap_non_conv_int_flux"]
+                            askap_flux_to_use_2_err = row["askap_non_conv_err_int_flux"]
+                            scaled_askap_flux_to_use_2 = row["askap_non_conv_askap_scaled_to_{}".format(row.survey_used)]
+                            scaled_askap_flux_to_use_2_err = 0.0
                 if row.survey_used == "sumss":
                     other_flux_to_use = row["sumss_St"]*1.e-3
                     other_error_to_use = row["sumss_e_St"]*1.e-3
@@ -923,13 +934,18 @@ class crossmatch(object):
                 askap_flux_to_use = row["askap_int_flux"]
                 askap_flux_to_use_err = row["askap_err_int_flux"]
                 if convolve:
-                    askap_flux_to_use_2 = row["askap_non_conv_int_flux"]
-                    askap_flux_to_use_2_err = row["askap_non_conv_err_int_flux"]
+                    if row["askap_non_conv_d2d"] > 15.:
+                        askap_flux_to_use_2 = 0.0
+                        askap_flux_to_use_2_err = 0.0
+                        scaled_askap_flux_to_use_2 = 0.0
+                        scaled_askap_flux_to_use_2_err = 0.0
+                    else:
+                        askap_flux_to_use_2 = row["askap_non_conv_int_flux"]
+                        askap_flux_to_use_2_err = row["askap_non_conv_err_int_flux"]
+                        scaled_askap_flux_to_use_2 = row["askap_non_conv_askap_scaled_to_{}".format(row.survey_used)]
+                        scaled_askap_flux_to_use_2_err = 0.0
                 scaled_askap_flux_to_use = row["askap_askap_scaled_to_{}".format(row.survey_used)]
                 scaled_askap_flux_to_use_err = row["askap_askap_scaled_to_{}_err".format(row.survey_used)]
-                if convolve:
-                    scaled_askap_flux_to_use_2 = row["askap_non_conv_askap_scaled_to_{}".format(row.survey_used)]
-                    scaled_askap_flux_to_use_2_err = 0.0
                 distance_from_centre = row["askap_distance_from_centre"]
 
 
@@ -938,39 +954,45 @@ class crossmatch(object):
 
             #For candidate sources we need to check whether the non-convolved flux brings the ratio back down when convolved is used.
             #Apart from noaskapmatch
+            # Edit 2020 - this needs to be a generic check on the fluxes in the convolved and non-convolved case.
             convolve_check = ["match", "nocatalogmatch"]
 
+            inflated_var = "False"
+            # self.logger.debug("Convolved check")
+            # self.logger.debug(row["type"])
+            # self.logger.debug(row["using_preconv"])
+            # self.logger.debug(row["askap_non_conv_nn_d2d"])
+            # self.logger.debug(row["askap_non_conv_d2d"])
+            # self.logger.debug(row["pipelinetag"])
+            # self.logger.debug("Convolved check")
+            if row["type"] in convolve_check and row["using_preconv"] is False and row["askap_non_conv_nn_d2d"] > 60. and\
+                    row["askap_non_conv_d2d"] <= 2 * preconv_askap_image.bmaj * 3600. and row["pipelinetag"]=="Good":
+                if askap_flux_to_use_2!=0.0 and askap_flux_to_use_2!=np.nan:
+                    askap_conv_nonconv_ratio = askap_flux_to_use_2/askap_flux_to_use
+                    if askap_conv_nonconv_ratio < 1:
+                        askap_conv_nonconv_ratio = 1./askap_conv_nonconv_ratio
+                    self.logger.debug(askap_conv_nonconv_ratio)
+                    if askap_conv_nonconv_ratio > 1.25:
+                        inflated_var = "True"
 
             if flux_to_use > other_flux_to_use:
                 ratio=flux_to_use/other_flux_to_use
                 ratio_error = self._calculate_ratio_error(ratio, flux_to_use, err_to_use,
                     other_flux_to_use, other_error_to_use)
-                if convolve and (row["type"] in convolve_check) and (row["pipelinetag"]=="Good") and (ratio >= 2.0):
+                if convolve and (row["type"] in convolve_check) and (row["pipelinetag"]=="Good"):
                     try:
                         non_convolve_ratio = scaled_askap_flux_to_use_2 / other_flux_to_use
                     except:
-                        non_convolve_ratio = 2.0
-                    if non_convolve_ratio < 2.0:
-                        inflated_var = "True"
-                    else:
-                        inflated_var = "False"
-                else:
-                    inflated_var = "False"
+                        non_convolve_ratio = 0.0
             else:
                 ratio=other_flux_to_use/flux_to_use
                 ratio_error = self._calculate_ratio_error(ratio, other_flux_to_use, other_error_to_use,
                     flux_to_use, err_to_use)
-                if convolve and (row["type"] in convolve_check) and (row["pipelinetag"]=="Good") and (ratio >= 2.0):
+                if convolve and (row["type"] in convolve_check) and (row["pipelinetag"]=="Good"):
                     try:
                         non_convolve_ratio =  other_flux_to_use / scaled_askap_flux_to_use_2
                     except:
-                        non_convolve_ratio = 2.0
-                    if non_convolve_ratio < 2.0:
-                        inflated_var = "True"
-                    else:
-                        inflated_var = "False"
-                else:
-                    inflated_var = "False"
+                        non_convolve_ratio = 0.0
 
             self.logger.debug("ratio: {}, error: {}".format(ratio, ratio_error))
 
@@ -1106,6 +1128,8 @@ class crossmatch(object):
 
         cutout_data = img_data[pixel_y_min:pixel_y_max, pixel_x_min:pixel_x_max]
 
+        self.logger.debug(cutout_data)
+
         cutout_clip_mean, cutout_clip_median, cutout_clip_std = sigma_clipped_stats(cutout_data, sigma=sigma, maxiters=max_iter)
 
 
@@ -1199,6 +1223,8 @@ class crossmatch(object):
         # askap_local_rms=[]
         # preconv_askap_local_rms=[]
         # for i, row in no_matches.iterrows():
+        self.logger.debug("I'm HERE!!!")
+        self.logger.debug(no_matches.empty)
         if no_matches.empty is False:
             no_matches["measured_askap_local_rms"] = no_matches[[ra_col, dec_col]].apply(self._get_local_rms, args=(ra_col, dec_col, askap_img_wcs, askap_img_data), axis=1)
             # askap_local_rms_val=self._get_local_rms(row[ra_col], row[dec_col], askap_img_wcs, askap_img_data)
@@ -1286,7 +1312,7 @@ class crossmatch(object):
 
         return results
 
-    def _merge_forced_aegean(self, df, aegean_results, tag="aegean", ra_col="master_ra", dec_col="master_dec"):
+    def _merge_forced_aegean(self, df, aegean_results, tag="aegean", ra_col="master_ra", dec_col="master_dec", drop_missing=False):
         #AEGEAN SEEMS TO RANDOMISE THE ORDER THAT THE SOURCES ARE ENTERED INTO THE RESULTS FILE (PROBABLY THREADING)
         #Need to crossmatch the results
         aegean_results.columns=["{}_{}".format(tag, i) for i in aegean_results.columns]
@@ -1332,6 +1358,36 @@ class crossmatch(object):
         self.transients_master_df["gal_l"] = temp.galactic.l.deg
         self.transients_master_df["gal_b"] = temp.galactic.b.deg
         del temp
+
+    def calculate_nearest_askap_neighbour(self, pre_conv_crossmatch=None):
+        if pre_conv_crossmatch == None:
+            askap_cat = self.comp_catalog._crossmatch_catalog
+        else:
+            askap_cat = pre_conv_crossmatch.comp_catalog._crossmatch_catalog
+
+        self.transients_master_df["d2d_nn_askap_cat"] = 0.0
+
+        first = self.transients_master_df[(self.transients_master_df["type"]=="match") | (self.transients_master_df["type"]=="nocatalogmatch")]
+        if first.empty is False:
+
+            temp = SkyCoord(first["master_ra"]*u.degree, first["master_dec"]*u.degree)
+
+            idx, d2d, d3d = temp.match_to_catalog_sky(askap_cat, nthneighbor=2)
+
+            self.transients_master_df.loc[first.index, "d2d_nn_askap_cat"] = d2d.arcsec
+
+        first = self.transients_master_df[(self.transients_master_df["type"]=="noaskapmatch")]
+
+        if first.empty is False:
+            temp = SkyCoord(first["master_ra"]*u.degree, first["master_dec"]*u.degree)
+
+            idx, d2d, d3d = temp.match_to_catalog_sky(askap_cat)
+
+            self.transients_master_df.loc[first.index, "d2d_nn_askap_cat"] = d2d.arcsec
+
+
+
+
 
     def inject_transients_db(self, image_id, sumss, nvss, db_engine="postgresql",
             db_username="postgres", db_password="postgres", db_host="localhost", db_port="5432", db_database="postgres", max_separation=45.0, dualmode=False, basecat="sumss", askap_image="image", askap_image_2="N/A"):
@@ -1401,7 +1457,9 @@ class crossmatch(object):
                         "askap_image_2":"askap_image_2",
                         "inflated_convolved_flux":"inflated_convolved_flux",
                         "Vs":"vs",
-                        "m":"m"} #done
+                        "m":"m",
+                        "using_preconv":"using_preconv",
+                        "d2d_nn_askap_cat":"d2d_nn_askap_cat"} #done
 
         filter_list = [i for i in db_col_names_map]
 
@@ -1433,7 +1491,9 @@ class crossmatch(object):
                     "ratio_askap_flux":-1.0,
                     "ratio_askap_flux_err":-1.0,
                     "ratio":-1.0,
-                    "ratio_e":-1.0
+                    "ratio_e":-1.0,
+                    "vs":0.0,
+                    "m":0.0
                     }
         to_write.fillna(value=values, inplace=True)
         to_write.to_sql("images_crossmatches", engine, if_exists="append", index=False)

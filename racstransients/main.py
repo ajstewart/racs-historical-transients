@@ -585,6 +585,7 @@ def main():
                 non_conv_askap_cat = pd.read_csv(non_convolved_src_cat, engine="python", delimiter=",")
             non_conv_askap_cat = Catalog(non_conv_askap_cat, "askap", "{}".format(theimg.imagename.replace(".fits", "_askap")), ra_col="ra",
                 dec_col="dec", flux_col="int_flux", frequency=theimg.freq, add_name_col=True, convert_from_selavy=need_converting)
+            non_conv_askap_cat._nearest_neighbour_d2d()
             non_conv_askap_cat._add_askap_sn()
             non_conv_askap_cat.add_error_uncertainty(args.askap_flux_error)
             if sumss:
@@ -666,6 +667,7 @@ def main():
         theimg.total_askap_sources = len(askap_catalog.index)
         askap_catalog=Catalog(askap_catalog, "askap", "{}".format(theimg.imagename.replace(".fits", "_askap")), ra_col="ra", dec_col="dec",
             flux_col="int_flux", frequency=theimg.freq, add_name_col=True, convert_from_selavy=need_converting)
+        askap_catalog._nearest_neighbour_d2d()
         askap_catalog._add_askap_sn()
         askap_catalog.add_error_uncertainty(args.askap_flux_error)
         askap_catalog.add_distance_from_pos(theimg.centre)
@@ -734,6 +736,7 @@ def main():
             sumss_catalog=Catalog(sumss_cat_df, "sumss", "{}".format(theimg.imagename.replace(".fits", "_sumss")), frequency=843.0e6, add_name_col=True)
             theimg.total_sumss_sources = len(sumss_cat_df.index)
             sumss_catalog.add_telescope_beam_columns("sumss")
+            sumss_catalog._nearest_neighbour_d2d()
             sumss_catalog._add_sumss_mosaic_info(args.sumss_mosaic_dir)
             sumss_catalog.calculate_scaled_flux("askap", frequency=askap_catalog.frequency, flux_col="St")
             sumss_catalog.calculate_scaled_flux("askap_err", frequency=askap_catalog.frequency, flux_col="e_St")
@@ -764,6 +767,7 @@ def main():
             nvss_catalog=Catalog(nvss_cat_df, "nvss", "{}".format(theimg.imagename.replace(".fits", "_nvss")), flux_col="S1.4", frequency=1.4e9, add_name_col=True)
             theimg.total_nvss_sources = len(nvss_cat_df.index)
             nvss_catalog.add_telescope_beam_columns("nvss")
+            nvss_catalog._nearest_neighbour_d2d()
             nvss_catalog._find_nvss_mosaic_info(args.nvss_mosaic_dir)
             nvss_catalog.calculate_scaled_flux("askap", frequency=askap_catalog.frequency, flux_col="S1.4")
             nvss_catalog.calculate_scaled_flux("askap_err", frequency=askap_catalog.frequency, flux_col="e_S1.4")

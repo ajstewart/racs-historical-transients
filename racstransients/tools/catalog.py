@@ -249,7 +249,7 @@ class Catalog(object):
         self.logger.info("Fluxes scaled to {} catalogue frequency ({} MHz)".format(label, this_freq/1.e6))
 
     def add_error_uncertainty(self, percentage):
-        self.logger.debug("Adding %s\% error to fluxes.", percentage*100.)
+        self.logger.debug("Adding %s per cent error to fluxes.", percentage*100.)
         self.df["err_int_flux_orig"] = self.df["err_int_flux"]
         self.df["err_int_flux"] = np.hypot(self.df["err_int_flux"].values, self.df["int_flux"] * percentage)
 
@@ -485,7 +485,7 @@ class Catalog(object):
         idx, d2d, d3d = self._crossmatch_catalog.match_to_catalog_sky(non_conv_cat._crossmatch_catalog)
         matches = non_conv_cat.df.loc[idx].reset_index(drop=True)
         #going to copy over RA, Dec, iflux, iflux_err, a, b and pa
-        cols_to_copy = ["name", non_conv_cat.ra_col, non_conv_cat.dec_col, "int_flux", "err_int_flux", "a", "b", "pa"]
+        cols_to_copy = ["name", non_conv_cat.ra_col, non_conv_cat.dec_col, "int_flux", "err_int_flux", "a", "b", "pa", "nn_d2d"]
         if sumss:
             cols_to_copy+=["askap_scaled_to_sumss"]
         if nvss:
@@ -501,5 +501,8 @@ class Catalog(object):
         self.df["non_conv_d2d"]=d2d.arcsec
         self.logger.info("Non-convolved cross-matches added to ASKAP catalog.")
 
+    def _nearest_neighbour_d2d(self):
+        idx, nn_d2d, d3d = self._crossmatch_catalog.match_to_catalog_sky(self._crossmatch_catalog, nthneighbor=2)
+        self.df["nn_d2d"] = nn_d2d.arcsec
 
 
