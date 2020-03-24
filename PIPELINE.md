@@ -63,6 +63,7 @@ The plot values show the directly measured fluxes from the catalogues or Aegean.
 * **Inflated convolved flux error:** This means that the convolved ASKAP flux has been artificially inflated such that the source is now above the SUMSS detection limit when it really shouldn't have been seen.
 * **Large island source:** In either the convolved or non-convolved island catalogue the componenet is a member of an island with 3 or more components.
 * **Likely artefact (bright source):** The crossmatch is less than 10 arcminutes away from a previously defined bright source in the SUMSS or NVSS data. Bright sources are determined by being more than two standarded deviations away from the median of the flux distribution of the entire catalogue.
+* **Likely bright extended structure:** The source in question has a signal to noise > 50 in the ASKAP image.
 * **Likely double/multi source:** There is a source within 2.5 x 45 arcsec of the crossmatched source in question (convolved catalogue if used).
 
 ## Other Flags
@@ -70,6 +71,11 @@ The plot values show the directly measured fluxes from the catalogues or Aegean.
 
 ## Variability Metrics
 The standard two epoch metrics have been used, as defined in [this paper](https://ui.adsabs.harvard.edu/abs/2019MNRAS.490.4024R/abstract). `Vs` takes into account the user entered percentage error on the ASKAP fluxes.
+
+## Query Arguments
+Most of the options in the query are self-explantory, however these options perhaps need clarifying:
+
+* **Distance to nearest ASKAP neighbour:** This distance takes the crossmatch coordinate and finds the nearest next ASKAP source from the non-convolved catalogue (i.e. not the source that has been crossmatched).
 
 
 
