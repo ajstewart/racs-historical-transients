@@ -109,11 +109,12 @@ class CrossmatchDetailFluxTable(tables.Table):
     inflated_convolved_flux = tables.Column(verbose_name = "Conv. Ratio Error")
     vs = FloatColumn(verbose_name= 'Vs')
     m = FloatColumn(verbose_name= '|m|')
+    using_preconv = tables.Column(verbose_name = "Using Non-convolved info")
 
     class Meta:
         model = Crossmatches
         template_name = 'django_tables2/bootstrap4.html'
-        fields = ("id","aegean_rms_used", "inflated_convolved_flux", "askap_iflux", "askap_scale_flux","askap_non_conv_flux",
+        fields = ("id","aegean_rms_used", "inflated_convolved_flux", "using_preconv", "askap_iflux", "askap_scale_flux","askap_non_conv_flux",
         "ratio_askap_flux", "ratio_askap_flux_err", "ratio_catalog_flux", "ratio_catalog_flux_err", "ratio", "ratio_e",
         "vs", "m")
         attrs = {"th":{"bgcolor":"#EBEDEF"}}
