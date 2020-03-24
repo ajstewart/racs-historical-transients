@@ -1,13 +1,24 @@
-# askap-image-diagnostic
-A module to perform diagnostic analysis on ASKAP images using the SUMSS catalogue. Creates a crossmatch catalogue for SUMSS -> ASKAP sources and also produces diagnostic plots. Also includes the ability to create postage stamps of each crossmatch and to search for transients from either catalogue.
+# racs-historical-transients
+A module to perform transient searching between SUMSS/NVSS and RACS. Creates a crossmatch catalogue for SUMSS/NVSS -> ASKAP sources, produces diagnostic plots and also includes the ability to create postage stamps of each crossmatch. A Django webserver is also included that will allow you to explore the results and mark candidates for further investigation.
+
+## A note
+This module was born out of an initial diagnostic script and has grown and grown. As the author, I can only describe the state as 'terrible'. So if you are looking to try and decipher this or use a bit of it I can only apologise, please contact me if you do find yourself here. At this point I would scrap most of it and start again, I had also not quite let go of traditional for loops when using pandas so the performance could also be improved. It's a similar story for the `web_server` - while it works there is a bit of duplication in the code and some hacky ways around things to make it do what I wanted. At least I made it to Python 3, so there's that.
 
 ## Dependancies
-The only non-python module dependancy (all should be installed from pip install) required is the postgres plugin Q3C: https://github.com/segasai/q3c. However this is only required for the website.
+Module is for Python 3 only (I have tested up to v3.8.1).
+
+The only non-python module dependancy (everything else should be installed from pip install) required is postgres and the postgres plugin Q3C: https://github.com/segasai/q3c. However these are only required for the website. You also only need to install Q3C to postgres as the Django migration will do the Q3C setting up for you.
+
+CASA is required if you wish the pipeline to produce the convolved image.
+
+### Warning Python 3 & django-keyboard-shortcuts
+On first use django-keyboard-shortcuts will fail with Python 3, though the fix is quite simple. It is a rogue comma in the `__init__.py`. Edit this as mentioned in this [Stack Overflow post](https://stackoverflow.com/questions/57995209/django-keyboard-shortcuts) and it will work.
+
+### SUMSS and NVSS mosaics
+Currently you also need a local copy of the SUMSS and NVSS mosaic images. I never got around to pulling a large image directly from SkyView, but through testing this is probably possible.
 
 ## Installation
 I recommend to install the module to a new python environment using, for example, conda or virtualenv.
-
-**Note** This is written for python 2.7, it is not currently compatible with python 3.
 
 To install using pip:
 
@@ -17,14 +28,12 @@ pip install git+https://github.com/ajstewart/askap-image-diagnostic.git
 
 Or you can clone the git repository and install using ```python setup.py install``` or ```pip install .```.
 
-### Creating a Database
+### Creating a Database for the Website
 This script was intended to be run on the ada machine which has a installation of postgresql available. To create a database run:
 
 ```createdb <db name>``` e.g. ```createdb racs``` (if you get a denied message contact the system administrator)
 
-This will create an empty database with the chosen name. Make sure to note down the database settings (port, user, name) for use with the pipeline options. If the pipeline is run without first initilising the tables then the tables will be newly created. The easiest way to initilise the tables is by setting up the [website](#Installation of the Website).
-
-Remember that if you wish to use the website to also install Q3C and go through the initialisation steps described on https://github.com/segasai/q3c (the steps so that queries can be run).
+This will create an empty database with the chosen name. Make sure to note down the database settings (port, user, name) for use with the pipeline options. If the pipeline is run, with the db inject option turned on without first initilising the tables, then the tables will be newly created. The easiest way to initilise the tables is by setting up the [website](#Installation of the Website).
 
 ### Installation of the Website
 Included in the repository is `web_server` which is a basic website built using Django to allow the user to explore the results in a convienient way and for other users to give feedback on the crossmatching.
@@ -40,21 +49,19 @@ python manage.py makemigrations
 python manage.py migrate
 ```
 
-**WARNING**: There is a bug in Django 1.11.X which seems to cause the migration on a fresh database to fail. The workaround I've found is to downgrade to Django 1.7.X, perform the migration, and then upgrade back to 1.11.X.
-
-Now make a `media` direcoty in the `static` directory:
-
-```
-mkdir static/media
-```
-
-This is where all the postage stamp and other plots are stored by the pipeline. Also make a note of this directory to use in the pipeline (option `--website-media-dir`).
+Also make a note of the install directory, specifically to the `/static/media/` directory as this is used in the pipeline (option `--website-media-dir`).
 
 Now the server can be launched (in the example below port 8005 is used):
 
 ```
 python manage.py runserver 0.0.0.0:8005
 ```
+
+### Slack Integration
+The website has the feature of being able to send message to slack. To set this up you need a Bot API token from Slack for your app and the ID of the channel to send it to. See [here](https://slack.com/intl/en-au/help/articles/115005265703-Create-a-bot-for-your-workspace) for more information.
+
+## What does the Pipeline do?
+See [PIPELINE.md](PIPELINE.md).
 
 ## Usage
 The built pipeline script, available from the command line, is `processASKAPimage.py`.
@@ -66,45 +73,35 @@ More than one image can be passed through the processing script at once - howeve
 A range of options exist to influence processing:
 
 ```
-usage: processASKAPimage.py [-h] [-c FILE] [--output-tag OUTPUT_TAG]
-                            [--log-level {WARNING,INFO,DEBUG}] [--nice NICE]
-                            [--clobber CLOBBER] [--sumss-only SUMSS_ONLY]
-                            [--weight-crop WEIGHT_CROP]
-                            [--weight-crop-value WEIGHT_CROP_VALUE]
-                            [--weight-crop-image WEIGHT_CROP_IMAGE]
-                            [--convolve CONVOLVE]
+usage: processASKAPimage.py [-h] [-c FILE] [--output-tag OUTPUT_TAG] [--log-level {WARNING,INFO,DEBUG}]
+                            [--nice NICE] [--clobber CLOBBER] [--sumss-only SUMSS_ONLY] [--nvss-only NVSS_ONLY]
+                            [--weight-crop WEIGHT_CROP] [--weight-crop-value WEIGHT_CROP_VALUE]
+                            [--weight-crop-image WEIGHT_CROP_IMAGE] [--convolve CONVOLVE]
                             [--convolved-image CONVOLVED_IMAGE]
                             [--convolved-non-conv-askap-csv CONVOLVED_NON_CONV_ASKAP_CSV]
                             [--convolved-non-conv-askap-islands-csv CONVOLVED_NON_CONV_ASKAP_ISLANDS_CSV]
-                            [--sourcefinder {aegean,pybdsf,selavy}]
-                            [--frequency FREQUENCY] [--askap-csv ASKAP_CSV]
-                            [--askap-islands-csv ASKAP_ISLANDS_CSV]
-                            [--sumss-csv SUMSS_CSV] [--nvss-csv NVSS_CSV]
-                            [--askap-csv-format {aegean,selavy}]
-                            [--remove-extended REMOVE_EXTENDED]
-                            [--askap-ext-thresh ASKAP_EXT_THRESH]
-                            [--sumss-ext-thresh SUMSS_EXT_THRESH]
-                            [--nvss-ext-thresh NVSS_EXT_THRESH]
-                            [--use-all-fits USE_ALL_FITS]
-                            [--write-ann WRITE_ANN]
-                            [--boundary-value {nan,zero}]
+                            [--sourcefinder {aegean,pybdsf,selavy}] [--frequency FREQUENCY] [--askap-csv ASKAP_CSV]
+                            [--askap-islands-csv ASKAP_ISLANDS_CSV] [--sumss-csv SUMSS_CSV] [--nvss-csv NVSS_CSV]
+                            [--askap-csv-format {aegean,selavy}] [--remove-extended REMOVE_EXTENDED]
+                            [--askap-ext-thresh ASKAP_EXT_THRESH] [--sumss-ext-thresh SUMSS_EXT_THRESH]
+                            [--nvss-ext-thresh NVSS_EXT_THRESH] [--use-all-fits USE_ALL_FITS]
+                            [--write-ann WRITE_ANN] [--produce-overlays PRODUCE_OVERLAYS]
+                            [--boundary-value {nan,zero}] [--askap-flux-error ASKAP_FLUX_ERROR]
                             [--diagnostic-max-separation DIAGNOSTIC_MAX_SEPARATION]
-                            [--transient-max-separation TRANSIENT_MAX_SEPARATION]
-                            [--postage-stamps POSTAGE_STAMPS]
+                            [--transient-max-separation TRANSIENT_MAX_SEPARATION] [--postage-stamps POSTAGE_STAMPS]
                             [--postage-stamp-selection {all,transients}]
-                            [--sumss-mosaic-dir SUMSS_MOSAIC_DIR]
-                            [--nvss-mosaic-dir NVSS_MOSAIC_DIR]
+                            [--postage-stamp-ncores POSTAGE_STAMP_NCORES]
+                            [--postage-stamp-radius POSTAGE_STAMP_RADIUS]
+                            [--postage-stamp-zscale-contrast POSTAGE_STAMP_ZSCALE_CONTRAST]
+                            [--sumss-mosaic-dir SUMSS_MOSAIC_DIR] [--nvss-mosaic-dir NVSS_MOSAIC_DIR]
                             [--aegean-settings-config AEGEAN_SETTINGS_CONFIG]
                             [--pybdsf-settings-config PYBDSF_SETTINGS_CONFIG]
-                            [--selavy-settings-config SELAVY_SETTINGS_CONFIG]
-                            [--transients TRANSIENTS]
+                            [--selavy-settings-config SELAVY_SETTINGS_CONFIG] [--transients TRANSIENTS]
                             [--transients-askap-snr-thresh TRANSIENTS_ASKAP_SNR_THRESH]
                             [--transients-large-flux-ratio-thresh TRANSIENTS_LARGE_FLUX_RATIO_THRESH]
-                            [--db-inject DB_INJECT] [--db-engine DB_ENGINE]
-                            [--db-username DB_USERNAME] [--db-host DB_HOST]
-                            [--db-port DB_PORT] [--db-database DB_DATABASE]
-                            [--db-tag DB_TAG]
-                            [--website-media-dir WEBSITE_MEDIA_DIR]
+                            [--db-inject DB_INJECT] [--db-engine DB_ENGINE] [--db-username DB_USERNAME]
+                            [--db-password DB_PASSWORD] [--db-host DB_HOST] [--db-port DB_PORT]
+                            [--db-database DB_DATABASE] [--db-tag DB_TAG] [--website-media-dir WEBSITE_MEDIA_DIR]
                             images [images ...]
 
 positional arguments:
@@ -122,136 +119,118 @@ optional arguments:
   --clobber CLOBBER     Overwrite output if already exists. (default: False)
   --sumss-only SUMSS_ONLY
                         Only use SUMSS in the image analysis. (default: False)
+  --nvss-only NVSS_ONLY
+                        Only use NVSS in the image analysis. (default: False)
   --weight-crop WEIGHT_CROP
                         Crop image using the weights image. (default: False)
   --weight-crop-value WEIGHT_CROP_VALUE
-                        Define the minimum normalised value from the weights
-                        image to crop to. (default: 0.04)
+                        Define the minimum normalised value from the weights image to crop to. (default: 0.04)
   --weight-crop-image WEIGHT_CROP_IMAGE
-                        Define the weights image to use. (default:
-                        weights.fits)
-  --convolve CONVOLVE   Convolve the image using CASA to SUMSS resolution for
-                        crossmatching. (default: False)
+                        Define the weights image to use. (default: weights.fits)
+  --convolve CONVOLVE   Convolve the image using CASA to SUMSS resolution for crossmatching. (default: False)
   --convolved-image CONVOLVED_IMAGE
-                        Define a convolved image that has already been
-                        produced. (default: None)
+                        Define a convolved image that has already been produced. (default: None)
   --convolved-non-conv-askap-csv CONVOLVED_NON_CONV_ASKAP_CSV
-                        Define the unconvolved catalogue to use when using
-                        convolved mode, otherwise it will be generated
-                        automatically (if aegaen or pybdsf) (default: None)
+                        Define the unconvolved catalogue to use when using convolved mode, otherwise it will be
+                        generated automatically (if aegaen or pybdsf) (default: None)
   --convolved-non-conv-askap-islands-csv CONVOLVED_NON_CONV_ASKAP_ISLANDS_CSV
-                        Define the unconvolved island catalogue to use when
-                        using convolved mode, otherwise it will be generated
-                        automatically (if aegaen or pybdsf) (default: None)
+                        Define the unconvolved island catalogue to use when using convolved mode, otherwise it will
+                        be generated automatically (if aegaen or pybdsf) (default: None)
   --sourcefinder {aegean,pybdsf,selavy}
                         Select which sourcefinder to use (default: aegean)
   --frequency FREQUENCY
-                        Provide the frequency of the image in Hz. Use if
-                        'RESTFRQ' is not in the header (default: 99)
+                        Provide the frequency of the image in Hz. Use if 'RESTFRQ' is not in the header (default:
+                        99)
   --askap-csv ASKAP_CSV
-                        Manually define a aegean format csv file containing
-                        the extracted sources to use for the ASKAP image.
-                        (default: None)
+                        Manually define a aegean format csv file containing the extracted sources to use for the
+                        ASKAP image. (default: None)
   --askap-islands-csv ASKAP_ISLANDS_CSV
-                        Manually define a csv file containing the extracted
-                        islands to use for the ASKAP image. (default: None)
+                        Manually define a csv file containing the extracted islands to use for the ASKAP image.
+                        (default: None)
   --sumss-csv SUMSS_CSV
-                        Manually provide the SUMSS catalog csv. (default:
-                        None)
+                        Manually provide the SUMSS catalog csv. (default: None)
   --nvss-csv NVSS_CSV   Manually provide the NVSS catalog csv. (default: None)
   --askap-csv-format {aegean,selavy}
-                        Define which source finder provided the ASKAP catalog
-                        (currently only supports aegean). (default: aegean)
+                        Define which source finder provided the ASKAP catalog (currently only supports aegean).
+                        (default: aegean)
   --remove-extended REMOVE_EXTENDED
-                        Remove perceived extended sources from the catalogues.
-                        Uses the following arguments 'askap-ext-thresh' and
-                        'sumss-ext-thresh' to set the threshold. (default:
-                        False)
+                        Remove perceived extended sources from the catalogues. Uses the following arguments 'askap-
+                        ext-thresh' and 'sumss-ext-thresh' to set the threshold. (default: False)
   --askap-ext-thresh ASKAP_EXT_THRESH
-                        Define the maximum scaling threshold of the size of
-                        the ASKAP source compared to the PSF. Used to exclude
-                        extended sources. Only 1 axis has to exceed. (default:
-                        1.2)
+                        Define the maximum scaling threshold of the size of the ASKAP source compared to the PSF.
+                        Used to exclude extended sources. Only 1 axis has to exceed. (default: 1.2)
   --sumss-ext-thresh SUMSS_EXT_THRESH
-                        Define the maximum scaling threshold of the size of
-                        the SUMSS source compared to the PSF. Use to exclude
-                        extended sources. Only 1 axis has to exceed. (default:
-                        1.2)
+                        Define the maximum scaling threshold of the size of the SUMSS source compared to the PSF.
+                        Use to exclude extended sources. Only 1 axis has to exceed. (default: 1.2)
   --nvss-ext-thresh NVSS_EXT_THRESH
-                        Define the maximum scaling threshold of the size of
-                        the NVSS source compared to the PSF. Use to exclude
-                        extended sources. Only 1 axis has to exceed. (default:
-                        1.2)
+                        Define the maximum scaling threshold of the size of the NVSS source compared to the PSF. Use
+                        to exclude extended sources. Only 1 axis has to exceed. (default: 1.2)
   --use-all-fits USE_ALL_FITS
-                        Use all the fits from Aegean ignoring all flags.
-                        Default only those with flag '0' are used. (default:
-                        False)
-  --write-ann WRITE_ANN
-                        Create kvis annotation files of the catalogues.
+                        Use all the fits from Aegean ignoring all flags. Default only those with flag '0' are used.
                         (default: False)
+  --write-ann WRITE_ANN
+                        Create kvis annotation files of the catalogues. (default: False)
+  --produce-overlays PRODUCE_OVERLAYS
+                        Create overlay figures of the sources on the ASKAP image. (default: True)
   --boundary-value {nan,zero}
-                        Define whether the out-of-bounds value in the ASKAP
-                        FITS is 'nan' or 'zero'. (default: nan)
+                        Define whether the out-of-bounds value in the ASKAP FITS is 'nan' or 'zero'. (default: nan)
+  --askap-flux-error ASKAP_FLUX_ERROR
+                        Percentage error to apply to flux errors. (default: 0.0)
   --diagnostic-max-separation DIAGNOSTIC_MAX_SEPARATION
-                        Maximum crossmatch distance (in arcsec) to be
-                        consdiered when creating the diagnostic plots.
+                        Maximum crossmatch distance (in arcsec) to be consdiered when creating the diagnostic plots.
                         (default: 5.0)
   --transient-max-separation TRANSIENT_MAX_SEPARATION
-                        Maximum crossmatch distance (in arcsec) to be
-                        consdiered when searching for transients. (default:
-                        45.0)
+                        Maximum crossmatch distance (in arcsec) to be consdiered when searching for transients.
+                        (default: 45.0)
   --postage-stamps POSTAGE_STAMPS
-                        Produce postage stamp plots of the cross matched
-                        sources within the max separation. (default: False)
+                        Produce postage stamp plots of the cross matched sources within the max separation.
+                        (default: False)
   --postage-stamp-selection {all,transients}
                         Select which postage stamps to create. (default: all)
+  --postage-stamp-ncores POSTAGE_STAMP_NCORES
+                        Select how many cores to use when creating the postage stamps. (default: 6)
+  --postage-stamp-radius POSTAGE_STAMP_RADIUS
+                        Select the radius of the postage stamp cutouts (arcmin). (default: 13.0)
+  --postage-stamp-zscale-contrast POSTAGE_STAMP_ZSCALE_CONTRAST
+                        Select the ZScale contrast to use in the postage stamps. (default: 0.2)
   --sumss-mosaic-dir SUMSS_MOSAIC_DIR
-                        Directory containing the SUMSS survey mosaic image
-                        files. (default: None)
+                        Directory containing the SUMSS survey mosaic image files. (default: None)
   --nvss-mosaic-dir NVSS_MOSAIC_DIR
-                        Directory containing the NVSS survey mosaic image
-                        files. (default: None)
+                        Directory containing the NVSS survey mosaic image files. (default: None)
   --aegean-settings-config AEGEAN_SETTINGS_CONFIG
-                        Select a config file containing the Aegean settings to
-                        be used (instead of defaults if none provided).
-                        (default: None)
+                        Select a config file containing the Aegean settings to be used (instead of defaults if none
+                        provided). (default: None)
   --pybdsf-settings-config PYBDSF_SETTINGS_CONFIG
-                        Select a config file containing the PyBDSF settings to
-                        be used (instead of defaults if none provided).
-                        (default: None)
+                        Select a config file containing the PyBDSF settings to be used (instead of defaults if none
+                        provided). (default: None)
   --selavy-settings-config SELAVY_SETTINGS_CONFIG
-                        Select a config file containing the Selavy settings to
-                        be used (instead of defaults if none provided).
-                        (default: None)
+                        Select a config file containing the Selavy settings to be used (instead of defaults if none
+                        provided). (default: None)
   --transients TRANSIENTS
-                        Perform a transient search analysis using the
-                        crossmatch data. Requires '--max-separation' to be
-                        defined. (default: False)
+                        Perform a transient search analysis using the crossmatch data. Requires '--max-separation'
+                        to be defined. (default: False)
   --transients-askap-snr-thresh TRANSIENTS_ASKAP_SNR_THRESH
-                        Define the threshold for which ASKAP sources are
-                        considered to not have a SUMSS match baseed upon the
-                        estimated SUMSS SNR if the source was placed in the
-                        SUMSS image. (default: 5.0)
+                        Define the threshold for which ASKAP sources are considered to not have a SUMSS match baseed
+                        upon the estimated SUMSS SNR if the source was placed in the SUMSS image. (default: 5.0)
   --transients-large-flux-ratio-thresh TRANSIENTS_LARGE_FLUX_RATIO_THRESH
-                        Define the threshold for which sources are considered
-                        to have a large flux ratio. Median value +/- threshold
-                        x std. (default: 3.0)
+                        Define the threshold for which sources are considered to have a large flux ratio. Median
+                        value +/- threshold x std. (default: 3.0)
   --db-inject DB_INJECT
                         Turn databse injection on or off. (default: True)
   --db-engine DB_ENGINE
                         Define the database engine. (default: postgresql)
   --db-username DB_USERNAME
-                        Define the username to use for the database (default:
-                        postgres)
+                        Define the username to use for the database (default: postgres)
+  --db-password DB_PASSWORD
+                        Define the password to use for the database (default: postgres)
   --db-host DB_HOST     Define the host for the databse. (default: localhost)
   --db-port DB_PORT     Define the port for the databse. (default: 5432)
   --db-database DB_DATABASE
                         Define the name of the database. (default: postgres)
-  --db-tag DB_TAG       The description field in the databased attached to the
-                        image. (default: RACS Analysis)
+  --db-tag DB_TAG       The description field in the databased attached to the image. (default: RACS Analysis)
   --website-media-dir WEBSITE_MEDIA_DIR
-                        Copy the image directory directly to the static media
-                        directory of the website. (default: none)
+                        Copy the image directory directly to the static media directory of the website. (default:
+                        none)
 ```
 
 These options can be entered using a ConfigParser configuration file:
@@ -265,6 +244,7 @@ clobber=True
 
 [ANALYSIS]
 sumss_only=true
+nvss_only=false
 frequency=864e6
 weight_crop=True
 weight_crop_value=0.04
@@ -278,6 +258,7 @@ sourcefinder=aegean
 # pybdsf_settings_config=None
 # selavy_settings_config=None
 boundary_value=nan
+askap_flux_error=0.1
 
 [CATALOGUES]
 askap_csv=/path/to/askap_catalog.csv
@@ -295,15 +276,20 @@ askap_ext_thresh=1.3
 sumss_ext_thresh=1.5
 nvss_ext_thresh=1.2
 use_all_fits=False
-postage_stamps=True
-# postage_stamp_selection=all
-sumss_mosaic_dir=/directory/where/sumss/mosaics/are/kept
-nvss_mosaic_dir=/directory/where/sumss/mosaics/are/kept
 
 [TRANSIENTS]
 transients=True
 transients_askap_sumss_snr_thresh=5.0
 transients_large_flux_ratio_thresh=2.0
+
+[POSTAGESTAMPS]
+postage_stamps=False
+postage_stamp_selection=all
+postage_stamp_ncores=6
+postage_stamp_radius=13.0
+postage_stamp_zscale_contrast=0.25
+sumss_mosaic_dir=/directory/where/sumss/mosaics/are/kept
+nvss_mosaic_dir=/directory/where/sumss/mosaics/are/kept
 
 [DATABASE]
 db_inject=true
@@ -384,6 +370,7 @@ sourcefinder=aegean
 # pybdsf_settings_config=None
 # selavy_settings_config=None
 boundary_value=nan
+askap_flux_error=0.1
 
 [CATALOGUES]
 askap_csv=/path/to/askap_catalog.csv
@@ -400,15 +387,20 @@ askap_ext_thresh=1.4
 sumss_ext_thresh=1.4
 nvss_ext_thresh=1.2
 use_all_fits=False
-postage_stamps=True
-# postage_stamp_selection=[all,]
-sumss_mosaic_dir=/directory/where/sumss/mosaics/are/kept
-nvss_mosaic_dir=/directory/where/sumss/mosaics/are/kept
 
 [TRANSIENTS]
 transients=True
 transients_askap_sumss_snr_thresh=5.0
 transients_large_flux_ratio_thresh=2.0
+
+[POSTAGESTAMPS]
+postage_stamps=True
+postage_stamp_selection=all
+postage_stamp_ncores=2
+postage_stamp_radius=13.0
+postage_stamp_zscale_contrast=0.25
+sumss_mosaic_dir=/directory/where/sumss/mosaics/are/kept
+nvss_mosaic_dir=/directory/where/sumss/mosaics/are/kept
 
 [DATABASE]
 db_engine=postgresql
@@ -448,6 +440,3 @@ floodclip=4
 autoload=True
 ````
 To deactivate a setting remove it from the config file.
-
-## PyBDSF settings
-Similar to above PyBDSF settings can also be supplied in the same format. These should use the header `[pybdsf]`.

@@ -114,7 +114,6 @@ class TransientFilter(django_filters.FilterSet):
         ('Inflated convolved flux error', 'Inflated convolved flux error'),
         ('Large island source', 'Large island source'),
         ('Likely artefact (bright source)', 'Likely artefact (bright source)'),
-        ('Likely diffuse/extended', 'Likely diffuse/extended'),
         ('Likely double', 'Likely double/multi source'),
         )
 

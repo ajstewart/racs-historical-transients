@@ -481,7 +481,7 @@ class crossmatch(object):
 
                 elif row["survey_used"]=="sumss":
                     if (row["sumss_MajAxis"] > (1.75 * row["sumss_telescope_bmaj"])) or (row["sumss_MinAxis"] > (1.75 * row["sumss_telescope_bmin"])):
-                        pipeline_tags.append("Likely diffuse/extended")
+                        pipeline_tags.append("Extended source")
                     #Edge of image check - NEED TO TIDY UP THIS SECTION OF THE CODE REPITITION
                     elif self._check_for_edge_case(row["master_ra"], row["master_dec"], askap_img_wcs, askap_img_data):
                         pipeline_tags.append("Edge of ASKAP image")
@@ -489,7 +489,7 @@ class crossmatch(object):
                         pipeline_tags.append("Good")
                 else:
                     if (row["nvss_MajAxis"] > (1.75 * 45.)) or (row["nvss_MinAxis"] > (1.75 * 45.)):
-                        pipeline_tags.append("Likely diffuse/extended")
+                        pipeline_tags.append("Extended source")
                     elif self._check_for_edge_case(row["master_ra"], row["master_dec"], askap_img_wcs, askap_img_data):
                         pipeline_tags.append("Edge of ASKAP image")
                     else:
@@ -659,7 +659,7 @@ class crossmatch(object):
                 if sorted(seps.arcsecond)[1] <= 2.5*45.:
                     pipeline_tags.append("Likely double")
                 elif (row["a"] > (1.75 * image_beam_maj)) or (row["b"] > (1.75 * image_beam_min)):
-                    pipeline_tags.append("Likely diffuse/extended")
+                    pipeline_tags.append("Extended source")
                 elif self._check_for_large_island(row["name"], row["name"], row["island"], pre_conv_crossmatch, askap_cat_islands_df=askap_cat_islands_df,
                     non_convolved_isl_cat_df=non_convolved_isl_cat_df, threshold=3, askap_only=True, transient_sep=max_separation):
                     pipeline_tags.append("Large island source")
