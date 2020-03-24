@@ -616,8 +616,12 @@ class crossmatch(object):
             aegean_to_extract_df = not_matched_askap_sources_should_see[not_matched_askap_sources_should_see["catalog_Mosaic_path"]==mos]
             aegean_to_extract_df = aegean_to_extract_df.filter(["ra", "dec", "peak_flux"])
             #force the source size to be that of the ASKAP beam (in this case same as the catalogue)
-            aegean_to_extract_df["a"]=mosaic.bmaj
-            aegean_to_extract_df["b"]=mosaic.bmin
+            if mosaic._beam_loaded:
+                aegean_to_extract_df["a"]=mosaic.bmaj * 3600.
+                aegean_to_extract_df["b"]=mosaic.bmin * 3600.
+            else:
+                aegean_to_extract_df["a"]=mosaic.bmaj
+                aegean_to_extract_df["b"]=mosaic.bmin
             aegean_to_extract_df["pa"]=mosaic.bpa
             aegean_results = self.force_extract_aegean(aegean_to_extract_df, mos, nvss_beam=this_nvss)
             not_matched_askap_sources_should_see_subset = self._merge_forced_aegean(not_matched_askap_sources_should_see[not_matched_askap_sources_should_see["catalog_Mosaic_path"]==mos],
