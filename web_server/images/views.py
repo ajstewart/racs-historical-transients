@@ -443,6 +443,7 @@ def crossmatch_detail(request,pk,querytype,cross_id):
                 channel=settings.SLACK_CHANNEL_ID,
                 blocks=blocks,
                 thread_ts=ts,
+                # reply_broadcast=True
             )
 
         return redirect(urltogo)
@@ -855,6 +856,7 @@ def crossmatch_detail_query(request,cross_id):
                 channel=settings.SLACK_CHANNEL_ID,
                 blocks=blocks,
                 thread_ts=ts,
+                # reply_broadcast=True
             )
 
         return redirect(urltogo)

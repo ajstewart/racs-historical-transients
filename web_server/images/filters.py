@@ -153,6 +153,7 @@ class TransientFilter(django_filters.FilterSet):
 
     usertag_choices = (
         ('investigate', 'Investigate'),
+        ('transient', 'Transient'),
         ('help', 'Help'),
         ('problem', 'Problem'),
         ('ignore', 'Ignore'),
