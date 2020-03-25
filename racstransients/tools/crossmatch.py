@@ -813,7 +813,7 @@ class crossmatch(object):
                 self.transients_master_df["aegean_preconvolved_int_flux_scaled"]=[np.nan for i in range(len(self.transients_master_df.index))]
                 self.transients_master_df["aegean_preconvolved_err_int_flux_scaled"]=[np.nan for i in range(len(self.transients_master_df.index))]
                 self.transients_master_df["aegean_preconvolved_local_rms_scaled"]=[np.nan for i in range(len(self.transients_master_df.index))]
-        if "aegean_catalog_int_flux_scaled" in self.transients_master_df:
+        if "aegean_catalog_int_flux" in self.transients_master_df:
             self.transients_master_df["aegean_catalog_int_flux_scaled"]=self.transients_master_df["aegean_catalog_int_flux"].apply(self._calculate_scaled_flux, args=(843.e6, askap_freq))
             self.transients_master_df["aegean_catalog_err_int_flux_scaled"]=self.transients_master_df["aegean_catalog_err_int_flux"].apply(self._calculate_scaled_flux, args=(843.e6, askap_freq))
             self.transients_master_df["aegean_catalog_local_rms_scaled"]=self.transients_master_df["aegean_catalog_local_rms"].apply(self._calculate_scaled_flux, args=(843.e6, askap_freq))
