@@ -813,7 +813,7 @@ class crossmatch(object):
                 self.transients_master_df["aegean_preconvolved_int_flux_scaled"]=[np.nan for i in range(len(self.transients_master_df.index))]
                 self.transients_master_df["aegean_preconvolved_err_int_flux_scaled"]=[np.nan for i in range(len(self.transients_master_df.index))]
                 self.transients_master_df["aegean_preconvolved_local_rms_scaled"]=[np.nan for i in range(len(self.transients_master_df.index))]
-        if "aegean_catalog_int_flux_scaled" in self.transients_master_df:
+        if "aegean_catalog_int_flux" in self.transients_master_df:
             self.transients_master_df["aegean_catalog_int_flux_scaled"]=self.transients_master_df["aegean_catalog_int_flux"].apply(self._calculate_scaled_flux, args=(843.e6, askap_freq))
             self.transients_master_df["aegean_catalog_err_int_flux_scaled"]=self.transients_master_df["aegean_catalog_err_int_flux"].apply(self._calculate_scaled_flux, args=(843.e6, askap_freq))
             self.transients_master_df["aegean_catalog_local_rms_scaled"]=self.transients_master_df["aegean_catalog_local_rms"].apply(self._calculate_scaled_flux, args=(843.e6, askap_freq))
@@ -1474,10 +1474,13 @@ class crossmatch(object):
         to_write["ploturl"]=[os.path.join("media/{}/stamps/{}".format(image_id, i)) for i in to_write["ploturl"].values]
 
         to_write = to_write.sort_values(by=["pipelinetag","ratio"], ascending=[True, False])
+
+        # Hotfix for decoding
+        indexes = to_write[(to_write.transient_type == "match") | (to_write.transient_type == "noaskapmatch")].index
+        to_write.loc[indexes, "catalog_mosaic"] = to_write.loc[indexes]["catalog_mosaic"].str.decode('utf8')
+
         new_type_vals = {"match":"Match", "nocatalogmatch":"No catalog match", "noaskapmatch":"No askap match"}
         to_write["transient_type"]=[new_type_vals[i] for i in to_write["transient_type"].values]
-
-        to_write["catalog_mosaic"] = to_write["catalog_mosaic"].str.decode('utf8')
 
         values = {"catalog_name":"N/A", "askap_name":"N/A", "askap_non_conv_d2d":0.0,
                     "catalog_iflux":-1.0, #done
@@ -1497,7 +1500,8 @@ class crossmatch(object):
                     "ratio":-1.0,
                     "ratio_e":-1.0,
                     "vs":0.0,
-                    "m":0.0
+                    "m":0.0,
+                    "using_preconv":False
                     }
         to_write.fillna(value=values, inplace=True)
         to_write.to_sql("images_crossmatches", engine, if_exists="append", index=False)
