@@ -364,7 +364,7 @@ def produce_postage_stamps_new(row_dict, askap_data, askap_wcs, mos_data, mos_wc
         askap_title = "RACS "+row_dict["askap_name"]
         if convolve:
             askap_title_2 = "RACS "+row_dict["askap_non_conv_name"]
-        sumss_title = "{} ({})".format(thissurvey, row_dict["master_catalog_mosaic"].str.decode('utf8'))
+        sumss_title = "{} ({})".format(thissurvey, row_dict["master_catalog_mosaic"])
         recentre_ra=row_dict["askap_ra"]
         recentre_dec=row_dict["askap_dec"]
 
