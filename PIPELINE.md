@@ -56,7 +56,6 @@ The plot values show the directly measured fluxes from the catalogues or Aegean.
 * **Good:** Considered a good match with no obvious issues.
 * **Created Convolved Source:** There is no non-convolved match to the convolved ASKAP source within 2 beam widths. Likely a source that has been created by convolving.
 * **Edge of ASKAP Image:** Source is within 24 pixels of an image edge (1 arcmin).
-* **Edge of ASKAP Image:** Source is within 24 pixels of an image edge (1 arcmin).
 * **Extended Source:** The source is classed as extended if either of the source axes in either the catalog or ASKAP image is larger than 1.75 x the respective image beam axes.
 * **Failed:** Source has failed to be measured. Usually caused by Aegean returning NaN values.
 * **Edge of ASKAP Image:** Source is within 24 pixels of an image edge (1 arcmin).
