@@ -83,7 +83,7 @@
          {% if query %}
     <b> {{ this_index }} / {{ total }}         </b>
          {% else %}
-     {% if crossmatch_source.id|subtract:min_id|add:1 > image.transients_master_candidates_total %} <b>Beyond candidate cutoff &nbsp;&nbsp;&nbsp;&nbsp;</b> {% endif %}<b>{{ crossmatch_source.id|subtract:min_id|add:1 }} / {{ total }}</b>
+     <!-- {% if crossmatch_source.id|subtract:min_id|add:1 > image.transients_master_candidates_total %} <b>Beyond candidate cutoff &nbsp;&nbsp;&nbsp;&nbsp;</b> {% endif %}<b>{{ crossmatch_source.id|subtract:min_id|add:1 }} / {{ total }}</b> -->
      {% endif %}
      
  </div>

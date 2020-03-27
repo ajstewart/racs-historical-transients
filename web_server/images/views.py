@@ -335,7 +335,7 @@ def crossmatch_detail(request,pk,querytype,cross_id):
                 url = url.replace("/query/", "/image/{}/crossmatches/".format(crossmatch_source.image_id))
             response = client.files_upload(
                 channels=settings.SLACK_CHANNEL_ID,
-                initial_comment="User *{}* wants to share the following source:\n\nLink: {}\n\nSee the thread for more information!".format(username, url),
+                initial_comment="User *{}* would like to share the following source:\n\nLink: {}\n\nSee the thread for more information!".format(username, url),
                 file=ploturl,
                 filename=ploturl.split("/")[-1],
                 title=crossmatch_source.master_name
@@ -748,7 +748,7 @@ def crossmatch_detail_query(request,cross_id):
                 url = url.replace("/query/", "/image/{}/crossmatches/".format(crossmatch_source.image_id))
             response = client.files_upload(
                 channels=settings.SLACK_CHANNEL_ID,
-                initial_comment="User *{}* wants to share the following source:\n\nLink: {}\n\nSee the thread for more information!".format(username, url),
+                initial_comment="User *{}* would like to share the following source:\n\nLink: {}\n\nSee the thread for more information!".format(username, url),
                 file=ploturl,
                 filename=ploturl.split("/")[-1],
                 title=crossmatch_source.master_name
