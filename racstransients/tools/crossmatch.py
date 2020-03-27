@@ -1475,6 +1475,11 @@ class crossmatch(object):
 
         to_write = to_write.sort_values(by=["pipelinetag","ratio"], ascending=[True, False])
 
+        # Manually sort
+        good_mask = to_write.pipelinetag == "Good"
+
+        to_write = to_write[good_mask].append(to_write[~good_mask]).reset_index(drop=True)
+
         # Hotfix for decoding
         indexes = to_write[(to_write.transient_type == "match") | (to_write.transient_type == "noaskapmatch")].index
         to_write.loc[indexes, "catalog_mosaic"] = to_write.loc[indexes]["catalog_mosaic"].str.decode('utf8')
