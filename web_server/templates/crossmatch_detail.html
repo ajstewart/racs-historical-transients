@@ -104,10 +104,10 @@
  </div>
  {% endif %}    
     {% else %}
- {% if not user.is_authenticated %}
+ {% if not user.is_authenticated or user.get_username != image.claimed_by and not user.is_staff %}
  <div style="position: fixed; top: 0; left: 38%; z-index: 99">
  <div class="alert alert-danger alert-dismissible fade show" role="alert">
-   <strong>You must be logged in to assign a user tag!</strong>
+   <strong>You must be logged in and/or have claimed the image to assign a user tag!</strong>
    <button type="button" class="close" data-dismiss="alert" aria-label="Close">
      <span aria-hidden="true">&times;</span>
    </button>
@@ -203,7 +203,7 @@
        <h5><center>ID: <b>{{ crossmatch_source.id }}</b> / Ratio: <b> {{ crossmatch_source.ratio|floatformat:-2 }} </b> / Pipeline Tag: <b>{{ crossmatch_source.pipelinetag }}</b>. <small>Set a user tag using the buttons below.  </small></center></h5><p></p>
        <div class="col text-center">
            {% if query %}
-               {% if user.is_authenticated %}
+               {% if user.is_authenticated and user.get_username == image.claimed_by or user.is_staff %}
               Safe to Ignore: 
               <a href="{% url 'crossmatch_detail_query' cross_id=crossmatch_source.id %}?assign=true&usertag=ignore&userreason=is%20match&hotkey=false" class="btn btn-success mx-auto btn-sm">There is a match (m)</a>
               <a href="{% url 'crossmatch_detail_query' cross_id=crossmatch_source.id %}?assign=true&usertag=ignore&userreason=non-detection&hotkey=false" class="btn btn-success mx-auto btn-sm">Non-detection (n)</a>
@@ -245,7 +245,7 @@
            <button type="button" class="btn btn-warning mx-auto btn-sm" disabled>Not sure (x)</button>
             {% endif %}
         {% else %}    
-        {% if user.is_authenticated or user.is_staff %}
+        {% if user.is_authenticated and user.get_username == image.claimed_by or user.is_staff %}
        Safe to Ignore: 
        <a href="{% url 'crossmatch_detail' pk=image.pk querytype=type cross_id=crossmatch_source.id %}?assign=true&usertag=ignore&userreason=is%20match&hotkey=false" class="btn btn-success mx-auto btn-sm">There is a match (m)</a>
        <a href="{% url 'crossmatch_detail' pk=image.pk querytype=type cross_id=crossmatch_source.id %}?assign=true&usertag=ignore&userreason=non-detection&hotkey=false" class="btn btn-success mx-auto btn-sm">Non-detection (n)</a>

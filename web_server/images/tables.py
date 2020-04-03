@@ -55,12 +55,12 @@ class ImageTable(tables.Table):
     # transients_largeratio_total = tables.Column(verbose_name= '# Large Ratio')
     # transients_goodmatches_total = tables.Column(verbose_name= '# Good Matches')
     runby = tables.Column(verbose_name= 'Run By')
-    # claimed_by = tables.Column(verbose_name= 'Claimed By')
+    claimed_by = tables.Column(verbose_name= 'Claimed By')
     class Meta:
         model = Image
         template_name = 'django_tables2/bootstrap4.html'
         fields = ("id", "name", "description", "ra", "dec", "matched_to", "number_askap_sources", "number_sumss_sources",
-         "number_nvss_sources", "transients_master_candidates_total", "runtime", "runby")
+         "number_nvss_sources", "transients_master_candidates_total", "runtime", "runby", "claimed_by")
         attrs = {"th":{"bgcolor":"#EBEDEF"},}
         row_attrs = {
                 'complete': lambda record: 'true' if (record.number_candidates_checked >= record.transients_master_candidates_total) else 'false'
@@ -190,7 +190,7 @@ class CrossmatchTable(tables.Table):
         "d2d_askap_centre", "survey", "transient_type", "pipelinetag", "usertag", "userreason", "checkedby")
         attrs = {"th":{"bgcolor":"#EBEDEF"}}
         row_attrs = {
-                'highlight': lambda record: 'true' if (record.ratio >= 2.0 and record.pipelinetag == "Candidate" and record.checkedby != "N/A") else 'false'
+                'highlight': lambda record: 'true' if (record.vs >= 4.3 and record.m_abs >= 1.2 and record.pipelinetag == "Candidate" and record.checkedby != "N/A") else 'false'
                 }
 
 class CrossmatchTableAll(tables.Table):
@@ -228,7 +228,7 @@ class CrossmatchTableAll(tables.Table):
         fields = ("id","image_id","master_name", "ra", "dec", "askap_iflux","catalog_iflux", "ratio", "vs", "m", "d2d_askap_centre", "survey", "transient_type", "pipelinetag", "usertag", "userreason", "checkedby")
         attrs = {"th":{"bgcolor":"#EBEDEF"}}
         row_attrs = {
-                'highlight': lambda record: 'true' if (record.ratio >= 2.0 and record.pipelinetag == "Candidate") else 'false'
+                'highlight': lambda record: 'true' if (record.vs >= 4.3 and record.m_abs >= 1.2 and record.pipelinetag == "Candidate") else 'false'
                 }
 
 class CrossmatchQueryTable(tables.Table):

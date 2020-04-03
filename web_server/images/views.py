@@ -81,11 +81,11 @@ def transients(request,pk,transient_filter):
         table = CrossmatchTableAll(transient_sources)
         total = image.transients_master_total
     elif transient_filter == "flagged":
-        transient_sources = Crossmatches.objects.all().filter(image_id=pk).exclude(pipelinetag="Good").filter(ratio__gte=2.0).order_by("id")
+        transient_sources = Crossmatches.objects.all().filter(image_id=pk).exclude(pipelinetag="Good").filter(vs__gte=4.3).filter(m_abs__gte=1.2).order_by("id")
         table = CrossmatchTable(transient_sources)
         total = image.transients_master_flagged_total
     else:
-        transient_sources = Crossmatches.objects.all().filter(image_id=pk).filter(pipelinetag="Good").filter(ratio__gte=2.0).order_by("id")
+        transient_sources = Crossmatches.objects.all().filter(image_id=pk).filter(pipelinetag="Good").filter(vs__gte=4.3).filter(m_abs__gte=1.2).order_by("id")
         table = CrossmatchTable(transient_sources)
         total = image.transients_master_candidates_total
     RequestConfig(request, paginate={'per_page': 100}).configure(table)
@@ -220,14 +220,14 @@ def crossmatch_detail(request,pk,querytype,cross_id):
                                                             'simbad_query':simbad_query, 'ned_query':ned_query, 'detail_table':detail_table, "ratio_table":ratio_table, 'nearest_sources_table':nearest_sources_table,
                                                             'query':False, 'possible_assoc_table':possible_assoc_table, 'follow_up_page':follow_up_page},)
         else:
-            # if username!=image.claimed_by:
-            #     if user.is_staff:
-            #         pass
-            #     else:
-            #         return render(request, 'crossmatch_detail.html', {'crossmatch_source':crossmatch_source, 'image':image, 'type':querytype,
-            #                                                         'title':title_to_use, 'type_url':url_to_use, 'max_id':max_id, 'min_id':min_id, 'total':total, "saved":False, "updated":False, "conflict":False,
-            #                                                     'simbad_query':simbad_query, 'ned_query':ned_query, 'detail_table':detail_table, "ratio_table":ratio_table, 'nearest_sources_table':nearest_sources_table,
-            #                                                     'query':False, 'possible_assoc_table':possible_assoc_table, 'follow_up_page':follow_up_page},)
+            if username!=image.claimed_by:
+                if user.is_staff:
+                    pass
+                else:
+                    return render(request, 'crossmatch_detail.html', {'crossmatch_source':crossmatch_source, 'image':image, 'type':querytype,
+                                                                    'title':title_to_use, 'type_url':url_to_use, 'max_id':max_id, 'min_id':min_id, 'total':total, "saved":False, "updated":False, "conflict":False,
+                                                                'simbad_query':simbad_query, 'ned_query':ned_query, 'detail_table':detail_table, "ratio_table":ratio_table, 'nearest_sources_table':nearest_sources_table,
+                                                                'query':False, 'possible_assoc_table':possible_assoc_table, 'follow_up_page':follow_up_page},)
 
             if usertag=="transient" and not user.is_staff:
                 return render(request, 'crossmatch_detail.html', {'crossmatch_source':crossmatch_source, 'image':image, 'type':querytype,
@@ -627,6 +627,15 @@ def crossmatch_detail_query(request,cross_id):
         #Have to be logged in to submit a category and to own the image
         if not user.is_authenticated:
             return render(request, 'crossmatch_detail.html', {'crossmatch_source':crossmatch_source, 'image':image, 'type':"crossmatches",
+                                                                'title':title_to_use, 'type_url':url_to_use, 'next_id':next_id, 'prev_id':prev_id, 'this_index':this_index+1, 'total':total, "saved":False, "updated":False, "conflict":False,
+                                                            'simbad_query':simbad_query, 'ned_query':ned_query, 'detail_table':detail_table, "ratio_table":ratio_table, 'nearest_sources_table':nearest_sources_table,
+                                                        'query':True, 'possible_assoc_table':possible_assoc_table, 'follow_up_page':follow_up_page},)
+
+        elif username!=image.claimed_by:
+            if user.is_staff:
+                pass
+            else:
+                return render(request, 'crossmatch_detail.html', {'crossmatch_source':crossmatch_source, 'image':image, 'type':"crossmatches",
                                                                 'title':title_to_use, 'type_url':url_to_use, 'next_id':next_id, 'prev_id':prev_id, 'this_index':this_index+1, 'total':total, "saved":False, "updated":False, "conflict":False,
                                                             'simbad_query':simbad_query, 'ned_query':ned_query, 'detail_table':detail_table, "ratio_table":ratio_table, 'nearest_sources_table':nearest_sources_table,
                                                         'query':True, 'possible_assoc_table':possible_assoc_table, 'follow_up_page':follow_up_page},)

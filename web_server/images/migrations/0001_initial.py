@@ -62,6 +62,7 @@ class Migration(migrations.Migration):
                 ('inflated_convolved_flux', models.CharField(default='False', max_length=6, verbose_name='Flux Convolved Error')),
                 ('vs', models.DecimalField(decimal_places=12, default=0, max_digits=20, verbose_name='Vs')),
                 ('m', models.DecimalField(decimal_places=12, default=0, max_digits=20)),
+                ('m_abs', models.DecimalField(decimal_places=12, default=0, max_digits=20)),
                 ('using_preconv', models.CharField(default='False', max_length=6)),
                 ('d2d_nn_askap_cat', models.DecimalField(decimal_places=12, default=0, max_digits=20, verbose_name='Distance to nearest ASKAP neighbour')),
             ],
