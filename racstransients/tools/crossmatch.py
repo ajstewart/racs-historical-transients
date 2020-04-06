@@ -876,7 +876,7 @@ class crossmatch(object):
                     err_to_use = row["aegean_convolved_err_int_flux_scaled"]
                     used_rms = False
 
-                if err_to_use == 0.:
+                if err_to_use <= 0. or err_to_use == np.nan:
                     rms_to_use = ((self.base_catalog.frequency/self.comp_catalog.frequency)**(-0.8)) * row["measured_askap_local_rms"]
 
                 askap_flux_to_use = row["aegean_convolved_int_flux"]
@@ -922,7 +922,7 @@ class crossmatch(object):
                     catalog_flux_to_use_err = other_error_to_use
                     used_rms = False
 
-                if other_error_to_use == 0.0:
+                if other_error_to_use <= 0.0 or other_error_to_use == np.nan:
                     if row["askap_dec"]<=-50:
                         other_error_to_use = (6./5.)*1.e-3
                     else:
