@@ -67,6 +67,18 @@ def image_detail_claim(request, pk):
     username = user.get_username()
     image = Image.objects.get(pk=pk)
     processing_options = Processingsettings.objects.get(image_id=pk)
+    vs_thresh = settings.CANDIDATE_VS_THRESHOLD
+    m_thresh = settings.CANDIDATE_M_THRESHOLD
+    num = len(Crossmatches.objects.all().filter(
+        image_id=pk
+    ).filter(pipelinetag="Good").filter(
+        vs__gte=vs_thresh
+    ).filter(m_abs__gte=m_thresh))
+    flagged_num = len(Crossmatches.objects.all().filter(
+        image_id=pk
+    ).exclude(pipelinetag="Good").filter(
+        vs__gte=vs_thresh
+    ).filter(m_abs__gte=m_thresh))
     # username = request.GET['username']
     if image.claimed_by == "Unclaimed":
         image.claimed_by = username
@@ -75,19 +87,33 @@ def image_detail_claim(request, pk):
     else:
         claimed_success = False
 
-    return render(request, 'image_detail.html', {'image':image, "processing_options":processing_options, "claimed_success":claimed_success, "claim_attempt":True})
+    return render(request, 'image_detail.html', {'image':image, "processing_options":processing_options, "claimed_success":claimed_success, "claim_attempt":True,
+        'vs_thresh':vs_thresh, 'm_thresh':m_thresh, 'num_candidates':num, 'flagged_num_candidates':flagged_num})
 
 def image_detail_reset(request, pk):
     user = request.user
     username = user.get_username()
     image = Image.objects.get(pk=pk)
     processing_options = Processingsettings.objects.get(image_id=pk)
+    vs_thresh = settings.CANDIDATE_VS_THRESHOLD
+    m_thresh = settings.CANDIDATE_M_THRESHOLD
+    num = len(Crossmatches.objects.all().filter(
+        image_id=pk
+    ).filter(pipelinetag="Good").filter(
+        vs__gte=vs_thresh
+    ).filter(m_abs__gte=m_thresh))
+    flagged_num = len(Crossmatches.objects.all().filter(
+        image_id=pk
+    ).exclude(pipelinetag="Good").filter(
+        vs__gte=vs_thresh
+    ).filter(m_abs__gte=m_thresh))
     # username = request.GET['username']
     if user.is_staff or username == image.claimed_by:
         image.claimed_by = "Unclaimed"
         image.save()
 
-    return render(request, 'image_detail.html', {'image':image, "processing_options":processing_options, "claimed_success":False, "claim_attempt":False})
+    return render(request, 'image_detail.html', {'image':image, "processing_options":processing_options, "claimed_success":False, "claim_attempt":False,
+        'vs_thresh':vs_thresh, 'm_thresh':m_thresh, 'num_candidates':num, 'flagged_num_candidates':flagged_num})
 
 def query_queries(request):
     if request.method == "POST":
