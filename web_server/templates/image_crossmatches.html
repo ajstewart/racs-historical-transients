@@ -34,7 +34,7 @@
        <div class="form-group col-md-5 mb-0">
     <button type="submit" class="btn btn-primary">Search</button>
     <a href="{% url 'image_crossmatches' image.pk %}" class="btn btn-secondary mx-auto">Reset Form</a>
-        <a href="{% url 'image_crossmatches' image.pk %}?vs__gt_min={{ vs_thresh }}&vs__gt_max=&m_abs__gt_min={{ m_thresh }}&m_abs__gt_max=&flagged=False" class="btn btn-success mx-auto">Show candidates</a>
+        <a href="{% url 'image_crossmatches' image.pk %}?vs__gt_min={{ vs_thresh }}&vs__gt_max=&m_abs__gt_min={{ m_thresh }}&m_abs__gt_max=&flagged=False&sort_by=id" class="btn btn-success mx-auto">Show candidates</a>
     </div>
     <div class="form-group col-md-2 mb-0">
         </div>

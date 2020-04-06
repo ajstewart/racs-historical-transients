@@ -202,6 +202,7 @@ class TransientFilter(django_filters.FilterSet):
     ('-askap_iflux', 'ASKAP Int. Flux (desc)'),
     ('catalog_iflux', 'Catalogue Int. Flux (asc)'),
     ('-catalog_iflux', 'Catalogue Int. Flux (desc)'),
+    ('id', "ID")
     )
 
     sort_by = ConeSearchFilter(field_name = 'sort_by', widget=forms.widgets.Select(choices=sortby_choices), method="sort_by_filter", label="Sort By")

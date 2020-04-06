@@ -57,9 +57,9 @@
   <div class="card-body">
     <p class="card-text">
             <div class="col text-center">
-        <a href="{% url 'image_crossmatches' image.pk %}?vs__gt_min={{ vs_thresh }}&vs__gt_max=&m_abs__gt_min={{ m_thresh }}&m_abs__gt_max=&flagged=false" class="btn btn-success mx-auto">Transient Candidates ({{ num_candidates }})</a>
-        <a href="{% url 'image_crossmatches' image.pk %}?vs__gt_min={{ vs_thresh }}&vs__gt_max=&m_abs__gt_min={{ m_thresh }}&m_abs__gt_max=&flagged=true" class="btn btn-danger mx-auto">Flagged Transient Candidates ({{ flagged_num_candidates }})</a>
-        <a href="{% url 'image_crossmatches' image.pk %}" class="btn btn-primary mx-auto">View all Crossmatch Output ({{ image.transients_master_total }})</a>
+        <a href="{% url 'image_crossmatches' image.pk %}?vs__gt_min={{ vs_thresh }}&vs__gt_max=&m_abs__gt_min={{ m_thresh }}&m_abs__gt_max=&flagged=false&sort_by=id" class="btn btn-success mx-auto">Transient Candidates ({{ num_candidates }})</a>
+        <a href="{% url 'image_crossmatches' image.pk %}?vs__gt_min={{ vs_thresh }}&vs__gt_max=&m_abs__gt_min={{ m_thresh }}&m_abs__gt_max=&flagged=true&sort_by=id" class="btn btn-danger mx-auto">Flagged Transient Candidates ({{ flagged_num_candidates }})</a>
+        <a href="{% url 'image_crossmatches' image.pk %}?sort_by=id" class="btn btn-primary mx-auto">View all Crossmatch Output ({{ image.transients_master_total }})</a>
     </div>
   </div>
 </div>
