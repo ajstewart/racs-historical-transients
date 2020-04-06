@@ -927,7 +927,7 @@ class crossmatch(object):
                         other_error_to_use = (6./5.)*1.e-3
                         catalog_flux_to_use_err = (6./5.)*1.e-3
                     else:
-                        other_flux_to_use = 3.*(10./5.)*1.e-3
+                        other_error_to_use = 3.*(10./5.)*1.e-3
                         catalog_flux_to_use_err = 3.*(10./5.)*1.e-3
 
                 flux_to_use = row["askap_askap_scaled_to_{}".format(row.survey_used)]
