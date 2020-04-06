@@ -885,8 +885,8 @@ class crossmatch(object):
                     askap_flux_to_use_2 = row["aegean_preconvolved_int_flux"]
                     askap_flux_to_use_2_err = row["aegean_preconvolved_err_int_flux"]
 
-                scaled_askap_flux_to_use = row["aegean_convolved_int_flux_scaled"]
-                scaled_askap_flux_to_use_err = row["aegean_convolved_err_int_flux_scaled"]
+                scaled_askap_flux_to_use = flux_to_use
+                scaled_askap_flux_to_use_err = err_to_use
                 if convolve:
                     scaled_askap_flux_to_use_2 = row["aegean_preconvolved_int_flux_scaled"]
                     scaled_askap_flux_to_use_2_err = row["aegean_preconvolved_err_int_flux_scaled"]
@@ -922,11 +922,13 @@ class crossmatch(object):
                     catalog_flux_to_use_err = other_error_to_use
                     used_rms = False
 
-                if other_error_to_use <= 0.0 or other_error_to_use == np.nan:
+                if catalog_flux_to_use_err <= 0.0 or catalog_flux_to_use_err == np.nan:
                     if row["askap_dec"]<=-50:
                         other_error_to_use = (6./5.)*1.e-3
+                        catalog_flux_to_use_err = (6./5.)*1.e-3
                     else:
                         other_flux_to_use = 3.*(10./5.)*1.e-3
+                        catalog_flux_to_use_err = 3.*(10./5.)*1.e-3
 
                 flux_to_use = row["askap_askap_scaled_to_{}".format(row.survey_used)]
                 err_to_use = row["askap_askap_scaled_to_{}_err".format(row.survey_used)]
