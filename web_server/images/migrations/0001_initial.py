@@ -65,6 +65,7 @@ class Migration(migrations.Migration):
                 ('m_abs', models.DecimalField(decimal_places=12, default=0, max_digits=20)),
                 ('using_preconv', models.CharField(default='False', max_length=6)),
                 ('d2d_nn_askap_cat', models.DecimalField(decimal_places=12, default=0, max_digits=20, verbose_name='Distance to nearest ASKAP neighbour')),
+                ('flagged', models.BooleanField(default=False)),
             ],
         ),
         migrations.CreateModel(
@@ -86,8 +87,6 @@ class Migration(migrations.Migration):
                 ('number_nvss_sources', models.IntegerField(default=0)),
                 ('rms', models.DecimalField(decimal_places=17, default=0.0, max_digits=20)),
                 ('transients_master_total', models.IntegerField(default=0)),
-                ('transients_master_candidates_total', models.IntegerField(default=0)),
-                ('transients_master_flagged_total', models.IntegerField(default=0)),
                 ('claimed_by', models.CharField(default='Unclaimed', max_length=20)),
                 ('number_candidates_checked', models.IntegerField(default=0)),
             ],

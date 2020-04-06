@@ -1129,26 +1129,18 @@ def main():
         #Processing settings
         if args.transients:
             transients_noaskapmatchtocatalog_total=transient_crossmatch.transients_noaskapmatchtocatalog_total
-            transients_noaskapmatchtocatalog_candidates=transient_crossmatch.transients_noaskapmatchtocatalog_candidates
             transients_nocatalogmatchtoaskap_total=transient_crossmatch.transients_nocatalogmatchtoaskap_total
-            transients_nocatalogmatchtoaskap_candidates=transient_crossmatch.transients_nocatalogmatchtoaskap_candidates
             # transients_largeratio_total=transient_crossmatch.transients_largeratio_total
             # transients_largeratio_candidates=transient_crossmatch.transients_largeratio_candidates
             transients_goodmatches_total=transient_crossmatch.transients_goodmatches_total
             transients_master_total=transient_crossmatch.transients_master_total
-            transients_master_candidates_total = transient_crossmatch.transients_master_candidates_total
-            transients_master_flagged_total = transient_crossmatch.transients_master_flagged_total
         else:
             transients_noaskapmatchtocatalog_total=0
-            transients_noaskapmatchtocatalog_candidates=0
             transients_nocatalogmatchtoaskap_total=0
-            transients_nocatalogmatchtoaskap_candidates=0
             # transients_largeratio_total=0
             # transients_largeratio_candidates=0
             transients_goodmatches_total=0
             transients_master_total=0
-            transients_master_candidates_total = 0
-            transients_master_flagged_total = 0
         if args.db_inject:
             if args.convolve:
                 image_2 = original_theimg.image
@@ -1157,13 +1149,11 @@ def main():
             image_id=theimg.inject_db(basecat=basecat, datestamp=launchtime, user=username, description=args.db_tag, db_engine=args.db_engine, db_username=args.db_username,
                 db_host=args.db_host, db_password=args.db_password,
                 db_port=args.db_port, db_database=args.db_database, transients_noaskapmatchtocatalog_total=transients_noaskapmatchtocatalog_total,
-                transients_noaskapmatchtocatalog_candidates=transients_noaskapmatchtocatalog_candidates,
                 transients_nocatalogmatchtoaskap_total=transients_nocatalogmatchtoaskap_total,
-                transients_nocatalogmatchtoaskap_candidates=transients_nocatalogmatchtoaskap_candidates,
                 # transients_largeratio_total=transients_largeratio_total,
                 # transients_largeratio_candidates=transients_largeratio_candidates,
                 transients_goodmatches_total=transients_goodmatches_total,
-                transients_master_total=transients_master_total,transients_master_candidates_total=transients_master_candidates_total, transients_master_flagged_total=transients_master_flagged_total, image_2 = image_2)
+                transients_master_total=transients_master_total, image_2 = image_2)
             theimg.inject_processing_db(image_id, full_output, askap_cat_file, sumss_source_cat, nvss_source_cat, args.askap_ext_thresh,
                 args.sumss_ext_thresh, args.nvss_ext_thresh, args.transient_max_separation, sf_sigmas, db_engine=args.db_engine, db_username=args.db_username, db_password=args.db_password, db_host=args.db_host,
                 db_port=args.db_port, db_database=args.db_database)

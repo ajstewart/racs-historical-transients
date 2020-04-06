@@ -350,11 +350,9 @@ class Askapimage(object):
 
     def inject_db(self, basecat="sumss", datestamp=datetime.datetime.utcnow(), user="unknown", description="", db_engine="postgresql",
             db_username="postgres", db_password="postgres", db_host="localhost", db_port="5432", db_database="postgres", transients_noaskapmatchtocatalog_total=0,
-            transients_noaskapmatchtocatalog_candidates=0,
             transients_nocatalogmatchtoaskap_total=0,
-            transients_nocatalogmatchtoaskap_candidates=0,
             transients_goodmatches_total=0,
-            transients_master_total=0, transients_master_candidates_total=0, transients_master_flagged_total=0, image_2 = "N/A"):
+            transients_master_total=0, image_2 = "N/A"):
         # image_id=1
         unique_tag = str(uuid.uuid4())
         engine = sqlalchemy.create_engine('{}://{}:{}@{}:{}/{}'.format(db_engine, db_username, db_password, db_host, db_port, db_database))
@@ -367,10 +365,10 @@ class Askapimage(object):
             thisimagename=self.imagename
         tempdf=pd.DataFrame([[unique_tag, thisimagename, description, self.centre.ra.degree,
             self.centre.dec.degree, datestamp, self.image]+[user,self.total_askap_sources, self.total_sumss_sources, self.rms, self.total_nvss_sources,
-                transients_master_total, self.matched_to, transients_master_candidates_total, transients_master_flagged_total,
+                transients_master_total, self.matched_to,
             "Unclaimed", image_2, 0]], columns=["unique_tag", "name", "description",
                 "ra", "dec", "runtime", "url"]+["runby", "number_askap_sources", "number_sumss_sources", "rms", "number_nvss_sources"]+["transients_master_total",
-            "matched_to", "transients_master_candidates_total", "transients_master_flagged_total", "claimed_by", "url_2", "number_candidates_checked"])
+            "matched_to", "claimed_by", "url_2", "number_candidates_checked"])
         tempdf.to_sql("images_image", engine, if_exists="append", index=False)
 
         #get the id

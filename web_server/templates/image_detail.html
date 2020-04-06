@@ -36,6 +36,9 @@
 
 <div class="container">
   <div class="row">
+      <div class="col text-left">
+          <b>Current candidate thresholds:</b><br>Vs >= {{ vs_thresh }}, |m| >= {{ m_thresh }}
+      </div>
     <div class="col text-center">
 {% if image.claimed_by == "Unclaimed" and user.is_authenticated %}
 <a href="{% url 'image_detail_claim' image.pk %}" class="btn btn-success mx-auto">Claim Image</a></p>
@@ -46,15 +49,17 @@
     {% endif %}
 {% endif %}
     </div>
+    <div class="col text-right">
+    </div>
      </div>
 <div class="card mb-3 mx-auto">
  <h5 class="card-header bg-secondary mg-1 text-white">Transient Search Outputs</h5>
   <div class="card-body">
     <p class="card-text">
             <div class="col text-center">
-        <a href="{% url 'crossmatches' image.pk 'candidates' %}" class="btn btn-success mx-auto">Transients Candidates Only ({{ image.transients_master_candidates_total }})</a>
-        <a href="{% url 'crossmatches' image.pk 'flagged' %}" class="btn btn-danger mx-auto">Transients Flagged Candidates ({{ image.transients_master_flagged_total }})</a>
-        <a href="{% url 'crossmatches' image.pk 'all' %}" class="btn btn-primary mx-auto">View all Crossmatch Output ({{ image.transients_master_total }})</a>
+        <a href="{% url 'image_crossmatches' image.pk %}?vs__gt_min={{ vs_thresh }}&vs__gt_max=&m_abs__gt_min={{ m_thresh }}&m_abs__gt_max=&flagged=false" class="btn btn-success mx-auto">Transient Candidates ({{ num_candidates }})</a>
+        <a href="{% url 'image_crossmatches' image.pk %}?vs__gt_min={{ vs_thresh }}&vs__gt_max=&m_abs__gt_min={{ m_thresh }}&m_abs__gt_max=&flagged=true" class="btn btn-danger mx-auto">Flagged Transient Candidates ({{ flagged_num_candidates }})</a>
+        <a href="{% url 'image_crossmatches' image.pk %}" class="btn btn-primary mx-auto">View all Crossmatch Output ({{ image.transients_master_total }})</a>
     </div>
   </div>
 </div>

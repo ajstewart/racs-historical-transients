@@ -66,7 +66,7 @@ The plot values show the directly measured fluxes from the catalogues or Aegean.
 * **Likely double/multi source:** There is a source within 2.5 x 45 arcsec of the crossmatched source in question (convolved catalogue if used).
 
 ## Other Flags
-* **Flux convolved error:** For convolved sources that have a definite non-convolved counterpart, if the difference between these fluxes is more than 25% then this is flagged as true. It can cause crossmatches to have a higher (or lower) ratio than they actually should.
+* **Flux convolved error:** For convolved sources that have a definite non-convolved counterpart, if the difference between these fluxes is more than 25% then this is flagged as true. It can cause crossmatches to have a higher (or lower) ratio than they actually should. This is checked when the non-convolved crossmatch is less than 2 (non-convolved) major axis beam witdhs away from the convovled source and the nearest non-convolved neighbour is more than 3 (non-convolved) major axis beamwidths away.
 
 ## Variability Metrics
 The standard two epoch metrics have been used, as defined in [this paper](https://ui.adsabs.harvard.edu/abs/2019MNRAS.490.4024R/abstract). `Vs` takes into account the user entered percentage error on the ASKAP fluxes.
