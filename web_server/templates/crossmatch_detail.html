@@ -25,7 +25,7 @@
 {% else %}
 <li class="breadcrumb-item"><a href="{% url 'home' %}">Images</a></li>
 <li class="breadcrumb-item"><a href="{% url 'image_detail' image.pk %}">{{ image.name }}</a></li>
-<li class="breadcrumb-item"><a href="{% url type_url image.pk 'all' %}">{{ title }}</a></li>
+<li class="breadcrumb-item"><a href="{% url 'image_crossmatches' image.pk %}">Crossmatches</a></li>
 <li class="breadcrumb-item active">{{ crossmatch_source.master_name }}</li>
 {% endif %}
 {% endblock %}
@@ -44,47 +44,47 @@
                {% endif %}
            {% else %}
                  {% if request.session.hotkeys != 'true' %}
-                  <a href="{% url 'crossmatch_detail' pk=image.pk querytype=type cross_id=crossmatch_source.id %}?hotkeys_on=true" class="btn btn-dark mx-auto">Turn Hotkeys ON</a>
+                  <a href="{% url 'image_crossmatches_detail' pk=image.pk cross_id=crossmatch_source.id %}?hotkeys_on=true" class="btn btn-dark mx-auto">Turn Hotkeys ON</a>
                   {% else %}
-                  <a href="{% url 'crossmatch_detail' pk=image.pk querytype=type cross_id=crossmatch_source.id %}?hotkeys_off=true" class="btn btn-dark mx-auto">Turn Hotkeys OFF</a>
+                  <a href="{% url 'image_crossmatches_detail' pk=image.pk cross_id=crossmatch_source.id %}?hotkeys_off=true" class="btn btn-dark mx-auto">Turn Hotkeys OFF</a>
                   {% endif %}
            {% endif %}
           </div>
      <div class="col text-center">
-         {% if query %}
 
          {% if prev_id != -1 %}
-      <a href="{% url 'crossmatch_detail_query' cross_id=prev_id %}" class="btn btn-primary mx-auto">Previous Source</a>
+         {% if query %}
+      <a href="{% url 'crossmatch_detail_query' cross_id=prev_id %}" class="btn btn-primary mx-auto">Prev. Source</a>
+            {% else %}
+    <a href="{% url 'image_crossmatches_detail' pk=image.pk cross_id=prev_id %}" class="btn btn-primary mx-auto">Prev. Source</a>
+        {% endif %}
       {% else %}
+       {% if query %}
       <a href="{% url 'query' %}" class="btn btn-secondary mx-auto">Back to Query</a>
+          {% else %}
+          <a href="{% url 'image_crossmatches' pk=image.pk %}" class="btn btn-secondary mx-auto">Back to list</a>
           {% endif %}
+          {% endif %}
+          
           {% if next_id != -1 %}
+         {% if query %}
           <a href="{% url 'crossmatch_detail_query' cross_id=next_id %}" class="btn btn-primary mx-auto">Next Source</a>
           {% else %}
-          <a href="{% url 'query' %}" class="btn btn-secondary mx-auto">Back to Query</a>
+          <a href="{% url 'image_crossmatches_detail' pk=image.pk cross_id=next_id %}" class="btn btn-primary mx-auto">Next Source</a>
           {% endif %}
-         {% else %}
-         {% if crossmatch_source.id > min_id %}
-      <a href="{% url 'crossmatch_detail' pk=image.pk querytype=type cross_id=crossmatch_source.id|add:"-1" %}" class="btn btn-primary mx-auto">Previous Source</a>
-      {% else %}
-      <a href="{% url type_url image.pk 'all' %}" class="btn btn-secondary mx-auto">Back to List Page (all)</a>
-          {% endif %}
-          {% if crossmatch_source.id < max_id %}
-          <a href="{% url 'crossmatch_detail' pk=image.pk querytype=type cross_id=crossmatch_source.id|add:"1" %}" class="btn btn-primary mx-auto">Next Source</a>
           {% else %}
-          <a href="{% url type_url image.pk 'all' %}" class="btn btn-secondary mx-auto">Back to List Page (all)</a>
-           {% endif %}
+           {% if query %}
+          <a href="{% url 'query' %}" class="btn btn-secondary mx-auto">Back to Query</a>
+          {% else %}
+            <a href="{% url 'image_crossmatches' pk=image.pk %}" class="btn btn-secondary mx-auto">Back to list</a>
+          {% endif %}
           {% endif %}
      </div>
      <div class="col text-right">
          {% if crossmatch_source.usertag == 'investigate' %}
          <a href="{{ follow_up_page }}" class="btn btn-info mx-auto" target="_blank">Follow Up Page</a>&nbsp;&nbsp;
          {% endif %}
-         {% if query %}
     <b> {{ this_index }} / {{ total }}         </b>
-         {% else %}
-     <!-- {% if crossmatch_source.id|subtract:min_id|add:1 > image.transients_master_candidates_total %} <b>Beyond candidate cutoff &nbsp;&nbsp;&nbsp;&nbsp;</b> {% endif %}<b>{{ crossmatch_source.id|subtract:min_id|add:1 }} / {{ total }}</b> -->
-     {% endif %}
      
  </div>
    </div>
@@ -104,10 +104,10 @@
  </div>
  {% endif %}    
     {% else %}
- {% if not user.is_authenticated %}
+ {% if not user.is_authenticated or user.get_username != image.claimed_by and not user.is_staff %}
  <div style="position: fixed; top: 0; left: 38%; z-index: 99">
  <div class="alert alert-danger alert-dismissible fade show" role="alert">
-   <strong>You must be logged in to assign a user tag!</strong>
+   <strong>You must be logged in and/or have claimed the image to assign a user tag!</strong>
    <button type="button" class="close" data-dismiss="alert" aria-label="Close">
      <span aria-hidden="true">&times;</span>
    </button>
@@ -203,7 +203,7 @@
        <h5><center>ID: <b>{{ crossmatch_source.id }}</b> / Ratio: <b> {{ crossmatch_source.ratio|floatformat:-2 }} </b> / Pipeline Tag: <b>{{ crossmatch_source.pipelinetag }}</b>. <small>Set a user tag using the buttons below.  </small></center></h5><p></p>
        <div class="col text-center">
            {% if query %}
-               {% if user.is_authenticated %}
+               {% if user.is_authenticated and user.get_username == image.claimed_by or user.is_staff %}
               Safe to Ignore: 
               <a href="{% url 'crossmatch_detail_query' cross_id=crossmatch_source.id %}?assign=true&usertag=ignore&userreason=is%20match&hotkey=false" class="btn btn-success mx-auto btn-sm">There is a match (m)</a>
               <a href="{% url 'crossmatch_detail_query' cross_id=crossmatch_source.id %}?assign=true&usertag=ignore&userreason=non-detection&hotkey=false" class="btn btn-success mx-auto btn-sm">Non-detection (n)</a>
@@ -245,26 +245,26 @@
            <button type="button" class="btn btn-warning mx-auto btn-sm" disabled>Not sure (x)</button>
             {% endif %}
         {% else %}    
-        {% if user.is_authenticated or user.is_staff %}
+        {% if user.is_authenticated and user.get_username == image.claimed_by or user.is_staff %}
        Safe to Ignore: 
-       <a href="{% url 'crossmatch_detail' pk=image.pk querytype=type cross_id=crossmatch_source.id %}?assign=true&usertag=ignore&userreason=is%20match&hotkey=false" class="btn btn-success mx-auto btn-sm">There is a match (m)</a>
-       <a href="{% url 'crossmatch_detail' pk=image.pk querytype=type cross_id=crossmatch_source.id %}?assign=true&usertag=ignore&userreason=non-detection&hotkey=false" class="btn btn-success mx-auto btn-sm">Non-detection (n)</a>
-       <a href="{% url 'crossmatch_detail' pk=image.pk querytype=type cross_id=crossmatch_source.id %}?assign=true&usertag=ignore&userreason=extended&hotkey=false" class="btn btn-success mx-auto btn-sm">Extended/Diffuse (e)</a>
-       <a href="{% url 'crossmatch_detail' pk=image.pk querytype=type cross_id=crossmatch_source.id %}?assign=true&usertag=ignore&userreason=bright%20source&hotkey=false" class="btn btn-success mx-auto btn-sm">Close to bright source (b)</a>
-       <a href="{% url 'crossmatch_detail' pk=image.pk querytype=type cross_id=crossmatch_source.id %}?assign=true&usertag=ignore&userreason=multiple&hotkey=false" class="btn btn-success mx-auto btn-sm">Multiple sources (d)</a><p></p>
-Technical Issue: <a href="{% url 'crossmatch_detail' pk=image.pk querytype=type cross_id=crossmatch_source.id %}?assign=true&usertag=problem&userreason=edge%20of%20field&hotkey=false" class="btn btn-secondary mx-auto btn-sm">Field Edge (f)</a>
-       <a href="{% url 'crossmatch_detail' pk=image.pk querytype=type cross_id=crossmatch_source.id %}?assign=true&usertag=problem&userreason=convolved%20flux%20error&hotkey=false" class="btn btn-secondary mx-auto btn-sm">Convolved Flux Error (c)</a>
-       <a href="{% url 'crossmatch_detail' pk=image.pk querytype=type cross_id=crossmatch_source.id %}?assign=true&usertag=problem&userreason=catalogue%20artefact&hotkey=false" class="btn btn-secondary mx-auto btn-sm">Catalogue artefact (a)</a>
-       <a href="{% url 'crossmatch_detail' pk=image.pk querytype=type cross_id=crossmatch_source.id %}?assign=true&usertag=problem&userreason=askap%20artefact&hotkey=false" class="btn btn-secondary mx-auto btn-sm">ASKAP artefact (q)</a>
-	          <a href="{% url 'crossmatch_detail' pk=image.pk querytype=type cross_id=crossmatch_source.id %}?assign=true&usertag=problem&userreason=src.%20ext.%20error&hotkey=false" class="btn btn-secondary mx-auto btn-sm">Extraction error (s)</a>
-         <a href="{% url 'crossmatch_detail' pk=image.pk querytype=type cross_id=crossmatch_source.id %}?assign=true&usertag=problem&userreason=too%20noisy&hotkey=false" class="btn btn-secondary mx-auto btn-sm">Too noisy (o)</a><p></p>   
+       <a href="{% url 'image_crossmatches_detail' pk=image.pk cross_id=crossmatch_source.id %}?assign=true&usertag=ignore&userreason=is%20match&hotkey=false" class="btn btn-success mx-auto btn-sm">There is a match (m)</a>
+       <a href="{% url 'image_crossmatches_detail' pk=image.pk cross_id=crossmatch_source.id %}?assign=true&usertag=ignore&userreason=non-detection&hotkey=false" class="btn btn-success mx-auto btn-sm">Non-detection (n)</a>
+       <a href="{% url 'image_crossmatches_detail' pk=image.pk cross_id=crossmatch_source.id %}?assign=true&usertag=ignore&userreason=extended&hotkey=false" class="btn btn-success mx-auto btn-sm">Extended/Diffuse (e)</a>
+       <a href="{% url 'image_crossmatches_detail' pk=image.pk cross_id=crossmatch_source.id %}?assign=true&usertag=ignore&userreason=bright%20source&hotkey=false" class="btn btn-success mx-auto btn-sm">Close to bright source (b)</a>
+       <a href="{% url 'image_crossmatches_detail' pk=image.pk cross_id=crossmatch_source.id %}?assign=true&usertag=ignore&userreason=multiple&hotkey=false" class="btn btn-success mx-auto btn-sm">Multiple sources (d)</a><p></p>
+Technical Issue: <a href="{% url 'image_crossmatches_detail' pk=image.pk cross_id=crossmatch_source.id %}?assign=true&usertag=problem&userreason=edge%20of%20field&hotkey=false" class="btn btn-secondary mx-auto btn-sm">Field Edge (f)</a>
+       <a href="{% url 'image_crossmatches_detail' pk=image.pk cross_id=crossmatch_source.id %}?assign=true&usertag=problem&userreason=convolved%20flux%20error&hotkey=false" class="btn btn-secondary mx-auto btn-sm">Convolved Flux Error (c)</a>
+       <a href="{% url 'image_crossmatches_detail' pk=image.pk cross_id=crossmatch_source.id %}?assign=true&usertag=problem&userreason=catalogue%20artefact&hotkey=false" class="btn btn-secondary mx-auto btn-sm">Catalogue artefact (a)</a>
+       <a href="{% url 'image_crossmatches_detail' pk=image.pk cross_id=crossmatch_source.id %}?assign=true&usertag=problem&userreason=askap%20artefact&hotkey=false" class="btn btn-secondary mx-auto btn-sm">ASKAP artefact (q)</a>
+	          <a href="{% url 'image_crossmatches_detail' pk=image.pk cross_id=crossmatch_source.id %}?assign=true&usertag=problem&userreason=src.%20ext.%20error&hotkey=false" class="btn btn-secondary mx-auto btn-sm">Extraction error (s)</a>
+         <a href="{% url 'image_crossmatches_detail' pk=image.pk cross_id=crossmatch_source.id %}?assign=true&usertag=problem&userreason=too%20noisy&hotkey=false" class="btn btn-secondary mx-auto btn-sm">Too noisy (o)</a><p></p>   
        Investigate:
        {% if user.is_staff %}
-                  <a href="{% url 'crossmatch_detail' pk=image.pk querytype=type cross_id=crossmatch_source.id %}?assign=true&usertag=transient&userreason=transient&hotkey=false" class="btn btn-success mx-auto btn-sm">Transient (t)</a>
+                  <a href="{% url 'image_crossmatches_detail' pk=image.pk cross_id=crossmatch_source.id %}?assign=true&usertag=transient&userreason=transient&hotkey=false" class="btn btn-success mx-auto btn-sm">Transient (t)</a>
        {% endif %}
- <a href="{% url 'crossmatch_detail' pk=image.pk querytype=type cross_id=crossmatch_source.id %}?assign=true&usertag=investigate&userreason=investigate&hotkey=false" class="btn btn-danger mx-auto btn-sm">Investigate (i)</a>
-       <a href="{% url 'crossmatch_detail' pk=image.pk querytype=type cross_id=crossmatch_source.id %}?assign=true&usertag=help&userreason=not%20sure&hotkey=false" class="btn btn-warning mx-auto btn-sm">Not sure (x)</a>
-                                   <a href="{% url 'crossmatch_detail' pk=image.pk querytype=type cross_id=crossmatch_source.id %}?slack=true&ploturl={{ crossmatch_source.ploturl }}" class="btn btn-primary mx-auto btn-sm">Send to Slack!</a>
+ <a href="{% url 'image_crossmatches_detail' pk=image.pk cross_id=crossmatch_source.id %}?assign=true&usertag=investigate&userreason=investigate&hotkey=false" class="btn btn-danger mx-auto btn-sm">Investigate (i)</a>
+       <a href="{% url 'image_crossmatches_detail' pk=image.pk cross_id=crossmatch_source.id %}?assign=true&usertag=help&userreason=not%20sure&hotkey=false" class="btn btn-warning mx-auto btn-sm">Not sure (x)</a>
+                                   <a href="{% url 'image_crossmatches_detail' pk=image.pk cross_id=crossmatch_source.id %}?slack=true&ploturl={{ crossmatch_source.ploturl }}" class="btn btn-primary mx-auto btn-sm">Send to Slack!</a>
        
        {% else %}
        Safe to Ignore:
@@ -315,7 +315,7 @@ Technical Issue: <a href="{% url 'crossmatch_detail' pk=image.pk querytype=type 
      <img src="{% static crossmatch_source.ploturl %}" class="mx-auto d-block" width="95%" height="95%"/></a>
    <div class="row">
                   <div class="col text-left">
-            <a href="{% url 'crossmatch_detail' pk=image.pk querytype=type cross_id=crossmatch_source.id %}#comments">Go to comments.</a>
+            <a href="{% url 'image_crossmatches_detail' pk=image.pk cross_id=crossmatch_source.id %}#comments">Go to comments.</a>
           </div>
           <div class="col text-center">
           </div>
@@ -521,7 +521,7 @@ window.setTimeout(function () {
     {% if query %}
     <input type="hidden" name="next" value="{% url 'crossmatch_detail_query' cross_id=crossmatch_source.id %}" /></p>    
     {% else %}
-    <input type="hidden" name="next" value="{% url 'crossmatch_detail' pk=image.pk querytype=type cross_id=crossmatch_source.id %}" /></p>
+    <input type="hidden" name="next" value="{% url 'image_crossmatches_detail' pk=image.pk cross_id=crossmatch_source.id %}" /></p>
     {% endif %}
     <button type="submit" value="Add comment" class="btn btn-primary" id="id_submit">Add Comment</button>
     </form></p>

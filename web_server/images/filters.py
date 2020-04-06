@@ -28,9 +28,9 @@ class ConeSearchWidget(forms.widgets.MultiWidget):
 
 
         _widgets = (
-            forms.widgets.NumberInput(attrs={"placeholder":"RA (deg)", "step":0.0000000001, "style":"margin:5px"}),
-            forms.widgets.NumberInput(attrs={"placeholder":"Dec (deg)", "step":0.0000000001, "style":"margin:5px"}),
-            forms.widgets.NumberInput(attrs={"placeholder":"Radius", "step":0.0000000001, "style":"margin:5px"}),
+            forms.widgets.NumberInput(attrs={"placeholder":"RA (deg)", "step":0.0000000001, "style":"margin:5px", 'style':'max-width: 8em'}),
+            forms.widgets.NumberInput(attrs={"placeholder":"Dec (deg)", "step":0.0000000001, "style":"margin:5px", 'style':'max-width: 8em'}),
+            forms.widgets.NumberInput(attrs={"placeholder":"Radius", "step":0.0000000001, "style":"margin:5px", 'style':'max-width: 8em'}),
             forms.widgets.Select(attrs={"placeholder":"Radius", "style":"margin:5px"}, choices = _CHOICES)
             )
         super(ConeSearchWidget, self).__init__(_widgets, attrs)
@@ -70,7 +70,8 @@ class TransientFilter(django_filters.FilterSet):
     def __init__(self, *args, **kwargs):
         super(TransientFilter, self).__init__(*args, **kwargs)
         if self.data == {}:
-            self.queryset = self.queryset.none()
+            if not self.queryset.image_crossmatch:
+                self.queryset = self.queryset.none()
 
     def cone_search_filter(self, queryset, name, value):
         #Don't run if not all value are entered.
@@ -95,15 +96,16 @@ class TransientFilter(django_filters.FilterSet):
             return queryset.order_by(value)
 
     source_id = django_filters.NumberFilter(field_name ="id", label="Source ID")
+    image_id = django_filters.NumberFilter(field_name ="image_id", label="Image ID")
 
-    d2d__gt = django_filters.RangeFilter(field_name = 'd2d_askap_centre', widget=MyRangeWidget(from_attrs={'placeholder': 'Min'}, to_attrs={'placeholder':'Max'}))
-    ratio__gt = django_filters.RangeFilter(field_name = 'ratio', widget=MyRangeWidget(from_attrs={'placeholder': 'Min'}, to_attrs={'placeholder':'Max'}))
+    d2d__gt = django_filters.RangeFilter(field_name = 'd2d_askap_centre', widget=MyRangeWidget(from_attrs={'placeholder': 'Min', 'style':'max-width: 8em'}, to_attrs={'placeholder':'Max', 'style':'max-width: 8em'}))
+    ratio__gt = django_filters.RangeFilter(field_name = 'ratio', widget=MyRangeWidget(from_attrs={'placeholder': 'Min', 'style':'max-width: 8em'}, to_attrs={'placeholder':'Max', 'style':'max-width: 8em'}))
 
-    vs__gt = django_filters.RangeFilter(field_name = 'vs', widget=MyRangeWidget(from_attrs={'placeholder': 'Min'}, to_attrs={'placeholder':'Max'}))
-    m__gt = django_filters.RangeFilter(field_name = 'm', widget=MyRangeWidget(from_attrs={'placeholder': 'Min'}, to_attrs={'placeholder':'Max'}), label="m")
+    vs__gt = django_filters.RangeFilter(field_name = 'vs', widget=MyRangeWidget(from_attrs={'placeholder': 'Min', 'style':'max-width: 8em'}, to_attrs={'placeholder':'Max', 'style':'max-width: 8em'}))
+    m_abs__gt = django_filters.RangeFilter(field_name = 'm_abs', widget=MyRangeWidget(from_attrs={'placeholder': 'Min', 'style':'max-width: 8em'}, to_attrs={'placeholder':'Max', 'style':'max-width: 8em'}), label="m")
 
-    askap_iflux__gt = MyRangeFilter(field_name = 'askap_iflux', widget=MyRangeWidget(from_attrs={'placeholder': 'Min (mJy)'}, to_attrs={'placeholder':'Max (mJy)'}), label="ASKAP Integrated Flux")
-    catalog_iflux__gt = MyRangeFilter(field_name = 'catalog_iflux', widget=MyRangeWidget(from_attrs={'placeholder': 'Min (mJy)'}, to_attrs={'placeholder':'Max (mJy)'}), label="Catalogue Integrated Flux")
+    askap_iflux__gt = MyRangeFilter(field_name = 'askap_iflux', widget=MyRangeWidget(from_attrs={'placeholder': 'Min (mJy)', 'style':'max-width: 8em'}, to_attrs={'placeholder':'Max (mJy)', 'style':'max-width: 8em'}), label="ASKAP Integrated Flux")
+    catalog_iflux__gt = MyRangeFilter(field_name = 'catalog_iflux', widget=MyRangeWidget(from_attrs={'placeholder': 'Min (mJy)', 'style':'max-width: 8em'}, to_attrs={'placeholder':'Max (mJy)', 'style':'max-width: 8em'}), label="Catalogue Integrated Flux")
 
     pipelinetag_choices = (
         ('Good', 'Good'),
@@ -119,6 +121,8 @@ class TransientFilter(django_filters.FilterSet):
         )
 
     pipelinetag = django_filters.ChoiceFilter(field_name = 'pipelinetag', choices=pipelinetag_choices)
+
+    flagged = django_filters.BooleanFilter(field_name='flagged')
 
     convolved_error_choices = (
         ('True', 'True'),
@@ -179,14 +183,14 @@ class TransientFilter(django_filters.FilterSet):
 
     userreason = django_filters.ChoiceFilter(field_name = 'userreason', choices=userreason_choices)
 
-    ra__gt = django_filters.RangeFilter(field_name = 'ra', widget=MyRangeWidget(from_attrs={'placeholder': 'Min (deg)'}, to_attrs={'placeholder':'Max (deg)'}), label="Right Ascension")
-    dec__gt = django_filters.RangeFilter(field_name = 'dec', widget=MyRangeWidget(from_attrs={'placeholder': 'Min (deg)'}, to_attrs={'placeholder':'Max (deg)'}), label="Declination")
+    ra__gt = django_filters.RangeFilter(field_name = 'ra', widget=MyRangeWidget(from_attrs={'placeholder': 'Min (deg)', 'style':'max-width: 8em'}, to_attrs={'placeholder':'Max (deg)', 'style':'max-width: 8em'}), label="Right Ascension")
+    dec__gt = django_filters.RangeFilter(field_name = 'dec', widget=MyRangeWidget(from_attrs={'placeholder': 'Min (deg)', 'style':'max-width: 8em'}, to_attrs={'placeholder':'Max (deg)', 'style':'max-width: 8em'}), label="Declination")
 
-    gal_l__gt = django_filters.RangeFilter(field_name = 'gal_l', widget=MyRangeWidget(from_attrs={'placeholder': 'Min (deg)'}, to_attrs={'placeholder':'Max (deg)'}), label="Galactic l")
-    gal_b__gt = django_filters.RangeFilter(field_name = 'gal_b', widget=MyRangeWidget(from_attrs={'placeholder': 'Min (deg)'}, to_attrs={'placeholder':'Max (deg)'}), label="Galactic b")
+    gal_l__gt = django_filters.RangeFilter(field_name = 'gal_l', widget=MyRangeWidget(from_attrs={'placeholder': 'Min (deg)', 'style':'max-width: 8em'}, to_attrs={'placeholder':'Max (deg)', 'style':'max-width: 8em'}), label="Galactic l")
+    gal_b__gt = django_filters.RangeFilter(field_name = 'gal_b', widget=MyRangeWidget(from_attrs={'placeholder': 'Min (deg)', 'style':'max-width: 8em'}, to_attrs={'placeholder':'Max (deg)', 'style':'max-width: 8em'}), label="Galactic b")
 
     d2d_nn_askap_cat__gt = django_filters.RangeFilter(field_name = 'd2d_nn_askap_cat',
-        widget=MyRangeWidget(from_attrs={'placeholder': 'Min (arcsec)'}, to_attrs={'placeholder':'Max (arcsec)'}), label="Distance to nearest ASKAP neighbour.")
+        widget=MyRangeWidget(from_attrs={'placeholder': 'Min (arcsec)', 'style':'max-width: 8em'}, to_attrs={'placeholder':'Max (arcsec)', 'style':'max-width: 8em'}), label="Distance to nearest ASKAP neighbour.")
 
     cone_search = ConeSearchFilter(field_name = 'cone_search', widget=ConeSearchWidget(), method="cone_search_filter", label="Cone Search")
 

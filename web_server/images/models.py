@@ -25,8 +25,6 @@ class Image(models.Model):
     number_nvss_sources=models.IntegerField(default=0)
     rms=models.DecimalField(max_digits=20, decimal_places=17, default=0.0)
     transients_master_total=models.IntegerField(default=0)
-    transients_master_candidates_total=models.IntegerField(default=0)
-    transients_master_flagged_total=models.IntegerField(default=0)
     claimed_by=models.CharField(max_length=20, unique=False, default="Unclaimed")
     number_candidates_checked = models.IntegerField(default=0)
 
@@ -102,11 +100,13 @@ class Crossmatches(models.Model):
     inflated_convolved_flux = models.CharField("Flux Convolved Error", max_length=6, unique=False, default="False")
     vs = models.DecimalField("Vs", max_digits=20, decimal_places=12, default=0)
     m = models.DecimalField(max_digits=20, decimal_places=12, default=0)
+    m_abs = models.DecimalField(max_digits=20, decimal_places=12, default=0)
     using_preconv = models.CharField(max_length=6, unique=False, default="False")
     d2d_nn_askap_cat = models.DecimalField("Distance to nearest ASKAP neighbour", max_digits=20, decimal_places=12, default=0)
+    flagged = models.BooleanField(default=False)
 
     def __str__(self):
-        return self.sumss_name
+        return self.catalog_name
 
 class Query(models.Model):
     transient_type = models.CharField(max_length=50)

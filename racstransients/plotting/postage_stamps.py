@@ -417,7 +417,12 @@ def produce_postage_stamps_new(row_dict, askap_data, askap_wcs, mos_data, mos_wc
 
     if row_dict["type"] == "match":
         for p in panels:
-            r = SphericalCircle((target.ra, target.dec), 1. * u.arcmin, edgecolor='C9', facecolor='none', transform=panels[p].get_transform('fk5'), linewidth=3)
+            if p==0:
+                r = patches.Circle((target.ra, target.dec), 1./60, edgecolor='c9', facecolor='none',
+                    transform=ax.get_transform('fk5'), linewidth=3)
+            else:
+                r = SphericalCircle((target.ra, target.dec), 1. * u.arcmin, edgecolor='C9', facecolor='none',
+                    transform=panels[p].get_transform('fk5'), linewidth=3)
             panels[p].add_patch(r)
             askap_target = SkyCoord(row_dict["askap_ra"]*u.degree, row_dict["askap_dec"]*u.degree)
             r = SphericalCircle((askap_target.ra, askap_target.dec), 1. * u.arcmin, edgecolor='C1', facecolor='none', transform=panels[p].get_transform('fk5'), linewidth=3)

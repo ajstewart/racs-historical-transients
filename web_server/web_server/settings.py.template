@@ -204,3 +204,7 @@ CRISPY_TEMPLATE_PACK = 'bootstrap4'
 SLACK_TOKEN = 'your slack token here'
 
 SLACK_CHANNEL_ID='channel id here'
+
+CANDIDATE_VS_THRESHOLD = 4.3
+
+CANDIDATE_M_THRESHOLD = 1.2

@@ -33,10 +33,7 @@ class crossmatch(object):
 
         #Save transient values for later
         self.transients_noaskapmatchtocatalog_total=0
-        self.transients_noaskapmatchtocatalog_candidates=0
         self.transients_nocatalogmatchtoaskap_total=0
-        self.transients_nocatalogmatchtoaskap_candidates=0
-        self.transients_largeratio_total=0
         self.transients_goodmatches_total=0
 
     def perform_crossmatch(self):
@@ -706,15 +703,7 @@ class crossmatch(object):
 
         #Saving totals
         self.transients_noaskapmatchtocatalog_total=len(self.transients_no_matches_df.index)
-        if "pipelinetag" in self.transients_no_matches_df:
-            self.transients_noaskapmatchtocatalog_candidates=len(self.transients_no_matches_df[self.transients_no_matches_df["pipelinetag"]=="Good"].index)
-        else:
-            self.transients_noaskapmatchtocatalog_candidates = 0
         self.transients_nocatalogmatchtoaskap_total=len(self.transients_not_matched_askap_should_see_df.index)
-        if "pipelinetag" in self.transients_not_matched_askap_should_see_df:
-            self.transients_nocatalogmatchtoaskap_candidates=len(self.transients_not_matched_askap_should_see_df[self.transients_not_matched_askap_should_see_df["pipelinetag"]=="Good"].index)
-        else:
-            self.transients_nocatalogmatchtoaskap_candidates = 0
         # self.transients_largeratio_total=len(self.transients_large_ratios_df.index)
         # self.transients_largeratio_candidates=len(self.transients_large_ratios_df[self.transients_large_ratios_df["pipelinetag"].str.contains("Match ")])
         self.transients_goodmatches_total=len(self.goodmatches_df_trans.index)
@@ -724,17 +713,12 @@ class crossmatch(object):
         self.goodmatches_df_trans["type"]="match"
         self.transients_no_matches_df["type"]="noaskapmatch"
         self.transients_not_matched_askap_should_see_df["type"]="nocatalogmatch"
+        self.transients_not_matched_askap_should_see_df["using_preconv"]=False
         self.transients_master_df = self.goodmatches_df_trans.append(self.transients_no_matches_df).reset_index(drop=True)
         self.transients_master_df = self.transients_master_df.append(self.transients_not_matched_askap_should_see_df).reset_index(drop=True)
 
         #Now go through and sort the master table
         self.sort_master_transient_table(convolve=convolve, preconv_askap_image=preconv_askap_image)
-
-        self.transients_master_total=len(self.transients_master_df.index)
-        candidate_mask = ((self.transients_master_df["pipelinetag"]=="Good") & (self.transients_master_df["master_ratio"]>=2.0))
-        flagged_mask = ((self.transients_master_df["pipelinetag"]!="Good") & (self.transients_master_df["master_ratio"]>=2.0))
-        self.transients_master_candidates_total = len(self.transients_master_df[candidate_mask].index)
-        self.transients_master_flagged_total = len(self.transients_master_df[flagged_mask].index)
 
         #Check for null entries and mark as failed:
         self.validate_master_table()
@@ -745,6 +729,8 @@ class crossmatch(object):
         self.calculate_galactic_coordinates()
 
         self.calculate_nearest_askap_neighbour(pre_conv_crossmatch)
+
+        self.transients_master_total=len(self.transients_master_df.index)
 
         self.transients_master_df.to_csv("transients_master.csv")
         self.logger.info("Written master transient table as 'transients_master.csv'.")
@@ -878,7 +864,7 @@ class crossmatch(object):
             elif row["type"] == "noaskapmatch":
                 if row["aegean_convolved_local_rms_scaled"] == 0.:
                     self.logger.debug("aegean has reported a 0 local rms. Replacing with measured value.")
-                    rms_to_use = row["measured_askap_local_rms"]
+                    rms_to_use = ((self.base_catalog.frequency/self.comp_catalog.frequency)**(-0.8)) * row["measured_askap_local_rms"]
                 else:
                     rms_to_use = row["aegean_convolved_local_rms_scaled"]
                 if row["aegean_convolved_int_flux_scaled"] < 0.0 or row["aegean_convolved_int_flux_scaled"] < 3.* rms_to_use:
@@ -889,6 +875,9 @@ class crossmatch(object):
                     flux_to_use = row["aegean_convolved_int_flux_scaled"]
                     err_to_use = row["aegean_convolved_err_int_flux_scaled"]
                     used_rms = False
+
+                if err_to_use == 0.:
+                    rms_to_use = ((self.base_catalog.frequency/self.comp_catalog.frequency)**(-0.8)) * row["measured_askap_local_rms"]
 
                 askap_flux_to_use = row["aegean_convolved_int_flux"]
                 askap_flux_to_use_err = row["aegean_convolved_err_int_flux"]
@@ -933,6 +922,12 @@ class crossmatch(object):
                     catalog_flux_to_use_err = other_error_to_use
                     used_rms = False
 
+                if other_error_to_use == 0.0:
+                    if row["askap_dec"]<=-50:
+                        other_error_to_use = (6./5.)*1.e-3
+                    else:
+                        other_flux_to_use = 3.*(10./5.)*1.e-3
+
                 flux_to_use = row["askap_askap_scaled_to_{}".format(row.survey_used)]
                 err_to_use = row["askap_askap_scaled_to_{}_err".format(row.survey_used)]
                 askap_flux_to_use = row["askap_int_flux"]
@@ -962,14 +957,15 @@ class crossmatch(object):
             convolve_check = ["match", "nocatalogmatch"]
 
             inflated_var = "False"
-            # self.logger.debug("Convolved check")
-            # self.logger.debug(row["type"])
-            # self.logger.debug(row["using_preconv"])
-            # self.logger.debug(row["askap_non_conv_nn_d2d"])
-            # self.logger.debug(row["askap_non_conv_d2d"])
-            # self.logger.debug(row["pipelinetag"])
-            # self.logger.debug("Convolved check")
-            if row["type"] in convolve_check and row["using_preconv"] is False and row["askap_non_conv_nn_d2d"] > 60. and\
+            self.logger.debug("Convolved check")
+            self.logger.debug(row["master_name"])
+            self.logger.debug(row["type"])
+            self.logger.debug(row["using_preconv"])
+            self.logger.debug(row["askap_non_conv_nn_d2d"])
+            self.logger.debug(row["askap_non_conv_d2d"])
+            self.logger.debug(row["pipelinetag"])
+            self.logger.debug("Convolved check")
+            if row["type"] in convolve_check and row["using_preconv"] is False and row["askap_non_conv_nn_d2d"] > 3. * preconv_askap_image.bmaj * 3600. and\
                     row["askap_non_conv_d2d"] <= 2 * preconv_askap_image.bmaj * 3600. and row["pipelinetag"]=="Good":
                 if askap_flux_to_use_2!=0.0 and askap_flux_to_use_2!=np.nan:
                     askap_conv_nonconv_ratio = askap_flux_to_use_2/askap_flux_to_use
@@ -1036,6 +1032,7 @@ class crossmatch(object):
                 self.transients_master_df.at[i, "pipelinetag"]="Failed"
         else:
             self.logger.info("No ratio failures.")
+
             return
 
 
@@ -1043,12 +1040,17 @@ class crossmatch(object):
         mask = (self.transients_master_df.master_ratio == 0.0) & (self.transients_master_df.master_ratio.isna())
         self.transients_master_df["Vs"] = 0.0
         self.transients_master_df["m"] = 0.0
+        self.transients_master_df["m_abs"] = 0.0
         to_calc = self.transients_master_df[~mask]
         self.transients_master_df.loc[to_calc.index, "Vs"] = np.abs(
             (to_calc.ratio_askap_flux - to_calc.ratio_catalog_flux) /
             np.hypot(to_calc.ratio_askap_flux_err, to_calc.ratio_catalog_flux_err)
         )
-        self.transients_master_df.loc[to_calc.index, "m"] = np.abs(
+        self.transients_master_df.loc[to_calc.index, "m"] = (
+            (to_calc.ratio_askap_flux - to_calc.ratio_catalog_flux) /
+            ((to_calc.ratio_askap_flux + to_calc.ratio_catalog_flux) / 2.)
+        )
+        self.transients_master_df.loc[to_calc.index, "m_abs"] = np.abs(
             (to_calc.ratio_askap_flux - to_calc.ratio_catalog_flux) /
             ((to_calc.ratio_askap_flux + to_calc.ratio_catalog_flux) / 2.)
         )
@@ -1462,6 +1464,7 @@ class crossmatch(object):
                         "inflated_convolved_flux":"inflated_convolved_flux",
                         "Vs":"vs",
                         "m":"m",
+                        "m_abs":"m_abs",
                         "using_preconv":"using_preconv",
                         "d2d_nn_askap_cat":"d2d_nn_askap_cat"} #done
 
@@ -1473,12 +1476,13 @@ class crossmatch(object):
 
         to_write["ploturl"]=[os.path.join("media/{}/stamps/{}".format(image_id, i)) for i in to_write["ploturl"].values]
 
-        to_write = to_write.sort_values(by=["pipelinetag","ratio"], ascending=[True, False])
+        to_write = to_write.sort_values(by=["ratio",], ascending=[False,])
 
-        # Manually sort
+        to_write["flagged"] = False
         good_mask = to_write.pipelinetag == "Good"
+        bad_indexes = to_write[~good_mask].index.values
 
-        to_write = to_write[good_mask].append(to_write[~good_mask]).reset_index(drop=True)
+        to_write.loc[bad_indexes, "flagged"] = True
 
         # Hotfix for decoding
         indexes = to_write[(to_write.transient_type == "match") | (to_write.transient_type == "noaskapmatch")].index
@@ -1506,6 +1510,7 @@ class crossmatch(object):
                     "ratio_e":-1.0,
                     "vs":0.0,
                     "m":0.0,
+                    "m_abs":0.0,
                     "using_preconv":False
                     }
         to_write.fillna(value=values, inplace=True)

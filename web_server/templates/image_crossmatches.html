@@ -1,0 +1,67 @@
+{% extends 'base.html' %}
+
+{% load static %}
+{% load crispy_forms_tags %}
+{% load render_table from django_tables2 %}
+{% load querystring from django_tables2 %}
+
+{% block stylesheet %}
+<link rel="stylesheet" href="{% static 'css/highlight.css' %}">
+{% endblock %}
+
+    {% block breadcrumb %}
+        <li class="breadcrumb-item"><a href="{% url 'home' %}">Images</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'image_detail' image.pk %}">{{ image.name }}</a></li>
+        <li class="breadcrumb-item active ">Crossmatches</li>
+    {% endblock %}
+
+{% block content %}
+<div class="card bg-light">
+    <div class="card-body">
+  <form method="get">
+    <div class="form-row">
+        <div class="form-group col-md-5 mb-0">
+          {{ filter.form.vs__gt|as_crispy_field }}
+        </div>
+         <div class="form-group col-md-5 mb-0">
+           {{ filter.form.m_abs__gt|as_crispy_field }}
+         </div>
+           <div class="form-group col-md-2 mb-0">
+             {{ filter.form.flagged|as_crispy_field }}
+           </div>
+       </div>
+       <div class="form-row">
+       <div class="form-group col-md-5 mb-0">
+    <button type="submit" class="btn btn-primary">Search</button>
+    <a href="{% url 'image_crossmatches' image.pk %}" class="btn btn-secondary mx-auto">Reset Form</a>
+        <a href="{% url 'image_crossmatches' image.pk %}?vs__gt_min={{ vs_thresh }}&vs__gt_max=&m_abs__gt_min={{ m_thresh }}&m_abs__gt_max=&flagged=False" class="btn btn-success mx-auto">Show candidates</a>
+    </div>
+    <div class="form-group col-md-2 mb-0">
+        </div>
+    <div class="form-group col-md-5 mb-0">
+            <b>Current candidate thresholds:</b> Vs >= {{ vs_thresh }}, |m| >= {{ m_thresh }}
+        </div>
+        </div>
+  </form>
+     </div>
+  </div>
+</p>
+      <div class="container">
+        <div class="row">
+          <div class="col text-left">
+                  <font color="green"> GREEN</font> = Checked by a user.
+        </div>
+         <div class="col text-center">
+         <h5> {{ filter.qs.count }} results. </h5>
+        </div>
+       <div class="col text-right">
+          <a href="{% url 'crossmatch_quickview' image.pk %}" class="btn btn-primary mx-auto">Quickview</a>
+       <a href="{% querystring '_export'='csv' %}" class="btn btn-success mx-auto">CSV</a>
+      </div>
+   </div>
+    </div>
+    </p>
+{% endblock %}
+   {% block table %}
+ {% render_table table %}
+  {% endblock %}

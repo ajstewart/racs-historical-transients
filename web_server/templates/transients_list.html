@@ -19,32 +19,32 @@
     <div class="card-body">
   <form method="get">
     <div class="form-row">
-        <div class="form-group col-md-5 mb-0">
+        <div class="form-group col-md-4 mb-0">
            {{ filter.form.ratio__gt|as_crispy_field }}    
         </div>
-         <div class="form-group col-md-5 mb-0">
+         <div class="form-group col-md-4 mb-0">
           {{ filter.form.d2d__gt|as_crispy_field }}
          </div>
-         <div class="form-group col-md-2 mb-0">
+         <div class="form-group col-md-4 mb-0">
           {{ filter.form.transient_type|as_crispy_field }}
          </div>
        </div>
        <div class="form-row">
-        <div class="form-group col-md-5 mb-0">
+        <div class="form-group col-md-4 mb-0">
           {{ filter.form.vs__gt|as_crispy_field }}
         </div>
-         <div class="form-group col-md-5 mb-0">
-           {{ filter.form.m__gt|as_crispy_field }}
+         <div class="form-group col-md-4 mb-0">
+           {{ filter.form.m_abs__gt|as_crispy_field }}
          </div>
-         <div class="form-group col-md-2 mb-0">
+         <div class="form-group col-md-4 mb-0">
            {{ filter.form.survey|as_crispy_field }}
          </div>
        </div>
        <div class="form-row">
-        <div class="form-group col-md-5 mb-0">
+        <div class="form-group col-md-4 mb-0">
           {{ filter.form.askap_iflux__gt|as_crispy_field }}
         </div>
-         <div class="form-group col-md-5 mb-0">
+         <div class="form-group col-md-4 mb-0">
            {{ filter.form.catalog_iflux__gt|as_crispy_field }}
          </div>
            <div class="form-group col-md-2 mb-0">
@@ -52,27 +52,30 @@
            </div>
        </div>
        <div class="form-row">
-           <div class="form-group col-md-5 mb-0">
+           <div class="form-group col-md-4 mb-0">
              {{ filter.form.ra__gt|as_crispy_field }}
            </div>
-           <div class="form-group col-md-5 mb-0">
+           <div class="form-group col-md-4 mb-0">
              {{ filter.form.dec__gt|as_crispy_field }}
+           </div>
+           <div class="form-group col-md-2 mb-0">
+             {{ filter.form.image_id|as_crispy_field }}
            </div>
        </div>
        <div class="form-row">
-           <div class="form-group col-md-5 mb-0">
+           <div class="form-group col-md-4 mb-0">
              {{ filter.form.gal_l__gt|as_crispy_field }}
            </div>
-           <div class="form-group col-md-5 mb-0">
+           <div class="form-group col-md-4 mb-0">
              {{ filter.form.gal_b__gt|as_crispy_field }}
+           </div>
+           <div class="form-group col-md-4 mb-0">
+             {{ filter.form.d2d_nn_askap_cat__gt|as_crispy_field }}
            </div>
        </div>
        <div class="form-row">
            <div class="form-group col-md-8 mb-0">
              {{ filter.form.cone_search|as_crispy_field }}
-           </div>
-           <div class="form-group col-md-4 mb-0">
-             {{ filter.form.d2d_nn_askap_cat__gt|as_crispy_field }}
            </div>
        </div>
        <div class="form-row">

@@ -66,7 +66,7 @@ The plot values show the directly measured fluxes from the catalogues or Aegean.
 * **Likely double/multi source:** There is a source within 2.5 x 45 arcsec of the crossmatched source in question (convolved catalogue if used).
 
 ## Other Flags
-* **Flux convolved error:** For convolved sources that have a definite non-convolved counterpart, if the difference between these fluxes is more than 25% then this is flagged as true. It can cause crossmatches to have a higher (or lower) ratio than they actually should.
+* **Flux convolved error:** For convolved sources that have a definite non-convolved counterpart, if the difference between these fluxes is more than 25% then this is flagged as true. It can cause crossmatches to have a higher (or lower) ratio than they actually should. This is checked when the non-convolved crossmatch is less than 2 (non-convolved) major axis beam witdhs away from the convovled source and the nearest non-convolved neighbour is more than 3 (non-convolved) major axis beamwidths away.
 
 ## Variability Metrics
 The standard two epoch metrics have been used, as defined in [this paper](https://ui.adsabs.harvard.edu/abs/2019MNRAS.490.4024R/abstract). `Vs` takes into account the user entered percentage error on the ASKAP fluxes.
@@ -75,6 +75,16 @@ The standard two epoch metrics have been used, as defined in [this paper](https:
 Most of the options in the query are self-explantory, however these options perhaps need clarifying:
 
 * **Distance to nearest ASKAP neighbour:** This distance takes the crossmatch coordinate and finds the nearest next ASKAP source from the non-convolved catalogue (i.e. not the source that has been crossmatched).
+* **m:** The m metric is queried using the absolute value. Hence querying a minimum of 1.0 will return sources with an `m > 1` and `m < -1`.
 
+## Aegean errors
+The forced extraction with aegean sometimes does not return valid values. Namely the the errors on integrated fluxes are sometimes 0 and so to can the local rms be reported as 0. Also the integrated fluxes returned can be negative. In this cases the following solutions are used:
 
-
+* SUMSS image extraction:
+    - Int flux = 0: Use 3x the base sensitvity limit (3 x 1.2 mJy < -50, 3 x 2 mJy > -50).
+    - Int flux error = 0: Use the base sensitvity limit (1.2 mJy < -50, 2 mJy > -50).
+    - Local rms = 0: Use the base sensitvity limit (1.2 mJy < -50, 2 mJy > -50).
+* ASKAP image extraction:
+    - Int flux = 0: Use 3x the scaled-to-catalog measured local rms.
+    - Int flux error = 0: Use the scaled-to-catalog measured local rms.
+    - Local rms = 0: Use the scaled-to-catalog measured local rms.
