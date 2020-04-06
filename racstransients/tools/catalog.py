@@ -53,7 +53,7 @@ class Catalog(object):
                     }
 
         self.df["flux_peak_err"]=self.df["flux_peak_err"].astype(float)/1.e3
-        self.df["flux_int_err"]=self.df["flux_int_err"].astype(float)/1.e3
+        self.df["flux_int_err"]=self.df["rms_image"].astype(float)/1.e3
         self.df["rms_image"]=self.df["rms_image"].astype(float)/1.e3
         self.df["flux_int"]=self.df["flux_int"].astype(float)/1.e3
         self.df["flux_peak"]=self.df["flux_peak"].astype(float)/1.e3
@@ -68,7 +68,7 @@ class Catalog(object):
         zero_int_flux = self.df[self.df.flux_int_err == 0.0]
         if not zero_int_flux.shape[0] == 0:
             self.logger.warning("%s integrated flux error of 0.0 detected! Will set as 0.001.", zero_int_flux.shape[0])
-            self.df.loc[zero_int_flux.index, 'flux_int_err'] = 0.001
+            self.df.loc[zero_int_flux.index, 'flux_int_err'] = 0.00025
 
         self.df.rename(columns=cols_map, inplace=True)
 
