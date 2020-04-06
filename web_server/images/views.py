@@ -332,14 +332,11 @@ def crossmatch_detail_query(request,cross_id):
                                                             'simbad_query':simbad_query, 'ned_query':ned_query, 'detail_table':detail_table, "ratio_table":ratio_table, 'nearest_sources_table':nearest_sources_table,
                                                         'query':True, 'possible_assoc_table':possible_assoc_table, 'follow_up_page':follow_up_page},)
 
-        elif username!=image.claimed_by:
-            if user.is_staff:
-                pass
-            else:
-                return render(request, 'crossmatch_detail.html', {'crossmatch_source':crossmatch_source, 'image':image, 'type':"crossmatches",
+        elif username!=image.claimed_by and not user.is_staff:
+            return render(request, 'crossmatch_detail.html', {'crossmatch_source':crossmatch_source, 'image':image, 'type':"crossmatches",
                                                                 'title':title_to_use, 'type_url':url_to_use, 'next_id':next_id, 'prev_id':prev_id, 'this_index':this_index+1, 'total':total, "saved":False, "updated":False, "conflict":False,
-                                                            'simbad_query':simbad_query, 'ned_query':ned_query, 'detail_table':detail_table, "ratio_table":ratio_table, 'nearest_sources_table':nearest_sources_table,
-                                                        'query':True, 'possible_assoc_table':possible_assoc_table, 'follow_up_page':follow_up_page},)
+                                                                'simbad_query':simbad_query, 'ned_query':ned_query, 'detail_table':detail_table, "ratio_table":ratio_table, 'nearest_sources_table':nearest_sources_table,
+                                                                'query':True, 'possible_assoc_table':possible_assoc_table, 'follow_up_page':follow_up_page},)
         else:
 
             if crossmatch_source.checkedby.lower()=="n/a":
@@ -684,14 +681,11 @@ def image_crossmatches_detail(request,pk,cross_id):
                                                             'simbad_query':simbad_query, 'ned_query':ned_query, 'detail_table':detail_table, "ratio_table":ratio_table, 'nearest_sources_table':nearest_sources_table,
                                                         'query':False, 'possible_assoc_table':possible_assoc_table, 'follow_up_page':follow_up_page},)
 
-        elif username!=image.claimed_by:
-            if user.is_staff:
-                pass
-            else:
-                return render(request, 'crossmatch_detail.html', {'crossmatch_source':crossmatch_source, 'image':image, 'type':"crossmatches",
-                                                                'title':title_to_use, 'type_url':url_to_use, 'next_id':next_id, 'prev_id':prev_id, 'this_index':this_index+1, 'total':total, "saved":False, "updated":False, "conflict":False,
-                                                            'simbad_query':simbad_query, 'ned_query':ned_query, 'detail_table':detail_table, "ratio_table":ratio_table, 'nearest_sources_table':nearest_sources_table,
-                                                        'query':False, 'possible_assoc_table':possible_assoc_table, 'follow_up_page':follow_up_page},)
+        elif username!=image.claimed_by and not user.is_staff:
+            return render(request, 'crossmatch_detail.html', {'crossmatch_source':crossmatch_source, 'image':image, 'type':"crossmatches",
+                                                            'title':title_to_use, 'type_url':url_to_use, 'next_id':next_id, 'prev_id':prev_id, 'this_index':this_index+1, 'total':total, "saved":False, "updated":False, "conflict":False,
+                                                        'simbad_query':simbad_query, 'ned_query':ned_query, 'detail_table':detail_table, "ratio_table":ratio_table, 'nearest_sources_table':nearest_sources_table,
+                                                    'query':False, 'possible_assoc_table':possible_assoc_table, 'follow_up_page':follow_up_page},)
         else:
 
             if crossmatch_source.checkedby.lower()=="n/a":
