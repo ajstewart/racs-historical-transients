@@ -17,10 +17,10 @@ ASEC_IN_DEGREE = 60**2
 @register.filter
 def deg_to_gal(radec):
     """
-    convert deg to galactic coordinates 
+    convert deg to galactic coordinates
     """
     c = SkyCoord(radec.replace("_", " "))
-    
+
     return c.galactic.to_string()
 
 @register.filter
@@ -33,7 +33,7 @@ def deg_to_hms(deg):
     seconds = SECONDS_IN_DAY * rad / RADIANS_IN_CIRCLE
     hours, seconds = divmod(seconds, SECONDS_IN_HOUR)
     minutes, seconds = divmod(seconds, SECONDS_IN_MINUTE)
-    return "{:02.0f}:{:02.0f}:{:02.2f}".format(hours, minutes, seconds)
+    return "{:02.0f}:{:02.0f}:{:04.1f}".format(hours, minutes, seconds)
 
 @register.filter
 def deg_to_dms(deg):
@@ -46,16 +46,15 @@ def deg_to_dms(deg):
     seconds = math.degrees(rad) * ASEC_IN_DEGREE
     degrees, seconds = divmod(seconds, ASEC_IN_DEGREE)
     minutes, seconds = divmod(seconds, ASEC_IN_AMIN)
-    return "{}{:02.0f}:{:02.0f}:{:02.2f}".format(sign, degrees, minutes, seconds)
-    
+    return "{}{:02.0f}:{:02.0f}:{:02.0f}".format(sign, degrees, minutes, seconds)
+
 @register.filter
 def jy_to_mjy(flux):
     """
     convert jansky to millijansky
     """
     return float(flux) * 1.e3
-    
+
 @register.filter(name='subtract')
 def subtract(value, arg):
     return value - arg
-    
