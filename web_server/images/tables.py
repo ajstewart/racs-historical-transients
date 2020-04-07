@@ -52,7 +52,7 @@ class ImageTable(tables.Table):
     number_nvss_sources = tables.Column(verbose_name= '# NVSS Sources')
     num_candidates = tables.Column(verbose_name= '# candidates', empty_values=())
     number_candidates_checked = tables.Column(verbose_name= '# candidates checked')
-    runby = tables.Column(verbose_name= 'Run By')
+    # runby = tables.Column(verbose_name= 'Run By')
     claimed_by = tables.Column(verbose_name= 'Claimed By')
 
     def render_num_candidates(self, record):
@@ -67,7 +67,7 @@ class ImageTable(tables.Table):
         model = Image
         template_name = 'django_tables2/bootstrap4.html'
         fields = ("id", "name", "description", "ra", "dec", "matched_to", "number_askap_sources", "number_sumss_sources",
-         "number_nvss_sources", "num_candidates", "number_candidates_checked", "runtime", "runby", "claimed_by")
+         "number_nvss_sources", "num_candidates", "number_candidates_checked", "runtime", "claimed_by")
         attrs = {"th":{"bgcolor":"#EBEDEF"},}
         # row_attrs = {
         #         'complete': lambda record: 'true' if (record.number_candidates_checked >= record.transients_master_candidates_total) else 'false'
