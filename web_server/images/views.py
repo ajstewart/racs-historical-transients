@@ -178,6 +178,8 @@ def transient_query(request):
     transients.image_crossmatch = False
     transients_filter = TransientFilter(request.GET, queryset=transients)
     table = CrossmatchQueryTable(transients_filter.qs)
+    vs_thresh = settings.CANDIDATE_VS_THRESHOLD
+    m_thresh = settings.CANDIDATE_M_THRESHOLD
 
     #save the queryset IDs to the session
     query_ids = [t.id for t in transients_filter.qs]
@@ -202,7 +204,7 @@ def transient_query(request):
         exporter = TableExport(export_format, table)
         return exporter.response('query_result.{}'.format(export_format))
 
-    return render(request, 'transients_list.html', {'filter': transients_filter, 'table':table})
+    return render(request, 'transients_list.html', {'filter': transients_filter, 'table':table, 'vs_thresh':vs_thresh, 'm_thresh':m_thresh})
 
 def image_crossmatch_query(request, pk):
     vs_thresh = settings.CANDIDATE_VS_THRESHOLD

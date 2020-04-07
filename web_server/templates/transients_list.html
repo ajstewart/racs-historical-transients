@@ -15,6 +15,11 @@
     {% endblock %}
 
 {% block content %}
+  <div class="row">
+      <div class="col text-center">
+          <b>Current candidate thresholds:</b> Vs >= {{ vs_thresh }}, |m| >= {{ m_thresh }}
+      </div>
+      </div>
 <div class="card bg-light">
     <div class="card-body">
   <form method="get">
