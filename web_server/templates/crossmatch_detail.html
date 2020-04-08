@@ -219,6 +219,7 @@
        Investigate:
        {% if user.is_staff %}
                   <a href="{% url 'crossmatch_detail_query' cross_id=crossmatch_source.id %}?assign=true&usertag=transient&userreason=transient&hotkey=false" class="btn btn-success mx-auto btn-sm">Transient (t)</a>
+                <a href="{% url 'crossmatch_detail_query' cross_id=crossmatch_source.id %}?assign=true&usertag=maybe&userreason=maybe&hotkey=false" class="btn btn-warning mx-auto btn-sm">Maybe (y)</a>
        {% endif %}
        <a href="{% url 'crossmatch_detail_query' cross_id=crossmatch_source.id %}?assign=true&usertag=investigate&userreason=investigate&hotkey=false" class="btn btn-danger mx-auto btn-sm">Investigate (i)</a>
               <a href="{% url 'crossmatch_detail_query' cross_id=crossmatch_source.id %}?assign=true&usertag=help&userreason=not%20sure&hotkey=false" class="btn btn-warning mx-auto btn-sm">Not sure (x)</a>
@@ -240,6 +241,7 @@
             Investigate:
            {% if user.is_staff %}
             <button type="button" class="btn btn-success mx-auto btn-sm" disabled>Transient (m)</button>
+            <button type="button" class="btn btn-warning mx-auto btn-sm" disabled>Maybe (m)</button>
            {% endif %}
               <button type="button" class="btn btn-danger mx-auto btn-sm" disabled>Investigate (i)</button>
            <button type="button" class="btn btn-warning mx-auto btn-sm" disabled>Not sure (x)</button>
@@ -261,6 +263,7 @@ Technical Issue: <a href="{% url 'image_crossmatches_detail' pk=image.pk cross_i
        Investigate:
        {% if user.is_staff %}
                   <a href="{% url 'image_crossmatches_detail' pk=image.pk cross_id=crossmatch_source.id %}?assign=true&usertag=transient&userreason=transient&hotkey=false" class="btn btn-success mx-auto btn-sm">Transient (t)</a>
+                    <a href="{% url 'image_crossmatches_detail' pk=image.pk cross_id=crossmatch_source.id %}?assign=true&usertag=maybe&userreason=maybe&hotkey=false" class="btn btn-warning mx-auto btn-sm">Maybe (y)</a>
        {% endif %}
  <a href="{% url 'image_crossmatches_detail' pk=image.pk cross_id=crossmatch_source.id %}?assign=true&usertag=investigate&userreason=investigate&hotkey=false" class="btn btn-danger mx-auto btn-sm">Investigate (i)</a>
        <a href="{% url 'image_crossmatches_detail' pk=image.pk cross_id=crossmatch_source.id %}?assign=true&usertag=help&userreason=not%20sure&hotkey=false" class="btn btn-warning mx-auto btn-sm">Not sure (x)</a>
@@ -283,6 +286,7 @@ Technical Issue: <a href="{% url 'image_crossmatches_detail' pk=image.pk cross_i
        Investigate:
        {% if user.is_staff %}
         <button type="button" class="btn btn-success mx-auto btn-sm" disabled>Transient (m)</button>
+        <button type="button" class="btn btn-warning mx-auto btn-sm" disabled>Maybe (y)</button>
        {% endif %}
          <button type="button" class="btn btn-danger mx-auto btn-sm" disabled>Investigate (i)</button>
       <button type="button" class="btn btn-warning mx-auto btn-sm" disabled>Not sure (x)</button>
