@@ -188,6 +188,8 @@ HOTKEYS = [
             'link': '?assign=true&usertag=problem&userreason=too%20noisy&hotkey=true'},
             {'keys': 't',  # go home
             'link': '?assign=true&usertag=transient&userreason=transient&hotkey=true'},
+            {'keys': 'y',  # go home
+            'link': '?assign=true&usertag=maybe&userreason=maybe&hotkey=true'},
             {'keys': 'RIGHT ARROW',  # go home
             'link': '?go_to=next'},
             {'keys': 'LEFT ARROW',  # go home

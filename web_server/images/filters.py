@@ -156,11 +156,12 @@ class TransientFilter(django_filters.FilterSet):
     survey = django_filters.MultipleChoiceFilter(choices=survey_choices, widget=forms.CheckboxSelectMultiple)
 
     usertag_choices = (
-        ('investigate', 'Investigate'),
-        ('transient', 'Transient'),
         ('help', 'Help'),
-        ('problem', 'Problem'),
         ('ignore', 'Ignore'),
+        ('investigate', 'Investigate'),
+        ('maybe', 'Maybe'),
+        ('problem', 'Problem'),
+        ('transient', 'Transient'),
         )
 
     usertag = django_filters.ChoiceFilter(field_name = 'usertag', choices=usertag_choices)
@@ -174,11 +175,13 @@ class TransientFilter(django_filters.FilterSet):
         ('extended', 'Extended'),
         ('is match', 'Is match'),
         ('investigate', 'Investigate'),
+        ('maybe', 'Maybe'),
         ('multiple', 'Multiple'),
         ('non-detection', 'Non-detection'),
         ('not sure', 'Not sure'),
         ('src. ext. error', 'Source extraction error'),
         ('too noisy', 'Too noisy'),
+        ('transient', 'Transient'),
         )
 
     userreason = django_filters.ChoiceFilter(field_name = 'userreason', choices=userreason_choices)
