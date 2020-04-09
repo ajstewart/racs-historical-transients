@@ -463,7 +463,7 @@ def crossmatch_detail_query(request,cross_id):
             urltogo = url + "?slack_sent=true"
             # direct users to source via image url, not query
             if "query" in url:
-                url = url.replace("/query/", "/image/{}/crossmatches/".format(crossmatch_source.image_id))
+                url = url.replace("/query/", "/image/{}/crossmatches/".format(crossmatch_source.image_id)).replace("view_source/", "")
             response = client.files_upload(
                 channels=settings.SLACK_CHANNEL_ID,
                 initial_comment="User *{}* would like to share the following source:\n\nLink: {}\n\nSee the thread for more information!".format(username, url),
@@ -821,7 +821,7 @@ def image_crossmatches_detail(request,pk,cross_id):
             urltogo = url + "?slack_sent=true"
             # direct users to source via image url, not query
             if "query" in url:
-                url = url.replace("/query/", "/image/{}/crossmatches/".format(crossmatch_source.image_id))
+                url = url.replace("/query/", "/image/{}/crossmatches/".format(crossmatch_source.image_id)).replace("view_source/", "")
             response = client.files_upload(
                 channels=settings.SLACK_CHANNEL_ID,
                 initial_comment="User *{}* would like to share the following source:\n\nLink: {}\n\nSee the thread for more information!".format(username, url),
