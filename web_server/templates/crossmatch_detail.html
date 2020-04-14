@@ -310,7 +310,7 @@ Technical Issue: <a href="{% url 'image_crossmatches_detail' pk=image.pk cross_i
                   {% endif %}
               </div>
            <div class="col text-right">
-               <div id="secretInfo" style="display: none;">{{ crossmatch_source.ra }},{{ crossmatch_source.dec }}</div>
+               <div id="secretInfo" style="display: none;">{{ crossmatch_source.ra }} {{ crossmatch_source.dec }}</div>
                <button type="button" class="btn btn-primary mx-auto btn-sm" id="btnCopy">Copy Coordinates to Clipboard</button>
 
                <script type="text/javascript">
@@ -338,7 +338,7 @@ Technical Issue: <a href="{% url 'image_crossmatches_detail' pk=image.pk cross_i
 
                  $btnCopy.addEventListener('click', function(ev) {
                    copyToClipboard(secretInfo);
-                   bootstrap_alert.success("{{ crossmatch_source.ra }},{{ crossmatch_source.dec }} copied!");
+                   bootstrap_alert.success("{{ crossmatch_source.ra }} {{ crossmatch_source.dec }} copied!");
                  });
                </script>
        </div>
