@@ -815,10 +815,14 @@ class crossmatch(object):
             self.logger.debug(row["type"])
             if row["type"] == "match":
                 if not pd.isna(row["aegean_convolved_int_flux_scaled"]):
-                    if row["aegean_convolved_int_flux_scaled"] < 0.0 or row["aegean_convolved_int_flux_scaled"] < 3.*row["aegean_convolved_local_rms_scaled"]:
+                    if row["aegean_convolved_int_flux_scaled"] <= 0.0 or row["aegean_convolved_int_flux_scaled"] < 3.*row["aegean_convolved_local_rms_scaled"]:
                         flux_to_use = 3.* row["aegean_convolved_local_rms_scaled"]
                         err_to_use = row["aegean_convolved_local_rms_scaled"]
                         used_rms = True
+                        if flux_to_use == 0.0:
+                            self.logger.debug("Aegean returned 0 for RMS, using measured.")
+                            flux_to_use = 3. * ((self.base_catalog.frequency/self.comp_catalog.frequency)**(-0.8)) * row["measured_askap_local_rms"]
+                            err_to_use = ((self.base_catalog.frequency/self.comp_catalog.frequency)**(-0.8)) * row["measured_askap_local_rms"]
                     else:
                         flux_to_use = row["aegean_convolved_int_flux_scaled"]
                         err_to_use = row["aegean_convolved_err_int_flux_scaled"]
